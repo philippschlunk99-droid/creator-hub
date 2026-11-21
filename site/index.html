@@ -1,0 +1,1556 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0a0607">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Creator Hub">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Philipp's Creator Hub</title>
+<style>
+:root{color-scheme:dark;--bg:#0a0607;--panel:#150c0d;--panel2:#1f1011;--line:#3a1d20;--line2:#7a2a2e;--muted:#b39a9c;--text:#fbf3f3;--acc:#ffc400;--acc2:#e8a600;--red:#e11d2a;--red2:#a3121c;--warn:#ff9a7a;--bad:#ff8080}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI','DM Sans',system-ui,sans-serif}
+body{min-height:100vh;background:radial-gradient(900px 500px at 85% -10%,#5a0f16 0,transparent 60%),repeating-linear-gradient(115deg,transparent 0 46px,#ffffff05 46px 48px),var(--bg)}
+a{color:var(--acc);cursor:pointer}button,input,select{font:inherit}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.side{position:sticky;top:0;height:100vh;padding:20px 12px;border-right:1px solid var(--line);background:linear-gradient(180deg,#240a0d,#0d0607 70%);display:flex;flex-direction:column;gap:4px;overflow:auto}
+.brand{display:flex;align-items:center;gap:12px;padding:4px 8px 18px}
+.mark{height:44px;width:44px;border-radius:13px;background:linear-gradient(145deg,var(--red),var(--red2));color:var(--acc);display:grid;place-items:center;box-shadow:0 0 22px #e11d2a66,inset 0 0 0 1px #ffc40055;animation:zap 1.1s ease-out 1}
+.bt{font-size:14px;font-weight:900;letter-spacing:.08em;line-height:1.2;font-style:italic}.bs{font-size:10px;color:var(--muted);letter-spacing:.16em;margin-top:3px}
+.nav{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:11px;color:#e8d4d6;font-size:14px;border:1px solid transparent;background:none;text-align:left;cursor:pointer;position:relative;transition:.15s}
+.nav:hover{background:var(--panel);border-color:var(--line);color:#fff;transform:translateX(3px)}
+.nav.on{background:linear-gradient(90deg,#4a0e14,#1d0a0c);border-color:var(--line2);color:#fff;font-weight:700}
+.nav.on::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:4px;border-radius:0 4px 4px 0;background:var(--acc);box-shadow:0 0 10px var(--acc)}
+.nav i{font-style:normal;width:20px;text-align:center;color:var(--acc)}
+details.more{margin-top:8px;border-top:1px solid var(--line);padding-top:8px}details.more summary{cursor:pointer;color:var(--muted);font-size:13px;padding:8px 12px;list-style:none;border-radius:10px}details.more summary:hover{color:#fff;background:var(--panel)}details.more summary::-webkit-details-marker{display:none}details.more[open] summary{color:var(--acc)}
+main{padding:calc(28px + env(safe-area-inset-top,0px)) 28px calc(70px + env(safe-area-inset-bottom,0px));max-width:1240px;width:100%}
+.hub{font-size:12px;letter-spacing:.22em;font-weight:900;color:var(--acc);font-style:italic}
+h1{font-size:clamp(28px,4.4vw,44px);letter-spacing:-.02em;margin:8px 0 6px;font-style:italic;text-transform:uppercase;font-weight:900;line-height:1.05;text-shadow:3px 3px 0 #e11d2a55}
+h1::after{content:"";display:block;width:110px;height:5px;margin-top:10px;background:linear-gradient(90deg,var(--acc),var(--red));transform:skewX(-30deg);border-radius:2px}
+h2{font-size:17px;margin:0 0 14px;font-style:italic}h3{font-size:14px;margin:14px 0 8px}
+.muted,.notice{color:var(--muted)}.notice{font-size:12px;line-height:1.6}.intro{max-width:720px;color:var(--muted);line-height:1.6;margin:0}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:20px 0}.cards.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.card,.panel{background:linear-gradient(145deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:19px;animation:rise .35s ease backwards;position:relative;overflow:hidden;transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s ease,border-color .3s ease}
+.card{border-left:4px solid var(--red)}.card::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,#ffc40020 50%,transparent 60%);transform:translateX(-130%);transition:transform .7s}.card:hover::after{transform:translateX(130%)}
+.card:hover{transform:translateY(-4px);border-color:#ffc40055;border-left-color:var(--acc);box-shadow:0 14px 30px -12px #ffc40066,0 0 24px -6px #ffc40040}
+.card:hover .mv{text-shadow:0 0 20px #ffc40066}.mv{transition:text-shadow .3s}
+.panel:hover{border-color:#ffc4003a;box-shadow:0 12px 36px -16px #ffc40040,0 0 22px -10px #e11d2a66}
+.tool{transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s,border-color .3s}.tool:hover{transform:translateY(-3px);border-color:#ffc40066;box-shadow:0 12px 28px -12px #ffc40066}
+.chip{transition:border-color .2s,transform .2s,box-shadow .2s}.chip:hover{border-color:var(--acc);transform:translateY(-1px);box-shadow:0 4px 14px -6px #ffc40088}
+.hb{padding:7px 8px;margin:0 -8px;border-radius:10px;transition:transform .25s cubic-bezier(.2,.8,.2,1),background .25s}.hb:hover{background:#ffffff09;transform:translateX(4px)}.hb:hover .bar>i{filter:brightness(1.2) drop-shadow(0 0 6px #ffc40099)}
+svg.ch .hit{fill:transparent;transition:fill .18s}svg.ch .hx:hover .hit{fill:#ffc4000f}
+svg.ch .gl{stroke:#ffc40099;stroke-width:1;stroke-dasharray:3 3;opacity:0;transition:opacity .18s}svg.ch .hx:hover .gl{opacity:1}
+svg.ch .pt{transform-box:fill-box;transform-origin:center;transition:transform .2s,opacity .2s,filter .2s}svg.ch .hx:hover .pt{transform:scale(1.8);filter:drop-shadow(0 0 5px #ffc400cc)}svg.ch .hx.many .pt{opacity:0}svg.ch .hx.many:hover .pt{opacity:1}
+svg.ch .bx{transform-box:fill-box;transform-origin:50% 100%;animation:grow .6s cubic-bezier(.2,.8,.2,1) backwards;transition:filter .2s}svg.ch .hx:hover .bx{filter:brightness(1.2) drop-shadow(0 0 8px #ffc400aa)}
+svg.ch .ln{stroke-dasharray:1;animation:draw 1s ease-out backwards}
+@keyframes grow{from{transform:scaleY(0)}}@keyframes draw{from{stroke-dashoffset:1}}
+.tip{position:fixed;z-index:60;pointer-events:none;min-width:140px;padding:10px 13px;border-radius:12px;background:#140a0cf5;border:1px solid var(--line2);box-shadow:0 12px 32px #000b,0 0 20px #ffc40026;font-size:12px;line-height:1.7;opacity:0;transform:translateY(5px) scale(.97);transition:opacity .15s,transform .18s cubic-bezier(.2,.8,.2,1)}
+.tip.on{opacity:1;transform:none}.tip>b{display:block;margin-bottom:4px;color:var(--acc);font-size:11px;letter-spacing:.04em}.tip div{display:flex;justify-content:space-between;gap:18px;align-items:center}.tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
+.pwrap{position:relative;display:inline-block}
+.pbtn{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border:1px solid var(--line);border-radius:30px;background:var(--panel);color:#fff;font-size:13px;cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .2s}
+.pbtn:hover,.pbtn.on{border-color:var(--acc);box-shadow:0 4px 18px -6px #ffc400aa;transform:translateY(-1px)}.pbtn svg{color:var(--acc);flex:none}.pbtn .cv{color:var(--muted);font-size:10px}
+.pop{width:max-content;position:absolute;top:calc(100% + 10px);left:0;z-index:40;background:linear-gradient(150deg,#2a1012,#140a0c 70%);border:1px solid var(--line2);border-radius:18px;padding:16px;box-shadow:0 24px 60px #000d,0 0 34px #ffc4001c;animation:pop .2s cubic-bezier(.2,.8,.2,1);max-width:calc(100vw - 30px)}
+.pop.pr{left:auto;right:0}@media(max-width:760px){.pop.pr{right:auto;left:0}}
+.pop::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;border-radius:18px 18px 0 0;background:linear-gradient(90deg,var(--red),var(--acc))}
+@keyframes pop{from{opacity:0;transform:translateY(-6px) scale(.97)}}
+.cms{display:flex;gap:22px;flex-wrap:wrap}.cm{width:266px;flex:none}.ct{text-align:center;font-weight:900;font-style:italic;margin-bottom:10px;letter-spacing:.02em}
+.cw,.cg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}.cw span{text-align:center;font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;padding-bottom:6px}.cg{row-gap:3px}
+.cd{min-width:0;width:100%;height:34px;border:0;background:none;color:#f1e3e4;font-size:13px;cursor:pointer;position:relative;transition:background .15s,color .15s,box-shadow .15s,transform .15s;font-variant-numeric:tabular-nums;border-radius:50%;padding:0}
+.cd.e0{pointer-events:none}.cd:hover:not(:disabled){background:#ffc40033;color:#fff;transform:scale(1.12);z-index:1}
+.cd.td{box-shadow:inset 0 0 0 1px #ffc40088}.cd.dim{color:#8f7a7c}.cd.dis{color:#4a3a3c;cursor:not-allowed}
+.cd.rg{background:#ffc40024;border-radius:0}.cd.rg:nth-child(7n+1){border-radius:50% 0 0 50%}.cd.rg:nth-child(7n){border-radius:0 50% 50% 0}
+.cd.rg.s,.cd.rg.e{background:var(--acc);color:#1a0a00;font-weight:900;border-radius:50%;box-shadow:0 0 16px #ffc400aa;z-index:1}
+.chd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.hint{font-size:12px;color:var(--muted);text-align:center;flex:1}.hint b{color:var(--acc)}
+.cn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#1a0c0e;color:#fff;font-size:18px;cursor:pointer;line-height:1;transition:.2s}.cn:hover{border-color:var(--acc);box-shadow:0 0 14px -2px #ffc400aa;transform:scale(1.08)}
+.cf{display:flex;justify-content:flex-end;margin-top:12px;gap:8px}
+.pop.mon{min-width:210px;max-height:320px;overflow:auto;padding:14px 10px}.mi{display:block;width:100%;text-align:left;padding:9px 12px;border:0;border-radius:10px;background:none;color:#f1e3e4;cursor:pointer;font-size:13px;transition:.15s}.mi:hover{background:#ffc4001f;color:#fff;transform:translateX(3px)}.mi.on{background:linear-gradient(90deg,#4a0e14,#2a0c10);color:var(--acc);font-weight:800}
+.seg{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:14px;background:#0d0708;margin-top:16px;flex-wrap:wrap}
+.seg button{border:0;background:none;color:#e8d4d6;padding:9px 16px;border-radius:10px;cursor:pointer;font-weight:700;display:inline-flex;align-items:center;gap:8px;transition:background .2s,color .2s,box-shadow .2s,transform .2s}
+.seg button:hover{background:#2a1214;color:#fff;transform:translateY(-1px)}.seg button.on{background:linear-gradient(135deg,var(--acc),var(--acc2));color:#1a0a00;box-shadow:0 6px 20px -6px #ffc400cc;font-style:italic}
+.seg i{width:9px;height:9px;border-radius:50%;display:inline-block;box-shadow:0 0 8px currentColor}.seg .all{background:conic-gradient(var(--acc),var(--red),#fff,var(--acc))}
+.syb{margin-top:auto;padding:14px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#1f0d10,#0e0708)}
+.syl{display:flex;justify-content:space-between;align-items:center;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 10px var(--acc);animation:pulse 1.8s ease-in-out infinite}.dot.bad{background:var(--bad);box-shadow:0 0 10px var(--bad)}
+@keyframes pulse{50%{opacity:.35;transform:scale(.8)}}
+.syc{font-size:30px;font-weight:900;font-style:italic;font-variant-numeric:tabular-nums;margin:6px 0 8px;color:#fff;text-shadow:0 0 18px #ffc40044}
+.sybar{height:5px;border-radius:5px;background:#0c0708;overflow:hidden}.sybar>i{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--acc));border-radius:5px;transition:width 1s linear}
+.sym{font-size:11px;color:var(--muted);margin:9px 0 11px;line-height:1.5}
+.dot.live{background:#ff2a3a;box-shadow:0 0 12px #ff2a3a}.dot.off{background:#6b5557;box-shadow:none;animation:none}.tws{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:space-between}
+main{position:relative}#tw-pill{position:absolute;top:24px;right:28px;z-index:20}.twp-w{position:relative;display:inline-block}
+.twp{display:inline-flex;align-items:center;gap:9px;padding:8px 15px;border:1px solid var(--line);border-radius:30px;background:var(--panel);color:#fff;font-size:13px;font-weight:700;text-decoration:none;cursor:pointer;transition:border-color .2s,box-shadow .2s,transform .2s}.twp:hover{border-color:var(--acc);transform:translateY(-1px)}
+.twp.live{border-color:var(--red);background:linear-gradient(145deg,#3a0e12,#150c0d);box-shadow:0 0 22px -4px #e11d2acc}
+.twpop{display:none;position:absolute;top:calc(100% + 8px);right:0;width:max-content;max-width:300px;padding:12px 14px;border-radius:14px;background:#140a0cf5;border:1px solid var(--line2);box-shadow:0 14px 36px #000b;font-size:12px;line-height:1.6;color:var(--muted)}.twp-w:hover .twpop,.twp-w:focus-within .twpop{display:block}
+@media(max-width:820px){#tw-pill{position:static;margin:0 0 12px}.twpop{left:0;right:auto}}
+.syb.flash{animation:flash 1.3s ease-out}@keyframes flash{0%{box-shadow:0 0 0 0 #ffc400bb}100%{box-shadow:0 0 0 20px #ffc40000}}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes zap{0%{filter:brightness(2.4)}30%{filter:brightness(.8)}50%{filter:brightness(2)}100%{filter:none}}
+@keyframes shine{from{background-position:0 0}to{background-position:200% 0}}
+.ml{font-size:12px;color:var(--muted)}.mv{font-size:30px;font-weight:900;margin:8px 0 4px;letter-spacing:-.03em;font-variant-numeric:tabular-nums;font-style:italic}.mv.g{color:var(--acc);text-shadow:0 0 18px #ffc40044}.mf{font-size:11px;color:var(--muted)}
+.g2{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;margin-bottom:14px}.g2e{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}.row:last-child{border:0}
+.pill{font-size:11px;padding:4px 9px;border-radius:30px;background:#3d2c05;color:#ffd84d;border:0;white-space:nowrap}.pill.w{background:#3d1519;color:var(--warn)}
+label.f{display:block;margin:0 0 5px;color:#ecd9db;font-size:12px}
+.in,select.in{width:100%;background:#0c0708;color:#fff;border:1px solid var(--line);padding:10px 11px;border-radius:10px;outline:none}.in:focus{border-color:var(--acc);box-shadow:0 0 0 2px #ffc40022}
+.btn{border:0;border-radius:10px;padding:10px 16px;background:linear-gradient(135deg,var(--acc),var(--acc2));color:#1a0a00;font-weight:900;cursor:pointer;font-style:italic;box-shadow:0 2px 14px #ffc40033;transition:.15s}.btn:hover{transform:translateY(-1px) skewX(-4deg);box-shadow:0 4px 20px #ffc40066}
+.btn.gh{background:#241214;color:#fff;border:1px solid var(--line);box-shadow:none;font-style:normal}.btn.sm{padding:6px 10px;font-size:12px}.btn:disabled{opacity:.6}
+.fg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:end}.span2{grid-column:span 2}.span3{grid-column:span 3}
+.empty{border:1px dashed var(--line2);border-radius:14px;padding:24px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6}
+.chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0}.chip{padding:7px 12px;border:1px solid var(--line);border-radius:30px;font-size:12px;color:#e8d4d6;background:var(--panel);cursor:pointer}.chip.on{border-color:var(--acc);color:#fff;background:#4a0e14}.chips .in{width:150px}
+details.dt,details.rng,details.mored{margin:14px 0}details.dt>summary,details.mored>summary{cursor:pointer;font-weight:800;font-style:italic;list-style:none;color:var(--acc)}details.dt>summary::-webkit-details-marker,details.mored>summary::-webkit-details-marker,details.rng>summary::-webkit-details-marker{display:none}
+details.rng>summary{cursor:pointer;list-style:none;display:inline-block;padding:8px 14px;border:1px solid var(--line);border-radius:30px;background:var(--panel);font-size:13px}details.rng>summary:hover{border-color:var(--acc)}
+details.mored{border:1px dashed var(--line2);border-radius:16px;padding:14px 18px}details.mored[open]{border-style:solid}
+table{width:100%;border-collapse:collapse;font-size:13px}th{color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--line);font-size:12px;white-space:nowrap}td{padding:9px 8px;border-bottom:1px solid #2a1416}tr.cl:hover td{background:#1c0d0f}.num{text-align:right;font-variant-numeric:tabular-nums}.tw{overflow-x:auto}
+.bar{height:8px;border-radius:8px;background:#0c0708;overflow:hidden}.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--acc),var(--red));background-size:200% 100%;animation:shine 2.2s linear infinite;border-radius:8px}
+svg.ch{width:100%;height:auto;display:block}svg.ch text{fill:#b39a9c;font-size:11px}.lg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}.lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
+.ok{color:#ffd84d;font-size:13px}.err{color:var(--bad);font-size:13px}
+.qf{margin-bottom:14px}.qr{display:flex;gap:8px;flex-wrap:wrap}.qr .in{flex:1;min-width:120px}
+.toolgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.tool{padding:16px;border:1px solid var(--line);border-radius:14px;background:#120a0b}.tool b{display:block;margin:6px 0 4px}.tool p{margin:0;font-size:12px;color:var(--muted)}
+.checker{border-radius:12px;padding:18px;display:flex;align-items:flex-end;background:conic-gradient(#2a2a2a 25%,#1d1d1d 0 50%,#2a2a2a 0 75%,#1d1d1d 0) 0 0/24px 24px}
+@media(max-width:1000px){.cards{grid-template-columns:repeat(2,1fr)}.g2,.g2e{grid-template-columns:1fr}.fg{grid-template-columns:1fr 1fr}.toolgrid{grid-template-columns:1fr 1fr}}
+@media(max-width:820px){.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;padding:10px}.brand{width:100%;padding:4px}.nav.on::before{display:none}details.more{width:100%}main{padding:18px 14px 60px}.cards.c3{grid-template-columns:1fr}}
+@media(max-width:540px){.fg{grid-template-columns:1fr}.span2,.span3{grid-column:auto}.toolgrid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" id="side"></aside>
+  <main id="main"></main>
+</div>
+<script type="text/plain" id="gs-code">
+
+// Philipp's Creator Hub - YouTube-Abholer
+// Liest nur deine eigenen YouTube-Zahlen und schreibt sie in das Blatt "Verlauf". Aendert nichts bei YouTube.
+var SHEET = "Verlauf";
+
+function syncYouTube() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(SHEET) || ss.insertSheet(SHEET);
+  var tz = Session.getScriptTimeZone();
+  var today = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd");
+
+  var ch = YouTube.Channels.list("contentDetails,statistics", {mine: true}).items[0];
+  var uploads = ch.contentDetails.relatedPlaylists.uploads;
+  var ids = [];
+  var token;
+  do {
+    var r = YouTube.PlaylistItems.list("contentDetails", {playlistId: uploads, maxResults: 50, pageToken: token});
+    r.items.forEach(function (i) { ids.push(i.contentDetails.videoId); });
+    token = r.nextPageToken;
+  } while (token);
+
+  var rows = [];
+  for (var i = 0; i < ids.length; i += 50) {
+    var v = YouTube.Videos.list("snippet,statistics", {id: ids.slice(i, i + 50).join(",")});
+    v.items.forEach(function (x) {
+      var s = x.statistics || {};
+      rows.push([today, x.id, x.snippet.title, (x.snippet.publishedAt || "").slice(0, 10),
+        Number(s.viewCount || 0), Number(s.likeCount || 0), Number(s.commentCount || 0)]);
+    });
+  }
+  if (!ch.statistics.hiddenSubscriberCount) {
+    rows.push([today, "KONTO", "Abonnenten", "", Number(ch.statistics.subscriberCount || 0), 0, 0]);
+  }
+
+  var head = ["Datum", "Video-ID", "Titel", "Veroeffentlicht", "Aufrufe", "Likes", "Kommentare"];
+  var old = sh.getDataRange().getValues();
+  var keep = [];
+  for (var k = 1; k < old.length; k++) {
+    var d = old[k][0] instanceof Date ? Utilities.formatDate(old[k][0], tz, "yyyy-MM-dd") : String(old[k][0]);
+    if (d && d !== today) {
+      var row = old[k].slice(0, 7);
+      row[0] = d;
+      keep.push(row);
+    }
+  }
+  var all = [head].concat(keep, rows);
+  sh.clearContents();
+  sh.getRange(1, 1, all.length, 4).setNumberFormat("@");
+  sh.getRange(1, 1, all.length, 7).setValues(all);
+  sh.setFrozenRows(1);
+  try { kanalVerlauf(false); } catch (e) { Logger.log("Kanalverlauf: " + e); }
+}
+
+// Holt den Tagesverlauf des ganzen Kanals seit Kanalstart (YouTube Analytics) in das Blatt "Kanalverlauf".
+// Laeuft hoechstens einmal pro Tag (Analytics-Daten sind ohnehin 1-2 Tage verzoegert).
+function kanalVerlauf(force) {
+  var tz = Session.getScriptTimeZone();
+  var props = PropertiesService.getScriptProperties();
+  var heute = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd");
+  if (!force && props.getProperty("kanal") === heute) return;
+  var gestern = Utilities.formatDate(new Date(Date.now() - 864e5), tz, "yyyy-MM-dd");
+  var ch = YouTube.Channels.list("snippet", {mine: true}).items[0];
+  var start = String(ch.snippet.publishedAt || "2015-01-01").slice(0, 10);
+  if (start > gestern) start = gestern;
+  var res = YouTubeAnalytics.Reports.query({
+    ids: "channel==MINE", startDate: start, endDate: gestern,
+    metrics: "views,subscribersGained,subscribersLost", dimensions: "day", sort: "day"
+  });
+  var rows = [["Datum", "Aufrufe", "AbonnentenPlus", "AbonnentenMinus"]];
+  (res.rows || []).forEach(function (r) {
+    rows.push([String(r[0]), Number(r[1]), Number(r[2]), Number(r[3])]);
+  });
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Kanalverlauf") || ss.insertSheet("Kanalverlauf");
+  sh.clearContents();
+  sh.getRange(1, 1, rows.length, 1).setNumberFormat("@");
+  sh.getRange(1, 1, rows.length, 4).setValues(rows);
+  sh.setFrozenRows(1);
+  props.setProperty("kanal", heute);
+}
+
+// Einmal ausfuehren: legt den Lauf alle 15 Minuten an (YouTube und Instagram gleich) und holt sofort die ersten Zahlen
+// (inklusive des Kanalverlaufs seit Kanalstart). Instagram und TikTok laufen nur, sobald ihre Schluessel hinterlegt sind.
+function einrichten() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    var f = t.getHandlerFunction();
+    if (f === "syncYouTube" || f === "syncInstagram" || f === "syncTikTok") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("syncYouTube").timeBased().everyMinutes(15).create();
+  ScriptApp.newTrigger("syncInstagram").timeBased().everyMinutes(15).create();
+  if (PropertiesService.getScriptProperties().getProperty("TIKTOK_REFRESH_TOKEN")) {
+    ScriptApp.newTrigger("syncTikTok").timeBased().everyMinutes(15).create();
+  }
+  syncYouTube();
+  kanalVerlauf(false);
+  try { syncInstagram(); } catch (e) { Logger.log("Instagram: " + e); }
+  try { syncTikTok(); } catch (e) { Logger.log("TikTok: " + e); }
+}
+
+// ---------- Instagram (optional) ----------
+// Liest nur deine eigenen Instagram-Zahlen (Aufrufe pro Reel/Beitrag, Follower) und schreibt sie in das Blatt "Instagram".
+// Der Zugangsschluessel (Token IG_TOKEN) und die Konto-Nummer (IG_USER_ID) stehen nur in den Skripteigenschaften (Projekteinstellungen), nie im Code und nie im Hub.
+function syncInstagram() {
+  var props = PropertiesService.getScriptProperties();
+  var token = props.getProperty("IG_TOKEN");
+  if (!token) return;
+  var tz = Session.getScriptTimeZone();
+  var heute = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd");
+  var uid = props.getProperty("IG_USER_ID");
+  if (!uid) throw new Error("IG_USER_ID fehlt in den Skripteigenschaften");
+  var base = "https://graph.facebook.com/v22.0/";
+  var me = igGet(base + uid + "?fields=username,followers_count&access_token=" + token);
+
+  var media = [];
+  var url = base + uid + "/media?fields=id,caption,permalink,timestamp,media_type,like_count,comments_count&limit=100&access_token=" + token;
+  while (url) {
+    var j = igGet(url);
+    media = media.concat(j.data || []);
+    url = (j.paging && j.paging.next) || "";
+  }
+  media = media.filter(function (m) { return m.media_type !== "CAROUSEL_ALBUM"; });
+
+  // Neue Beitraege (letzte 14 Tage) bei jedem Lauf, alle anderen einmal pro Tag.
+  var voll = props.getProperty("igVoll") !== heute;
+  var grenze = Date.now() - 14 * 864e5;
+  var dran = media.filter(function (m) { return voll || new Date(m.timestamp).getTime() >= grenze; });
+
+  var rows = [];
+  // Meta-Sammelabfrage: 50 Beitraege pro Aufruf (Apps Script erlaubt bei Meta nur wenige Einzelaufrufe pro Sekunde).
+  for (var i = 0; i < dran.length; i += 50) {
+    var teil = dran.slice(i, i + 50);
+    if (i > 0) Utilities.sleep(1500);
+    var res = igBatch(base, token, teil.map(function (m) { return m.id; }), "views,shares");
+    var fehlt = [];
+    res.forEach(function (x, idx) { if (!x) fehlt.push(idx); });
+    if (fehlt.length) {
+      Utilities.sleep(1500);
+      var res2 = igBatch(base, token, fehlt.map(function (idx) { return teil[idx].id; }), "views");
+      fehlt.forEach(function (idx, n) { res[idx] = res2[n]; });
+    }
+    for (var k = 0; k < teil.length; k++) {
+      var m = teil[k];
+      var data = res[k];
+      if (!data || data.views == null) continue;
+      rows.push([heute, String(m.id), String(m.caption || "").replace(/\s+/g, " ").trim() || ("Beitrag " + m.id),
+        Utilities.formatDate(new Date(m.timestamp), tz, "yyyy-MM-dd"), Number(data.views),
+        Number(m.like_count || 0), Number(m.comments_count || 0), Number(data.shares || 0), String(m.permalink || "")]);
+    }
+  }
+  if (typeof me.followers_count === "number") {
+    rows.push([heute, "KONTO", "Follower", "", me.followers_count, 0, 0, 0, ""]);
+  }
+  if (!rows.length) throw new Error("Instagram lieferte keine Daten");
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Instagram") || ss.insertSheet("Instagram");
+  var neu = {};
+  rows.forEach(function (r) { neu[r[1]] = true; });
+  var alt = sh.getDataRange().getValues();
+  var grenzTag = Utilities.formatDate(new Date(Date.now() - 60 * 864e5), tz, "yyyy-MM-dd");
+  var keep = [];
+  for (var q = 1; q < alt.length; q++) {
+    var d = alt[q][0] instanceof Date ? Utilities.formatDate(alt[q][0], tz, "yyyy-MM-dd") : String(alt[q][0]);
+    if (!d || d < grenzTag) continue;
+    if (d === heute && neu[String(alt[q][1])]) continue;
+    var row = alt[q].slice(0, 9);
+    row[0] = d;
+    row[1] = String(row[1]);
+    keep.push(row);
+  }
+  var head = ["Datum", "Post-ID", "Titel", "Veroeffentlicht", "Aufrufe", "Likes", "Kommentare", "Shares", "Link"];
+  var all = [head].concat(keep, rows);
+  sh.clearContents();
+  sh.getRange(1, 1, all.length, 4).setNumberFormat("@");
+  sh.getRange(1, 9, all.length, 1).setNumberFormat("@");
+  sh.getRange(1, 1, all.length, 9).setValues(all);
+  sh.setFrozenRows(1);
+  if (voll) props.setProperty("igVoll", heute);
+  try { igVerlauf(false); } catch (e) { Logger.log("Instagram-Verlauf: " + e); }
+  try { igFollowerVerlauf(false); } catch (e) { Logger.log("Instagram-Follower: " + e); }
+}
+
+function igGet(url) {
+  var r = UrlFetchApp.fetch(url, {muteHttpExceptions: true});
+  var j = {};
+  try { j = JSON.parse(r.getContentText()); } catch (e) {}
+  if (r.getResponseCode() !== 200) {
+    throw new Error("Instagram: " + ((j.error && j.error.message) || ("Fehler " + r.getResponseCode())));
+  }
+  return j;
+}
+
+// Eine Sammelabfrage an Meta: gibt pro Beitrag {views, shares} zurueck oder null, wenn Meta fuer diesen Beitrag nichts liefert.
+function igBatch(base, token, ids, metric) {
+  var batch = ids.map(function (id) { return {method: "GET", relative_url: id + "/insights?metric=" + metric}; });
+  var r = UrlFetchApp.fetch(base, {method: "post", payload: {access_token: token, batch: JSON.stringify(batch)}, muteHttpExceptions: true});
+  var j = [];
+  try { j = JSON.parse(r.getContentText()); } catch (e) {}
+  if (r.getResponseCode() !== 200 || !Array.isArray(j)) {
+    throw new Error("Instagram: " + ((j && j.error && j.error.message) || ("Fehler " + r.getResponseCode())));
+  }
+  return ids.map(function (id, n) {
+    var x = j[n];
+    if (!x || x.code !== 200) return null;
+    var out = {};
+    try {
+      (JSON.parse(x.body).data || []).forEach(function (d) {
+        var v = d.values && d.values[0] ? d.values[0].value : (d.total_value ? d.total_value.value : null);
+        if (v != null) out[d.name] = v;
+      });
+    } catch (e) { return null; }
+    return out;
+  });
+}
+
+// ---------- TikTok (optional) ----------
+// Liest nur deine eigenen TikTok-Zahlen (Aufrufe pro Video, Follower) ueber die offizielle TikTok-API und schreibt sie in das Blatt "TikTok".
+// Schluessel stehen nur in den Skripteigenschaften: TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REFRESH_TOKEN. Nie im Code und nie im Hub.
+var TT_API = "https://open.tiktokapis.com/v2/";
+
+// Einmal ausfuehren, nachdem TIKTOK_CODE (aus der TikTok-Freigabe) in den Skripteigenschaften steht.
+// Tauscht den Code gegen den Dauer-Schluessel (TIKTOK_REFRESH_TOKEN), legt den 15-Minuten-Lauf an und holt die ersten Zahlen.
+function tiktokLogin() {
+  var props = PropertiesService.getScriptProperties();
+  var code = props.getProperty("TIKTOK_CODE");
+  if (!code) throw new Error("TIKTOK_CODE fehlt in den Skripteigenschaften");
+  var j = ttToken({
+    client_key: props.getProperty("TIKTOK_CLIENT_KEY"), client_secret: props.getProperty("TIKTOK_CLIENT_SECRET"),
+    code: code, grant_type: "authorization_code", redirect_uri: "https://www.example.com/callback"
+  });
+  props.setProperty("TIKTOK_REFRESH_TOKEN", j.refresh_token);
+  props.deleteProperty("TIKTOK_CODE");
+  Logger.log("TikTok verbunden. Freigaben: " + j.scope);
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === "syncTikTok") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("syncTikTok").timeBased().everyMinutes(15).create();
+  syncTikTok();
+}
+
+function ttToken(form) {
+  var r = UrlFetchApp.fetch(TT_API + "oauth/token/", {method: "post", payload: form, muteHttpExceptions: true});
+  var j = {};
+  try { j = JSON.parse(r.getContentText()); } catch (e) {}
+  if (r.getResponseCode() !== 200 || !j.access_token) {
+    throw new Error("TikTok: " + (j.error_description || j.error || ("Fehler " + r.getResponseCode())));
+  }
+  return j;
+}
+
+function ttGet(path, token, body) {
+  var opt = {method: body ? "post" : "get", headers: {Authorization: "Bearer " + token}, muteHttpExceptions: true};
+  if (body) { opt.contentType = "application/json"; opt.payload = JSON.stringify(body); }
+  var r = UrlFetchApp.fetch(TT_API + path, opt);
+  var j = {};
+  try { j = JSON.parse(r.getContentText()); } catch (e) {}
+  if (r.getResponseCode() !== 200 || (j.error && j.error.code && j.error.code !== "ok")) {
+    throw new Error("TikTok: " + ((j.error && j.error.message) || ("Fehler " + r.getResponseCode())));
+  }
+  return j.data || {};
+}
+
+function syncTikTok() {
+  var props = PropertiesService.getScriptProperties();
+  if (!props.getProperty("TIKTOK_REFRESH_TOKEN")) return;
+  var tz = Session.getScriptTimeZone();
+  var heute = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd");
+  var t = ttToken({
+    client_key: props.getProperty("TIKTOK_CLIENT_KEY"), client_secret: props.getProperty("TIKTOK_CLIENT_SECRET"),
+    grant_type: "refresh_token", refresh_token: props.getProperty("TIKTOK_REFRESH_TOKEN")
+  });
+  if (t.refresh_token) props.setProperty("TIKTOK_REFRESH_TOKEN", t.refresh_token);
+  var token = t.access_token;
+
+  var me = ttGet("user/info/?fields=open_id,display_name,follower_count", token).user || {};
+  var rows = [];
+  var cursor = 0;
+  var fields = "id,create_time,share_url,video_description,title,view_count,like_count,comment_count,share_count";
+  for (var seite = 0; seite < 50; seite++) {
+    var d = ttGet("video/list/?fields=" + fields, token, {max_count: 20, cursor: cursor});
+    (d.videos || []).forEach(function (v) {
+      if (v.view_count == null) return;
+      var titel = String(v.title || v.video_description || "").replace(/\s+/g, " ").trim() || ("Video " + v.id);
+      rows.push([heute, String(v.id), titel, Utilities.formatDate(new Date(Number(v.create_time) * 1000), tz, "yyyy-MM-dd"),
+        Number(v.view_count), Number(v.like_count || 0), Number(v.comment_count || 0), Number(v.share_count || 0), String(v.share_url || "")]);
+    });
+    if (!d.has_more) break;
+    cursor = d.cursor;
+    Utilities.sleep(300);
+  }
+  if (typeof me.follower_count === "number") {
+    rows.push([heute, "KONTO", "Follower", "", me.follower_count, 0, 0, 0, ""]);
+  }
+  if (!rows.length) throw new Error("TikTok lieferte keine Daten");
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("TikTok") || ss.insertSheet("TikTok");
+  var neu = {};
+  rows.forEach(function (r) { neu[r[1]] = true; });
+  var alt = sh.getDataRange().getValues();
+  var grenzTag = Utilities.formatDate(new Date(Date.now() - 60 * 864e5), tz, "yyyy-MM-dd");
+  var keep = [];
+  for (var q = 1; q < alt.length; q++) {
+    var dd = alt[q][0] instanceof Date ? Utilities.formatDate(alt[q][0], tz, "yyyy-MM-dd") : String(alt[q][0]);
+    if (!dd || dd < grenzTag) continue;
+    if (dd === heute && neu[String(alt[q][1])]) continue;
+    var row = alt[q].slice(0, 9);
+    row[0] = dd;
+    row[1] = String(row[1]);
+    keep.push(row);
+  }
+  var head = ["Datum", "Post-ID", "Titel", "Veroeffentlicht", "Aufrufe", "Likes", "Kommentare", "Shares", "Link"];
+  var all = [head].concat(keep, rows);
+  sh.clearContents();
+  sh.getRange(1, 1, all.length, 4).setNumberFormat("@");
+  sh.getRange(1, 9, all.length, 1).setNumberFormat("@");
+  sh.getRange(1, 1, all.length, 9).setValues(all);
+  sh.setFrozenRows(1);
+}
+
+// Holt den Tagesverlauf des ganzen Instagram-Kontos (Aufrufe und Reichweite pro Tag) in das Blatt "Instagram-Verlauf".
+// Beim ersten Mal ab Kontostart (Instagram liefert bis zu 2 Jahre zurueck), danach einmal pro Tag nur die letzten Tage.
+// Die Tage zaehlen nach Instagram-Zeit (Pazifik). Follower-Verlauf liefert Instagram nicht rueckwirkend.
+function igVerlauf(force) {
+  var props = PropertiesService.getScriptProperties();
+  var token = props.getProperty("IG_TOKEN"), uid = props.getProperty("IG_USER_ID");
+  if (!token || !uid) return;
+  var tz = Session.getScriptTimeZone();
+  var heute = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd");
+  if (!force && props.getProperty("igVerlaufTag") === heute) return;
+  var D = 864e5, nowMs = Date.now();
+  var base = "https://graph.facebook.com/v22.0/" + uid + "/insights?access_token=" + token;
+  function utcTag(ms) { return Utilities.formatDate(new Date(ms), "UTC", "yyyy-MM-dd"); }
+  function tagMs(tag) { return Date.parse(tag + "T08:00:00Z"); }
+  function holeAlle(urls) {
+    var out = [];
+    for (var i = 0; i < urls.length; i += 4) {
+      var reqs = urls.slice(i, i + 4).map(function (u) { return { url: u, muteHttpExceptions: true }; });
+      var antw;
+      try { antw = UrlFetchApp.fetchAll(reqs); }
+      catch (e) { Utilities.sleep(8000); antw = UrlFetchApp.fetchAll(reqs); }
+      antw.forEach(function (r) { out.push(JSON.parse(r.getContentText())); });
+      Utilities.sleep(1200);
+    }
+    return out;
+  }
+  function reichweite(vonMs, bisMs) {
+    var urls = [];
+    for (var s = vonMs; s < bisMs; s += 28 * D) {
+      urls.push(base + "&metric=reach&period=day&since=" + Math.floor(s / 1000) + "&until=" + Math.floor(Math.min(s + 28 * D, bisMs) / 1000));
+    }
+    var m = {};
+    holeAlle(urls).forEach(function (j) {
+      if (j.error) throw new Error("Instagram: " + j.error.message);
+      var d = j.data && j.data[0];
+      ((d && d.values) || []).forEach(function (v) {
+        m[utcTag(Date.parse(String(v.end_time).replace(/\+0000$/, "Z")))] = Number(v.value) || 0;
+      });
+    });
+    return m;
+  }
+  function aufrufe(tage) {
+    var urls = tage.map(function (t) {
+      var s = tagMs(t);
+      return base + "&metric=views&metric_type=total_value&period=day&since=" + Math.floor(s / 1000) + "&until=" + (Math.floor((s + D) / 1000) - 1);
+    });
+    var m = {};
+    holeAlle(urls).forEach(function (j, i) {
+      if (j.error) throw new Error("Instagram: " + j.error.message);
+      var d = j.data && j.data[0];
+      m[tage[i]] = Number(d && d.total_value ? d.total_value.value : 0) || 0;
+    });
+    return m;
+  }
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Instagram-Verlauf") || ss.insertSheet("Instagram-Verlauf");
+  var have = {};
+  if (sh.getLastRow() > 1) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues().forEach(function (r) {
+      var t = r[0] instanceof Date ? Utilities.formatDate(r[0], tz, "yyyy-MM-dd") : String(r[0]).slice(0, 10);
+      if (t) have[t] = [Number(r[1]) || 0, Number(r[2]) || 0];
+    });
+  }
+  var letzterTag = utcTag(nowMs - D - 8 * 36e5);
+  var ersterTag;
+  var reach;
+  if (!Object.keys(have).length || force === "voll") {
+    have = {};
+    var from = nowMs - 700 * D;
+    reach = reichweite(from, nowMs);
+    var tage0 = Object.keys(reach).sort();
+    ersterTag = null;
+    for (var i = 0; i < tage0.length; i++) { if (reach[tage0[i]] > 0) { ersterTag = tage0[i]; break; } }
+    if (!ersterTag) throw new Error("Keine Instagram-Konto-Daten gefunden");
+  } else {
+    var back = utcTag(nowMs - 6 * D);
+    ersterTag = back;
+    reach = reichweite(tagMs(back), nowMs);
+  }
+  var tage = [];
+  for (var ms = tagMs(ersterTag); utcTag(ms) <= letzterTag; ms += D) tage.push(utcTag(ms));
+  var views = aufrufe(tage);
+  tage.forEach(function (t) { have[t] = [views[t] || 0, reach[t] || 0]; });
+  var rows = [["Datum", "Aufrufe", "Reichweite"]];
+  Object.keys(have).sort().forEach(function (t) { rows.push([t, have[t][0], have[t][1]]); });
+  sh.clearContents();
+  sh.getRange(1, 1, rows.length, 1).setNumberFormat("@");
+  sh.getRange(1, 1, rows.length, 3).setValues(rows);
+  sh.setFrozenRows(1);
+  props.setProperty("igVerlaufTag", heute);
+  Logger.log("Instagram-Verlauf: " + (rows.length - 1) + " Tage, ab " + rows[1][0]);
+}
+
+// Wartungsfunktion: loescht den gespeicherten Instagram-Verlauf nicht, sondern holt ihn komplett neu (dauert ca. 4 Minuten).
+function igVerlaufNeuLaden() { igVerlauf("voll"); }
+
+// Holt Follower-Zugang und -Abgang des ganzen Instagram-Kontos pro Tag (seit Kontostart) in das Blatt "Instagram-Follower".
+// Daraus rechnet der Hub die Follower rueckwirkend aus der heutigen Zahl zurueck. Laeuft einmal pro Tag, danach nur die letzten Tage.
+function igFollowerVerlauf(force) {
+  var props = PropertiesService.getScriptProperties();
+  var token = props.getProperty("IG_TOKEN"), uid = props.getProperty("IG_USER_ID");
+  if (!token || !uid) return;
+  var tz = Session.getScriptTimeZone();
+  var heute = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd");
+  if (!force && props.getProperty("igFolTag") === heute) return;
+  var D = 864e5, nowMs = Date.now();
+  var base = "https://graph.facebook.com/v22.0/" + uid + "/insights?access_token=" + token;
+  function utcTag(ms) { return Utilities.formatDate(new Date(ms), "UTC", "yyyy-MM-dd"); }
+  function tagMs(tag) { return Date.parse(tag + "T08:00:00Z"); }
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Instagram-Follower") || ss.insertSheet("Instagram-Follower");
+  var have = {};
+  if (sh.getLastRow() > 1) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues().forEach(function (r) {
+      var t = r[0] instanceof Date ? Utilities.formatDate(r[0], tz, "yyyy-MM-dd") : String(r[0]).slice(0, 10);
+      if (t) have[t] = [Number(r[1]) || 0, Number(r[2]) || 0];
+    });
+  }
+  var ersterTag;
+  if (!Object.keys(have).length || force === "voll") {
+    have = {};
+    var v = ss.getSheetByName("Instagram-Verlauf");
+    if (!v || v.getLastRow() < 2) throw new Error("Blatt Instagram-Verlauf fehlt");
+    var a = v.getRange(2, 1).getValue();
+    ersterTag = a instanceof Date ? Utilities.formatDate(a, tz, "yyyy-MM-dd") : String(a).slice(0, 10);
+  } else {
+    ersterTag = utcTag(nowMs - 6 * D);
+  }
+  var letzterTag = utcTag(nowMs - D - 8 * 36e5);
+  var tage = [];
+  for (var ms = tagMs(ersterTag); utcTag(ms) <= letzterTag; ms += D) tage.push(utcTag(ms));
+  for (var i = 0; i < tage.length; i += 4) {
+    var teil = tage.slice(i, i + 4);
+    var reqs = teil.map(function (t) {
+      var s = tagMs(t);
+      return { url: base + "&metric=follows_and_unfollows&metric_type=total_value&breakdown=follow_type&period=day&since=" + Math.floor(s / 1000) + "&until=" + (Math.floor((s + D) / 1000) - 1), muteHttpExceptions: true };
+    });
+    var antw;
+    try { antw = UrlFetchApp.fetchAll(reqs); }
+    catch (e) { Utilities.sleep(8000); antw = UrlFetchApp.fetchAll(reqs); }
+    antw.forEach(function (r, k) {
+      var j = JSON.parse(r.getContentText());
+      if (j.error) throw new Error("Instagram: " + j.error.message);
+      var zu = 0, ab = 0;
+      var d = j.data && j.data[0];
+      var res = (d && d.total_value && d.total_value.breakdowns && d.total_value.breakdowns[0] && d.total_value.breakdowns[0].results) || [];
+      res.forEach(function (x) {
+        if (x.dimension_values[0] === "FOLLOWER") zu = Number(x.value) || 0;
+        else ab = Number(x.value) || 0;
+      });
+      have[teil[k]] = [zu, ab];
+    });
+    Utilities.sleep(1200);
+  }
+  var rows = [["Datum", "Zugang", "Abgang"]];
+  Object.keys(have).sort().forEach(function (t) { rows.push([t, have[t][0], have[t][1]]); });
+  sh.clearContents();
+  sh.getRange(1, 1, rows.length, 1).setNumberFormat("@");
+  sh.getRange(1, 1, rows.length, 3).setValues(rows);
+  sh.setFrozenRows(1);
+  props.setProperty("igFolTag", heute);
+  Logger.log("Instagram-Follower: " + (rows.length - 1) + " Tage, ab " + rows[1][0]);
+}
+
+// Wartungsfunktion: holt den Instagram-Follower-Verlauf komplett neu (dauert ca. 4 Minuten).
+function igFollowerNeuLaden() { igFollowerVerlauf("voll"); }
+
+// ---------- Twitch Live-Status (optional) ----------
+// Liest nur oeffentliche Kanal-Infos (live oder nicht, Titel, Spiel, Zuschauer, Sendeplan) ueber die offizielle Twitch-Schnittstelle
+// und schreibt sie in das Blatt "Twitch". Schluessel stehen nur in den Skripteigenschaften:
+// TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET und optional TWITCH_LOGIN (Kanalname, Standard: gtasty). Nie im Code und nie im Hub.
+function twitchToken() {
+  var cache = CacheService.getScriptCache();
+  var t = cache.get("twitchToken");
+  if (t) return t;
+  var props = PropertiesService.getScriptProperties();
+  var r = UrlFetchApp.fetch("https://id.twitch.tv/oauth2/token", {
+    method: "post", muteHttpExceptions: true,
+    payload: {client_id: props.getProperty("TWITCH_CLIENT_ID"), client_secret: props.getProperty("TWITCH_CLIENT_SECRET"), grant_type: "client_credentials"}
+  });
+  var j = {};
+  try { j = JSON.parse(r.getContentText()); } catch (e) {}
+  if (r.getResponseCode() !== 200 || !j.access_token) {
+    throw new Error("Twitch: " + (j.message || ("Fehler " + r.getResponseCode())) + " (Client-ID und Geheimnis in den Skripteigenschaften pruefen)");
+  }
+  cache.put("twitchToken", j.access_token, Math.max(60, Math.min(21000, (j.expires_in || 3600) - 300)));
+  return j.access_token;
+}
+
+function twGet(path) {
+  var r = UrlFetchApp.fetch("https://api.twitch.tv/helix/" + path, {
+    headers: {"Client-Id": PropertiesService.getScriptProperties().getProperty("TWITCH_CLIENT_ID"), Authorization: "Bearer " + twitchToken()},
+    muteHttpExceptions: true
+  });
+  var j = {};
+  try { j = JSON.parse(r.getContentText()); } catch (e) {}
+  if (r.getResponseCode() === 401) { CacheService.getScriptCache().remove("twitchToken"); }
+  if (r.getResponseCode() !== 200) throw new Error("Twitch: " + (j.message || ("Fehler " + r.getResponseCode())));
+  return j;
+}
+
+function twDauer(s) {
+  var m = /(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/.exec(s || "");
+  return ((+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0)) * 1000;
+}
+
+function syncTwitch() {
+  var props = PropertiesService.getScriptProperties();
+  if (!props.getProperty("TWITCH_CLIENT_ID") || !props.getProperty("TWITCH_CLIENT_SECRET")) return;
+  var login = String(props.getProperty("TWITCH_LOGIN") || "gtasty").trim().toLowerCase();
+  var u = twGet("users?login=" + encodeURIComponent(login)).data || [];
+  if (!u.length) throw new Error("Twitch: Kanal " + login + " nicht gefunden");
+  var id = u[0].id, name = u[0].display_name || login;
+  var st = twGet("streams?user_id=" + id).data || [];
+  var live = st.length > 0 && st[0].type === "live";
+  var info = live ? st[0] : {};
+  var last = props.getProperty("twLastLive") || "";
+  if (live) {
+    last = new Date().toISOString();
+    props.setProperty("twLastLive", last);
+  } else {
+    try {
+      var v = twGet("videos?user_id=" + id + "&type=archive&first=1").data || [];
+      if (v.length) {
+        var ende = new Date(Date.parse(v[0].created_at) + twDauer(v[0].duration)).toISOString();
+        if (ende > last) { last = ende; props.setProperty("twLastLive", last); }
+      }
+    } catch (e) { Logger.log("Twitch-Videos: " + e); }
+  }
+  var next = "", nextTitle = "";
+  try {
+    var sc = twGet("schedule?broadcaster_id=" + id + "&first=10").data || {};
+    var seg = sc.segments || [];
+    for (var i = 0; i < seg.length; i++) {
+      if (!seg[i].canceled_until && Date.parse(seg[i].start_time) > Date.now()) { next = seg[i].start_time; nextTitle = seg[i].title || ""; break; }
+    }
+  } catch (e) { Logger.log("Twitch-Sendeplan: " + e); }
+  var rows = [["Schluessel", "Wert"],
+    ["login", login], ["name", name], ["live", live ? "ja" : "nein"],
+    ["titel", String(info.title || "")], ["spiel", String(info.game_name || "")], ["zuschauer", String(info.viewer_count || 0)],
+    ["gestartet", String(info.started_at || "")], ["zuletzt_live", last], ["naechster_start", next], ["naechster_titel", nextTitle],
+    ["abgefragt", new Date().toISOString()]];
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName("Twitch") || ss.insertSheet("Twitch");
+  sh.clearContents();
+  sh.getRange(1, 1, rows.length, 2).setNumberFormat("@");
+  sh.getRange(1, 1, rows.length, 2).setValues(rows);
+  sh.setFrozenRows(1);
+}
+
+// Einmal ausfuehren, nachdem TWITCH_CLIENT_ID und TWITCH_CLIENT_SECRET in den Skripteigenschaften stehen:
+// legt den Lauf alle 5 Minuten an und holt sofort den ersten Status.
+function twitchEinrichten() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === "syncTwitch") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("syncTwitch").timeBased().everyMinutes(5).create();
+  syncTwitch();
+}
+
+// ---------- Abgleich zwischen Geraeten (optional) ----------
+// Speichert deine handgemachten Eintraege (eingereicht, Betraege, Auszahlungen, eigene Clips, Einstellungen) in einer privaten Datei
+// in deinem Google Drive, damit PC und Handy dieselben Daten haben. Der Sync-Code steht nur in den Skripteigenschaften (HUB_SYNC_CODE)
+// und im Browser deiner Geraete, nie in diesem Code und nie in der Hub-Datei. Ohne richtigen Code gibt das Skript nichts heraus.
+function hubDatei() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty("hubSyncDatei");
+  if (id) { try { return DriveApp.getFileById(id); } catch (e) {} }
+  var f = DriveApp.createFile("creator-hub-abgleich.json", "{}", "application/json");
+  props.setProperty("hubSyncDatei", f.getId());
+  return f;
+}
+
+function doGet() {
+  return ContentService.createTextOutput("Creator-Hub-Abgleich laeuft. Das ist nur ein Test, hier ist nichts zu sehen.");
+}
+
+function antwort(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  var lock = LockService.getScriptLock();
+  try {
+    var req = JSON.parse(e.postData.contents);
+    var code = PropertiesService.getScriptProperties().getProperty("HUB_SYNC_CODE");
+    if (!code || String(req.code || "") !== code) {
+      Utilities.sleep(2000);
+      return antwort({ok: false, error: "Sync-Code falsch oder noch nicht in den Skripteigenschaften (HUB_SYNC_CODE) eingetragen"});
+    }
+    lock.waitLock(25000);
+    var f = hubDatei();
+    var st = {};
+    try { st = JSON.parse(f.getBlob().getDataAsString() || "{}"); } catch (x) {}
+    if (!st.items) st.items = {};
+    var now = Date.now(), max = 0, k;
+    if (req.action === "put") {
+      var neu = req.items || {};
+      for (k in neu) { st.items[k] = {r: neu[k].r === undefined ? null : neu[k].r, t: now}; }
+      f.setContent(JSON.stringify(st));
+    }
+    var since = Number(req.since) || 0, out = {};
+    for (k in st.items) {
+      var t = st.items[k].t;
+      if (t > max) max = t;
+      if (req.action !== "put" && t > since) out[k] = st.items[k];
+    }
+    return antwort({ok: true, items: out, max: max});
+  } catch (err) {
+    return antwort({ok: false, error: String(err)});
+  } finally {
+    try { lock.releaseLock(); } catch (y) {}
+  }
+}
+</script>
+<script>
+"use strict";
+/* ============ Daten (bleiben im Browser auf diesem Gerät) ============ */
+const KEY="philipps-creator-hub.v1";
+const PL={tiktok:"TikTok",instagram:"Instagram",youtube:"YouTube"}, PLS=Object.keys(PL);
+const COL={tiktok:"#ffc400",instagram:"#ff4d4d",youtube:"#f5f5f5"};
+let db=blank(),READY=false;
+function blank(){return{clips:[],followers:[],chan:[],chanIg:[],chanIgF:[],periods:[],settle:{},yt:null,gtAuto:{on:true,from:"2026-10-28",min:80000,v2:true},pb:{minutes:1,seconds:30,ms:0,frames:0,pfps:60,color:"#22c55e",thickness:9,format:"1080",bg:"transparent",ease:2,margin:0}}}
+function fixDb(d){if(!Array.isArray(d.chan))d.chan=[];if(!Array.isArray(d.chanIg))d.chanIg=[];if(!Array.isArray(d.chanIgF))d.chanIgF=[];for(const c of d.clips||[])c.metrics=(c.metrics||[]).map(m=>Array.isArray(m)?{date:m[0],views:m[1],likes:m[2],comments:m[3],shares:m[4]}:m);const g=d.gtAuto||{};if(!g.v2)d.gtAuto={on:g.on!==false,from:g.from||"2026-10-28",min:80000,v2:true};const st=d.settle||{};for(const k of Object.keys(st)){const c=(d.clips||[]).find(x=>x.id===k.split("|")[1]),v=st[k]||{};if(c){if(v.confirmed)c.conf=(c.conf||0)+v.confirmed;if(v.paid)c.paid=(c.paid||0)+v.paid}}d.settle={};return d}
+/* Speicherung: IndexedDB (praktisch unbegrenzt) statt localStorage (nur ca. 5 MB). Alte Daten aus localStorage werden beim ersten Start übernommen. */
+const IDB={open(){return new Promise((res,rej)=>{try{const r=indexedDB.open("creator-hub",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})},
+ async get(){const d=await this.open();return new Promise((res,rej)=>{const q=d.transaction("kv").objectStore("kv").get(KEY);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})},
+ async put(v){const d=await this.open();return new Promise((res,rej)=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(v,KEY);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}};
+const packDb=d=>JSON.stringify(Object.assign({},d,{clips:d.clips.map(c=>Object.assign({},c,{metrics:c.metrics.map(m=>[m.date,m.views,m.likes,m.comments,m.shares])}))}));
+let SAVET=null,SAVEWARN=false;
+async function persist(){const t=Date.now(),db0=db;db.saved=t;const str=packDb(db0);
+ try{await IDB.put(str);try{localStorage.removeItem(KEY)}catch(e){}SAVEWARN=false;return}catch(e){}
+ try{localStorage.setItem(KEY,str)}catch(e){if(!SAVEWARN){SAVEWARN=true;alert("Speichern im Browser nicht möglich. Bitte Backup herunterladen.")}}}
+async function boot(){let a=null,b=null;
+ try{const s=await IDB.get();if(s)a=JSON.parse(s)}catch(e){}
+ try{const s=localStorage.getItem(KEY);if(s)b=JSON.parse(s)}catch(e){}
+ const d=a&&b?((b.saved||0)>(a.saved||0)?b:a):a||b;db=d?fixDb(Object.assign(blank(),d)):blank();READY=true;
+ try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+ if(d&&!a)persist();
+ syLoad();YTNEXT=db.yt&&db.yt.last?db.yt.last+YTEVERY:0;paint();ytTick();setInterval(ytTick,1000)}
+function gtOk(c){const a=db.gtAuto;if(!a||!a.on)return false;if(!c.published||c.published<a.from)return false;const l=latest(c,"9999-12-31");return !!l&&l.views>=a.min}
+const gtReady=c=>!c.gtasty&&(gtOk(c)||!!c.manual);
+const gtMax=c=>latest(c,"9999-12-31")?.views||0;
+let GS={by:"aufrufe",dir:-1},FR="all",GP="";
+const gtCmp=(a,b)=>GS.dir*(GS.by==="datum"?(a.published||"").localeCompare(b.published||"")||(gtMax(a)-gtMax(b)):gtMax(a)-gtMax(b));
+const gtList=pf=>db.clips.filter(c=>gtReady(c)&&(!pf||c.platform===pf)).sort(gtCmp);
+const GT_TIERS=[[500000,100],[400000,80],[300000,60],[200000,40],[100000,20],[80000,20]];
+function gtEuro(c){if(c.euro!=null&&isFinite(c.euro))return c.euro;const v=gtMax(c);for(const [m,e] of GT_TIERS)if(v>=m)return e;return 0}
+const gtSure=c=>(c.euro!=null&&isFinite(c.euro))||gtMax(c)>=100000;
+const gtSum=L=>L.reduce((a,c)=>a+gtEuro(c),0),gtSumSure=L=>gtSum(L.filter(gtSure)),gtSumPend=L=>gtSum(L.filter(c=>!gtSure(c)));
+const gtPill=c=>gtSure(c)?`<span class="pill" style="font-size:13px;font-weight:800" title="${c.euro!=null?"Von dir eingetragen":"Rechnerisch nach der Staffel, keine Zusage von G-Tasty"}">${c.euro!=null?"":"≈ "}${eur(gtEuro(c))}${c.euro!=null?" (manuell)":""}</span>`:`<span class="pill w" style="font-size:13px;font-weight:800" title="Noch unter 100.000 Aufrufen: vorgemerkt, noch nicht sicher">${eur(gtEuro(c))} vorgemerkt</span>`;
+const gtSplit=L=>{const a=gtSumSure(L),b=gtSumPend(L),n=L.filter(c=>!gtSure(c)).length;return`sicher ≈ ${eur(a)}${n?` · vorgemerkt ≈ ${eur(b)} (${n} Clip${n===1?"":"s"} unter 100.000)`:""}`};
+let GE="";
+const gtReached=c=>{const a=db.gtAuto,m=[...c.metrics].sort((x,y)=>x.date.localeCompare(y.date)).find(x=>x.views>=a.min);return m?m.date:""};
+function gtBlock(c){const l=latest(c,"9999-12-31");return`Plattform: ${PL[c.platform]}\nTitel: ${c.title}\nLink: ${c.url||"(kein Link hinterlegt)"}\nVeröffentlicht am: ${dde(c.published)}\nAufrufe: ${nf(l?.views)}${l?" (Stand "+dde(l.date)+")":""}`}
+function save(){if(!READY)return;clearTimeout(SAVET);SAVET=setTimeout(persist,250);syKick()}
+addEventListener("pagehide",()=>{if(READY){clearTimeout(SAVET);persist()}});
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nf=n=>n==null||isNaN(n)?"—":new Intl.NumberFormat("de-DE").format(Math.round(n));
+const eur=n=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(n||0);
+const num=s=>{const v=Number(String(s??"").trim().replace(/\./g,"").replace(",","."));return isFinite(v)&&String(s).trim()!==""?v:NaN};
+const iso=d=>{const z=new Date(d.getTime()-d.getTimezoneOffset()*6e4);return z.toISOString().slice(0,10)};
+const today=()=>iso(new Date());
+const dde=s=>s?new Date(s+"T00:00:00").toLocaleDateString("de-DE"):"—";
+const addDays=(s,n)=>{const d=new Date(s+"T00:00:00");d.setDate(d.getDate()+n);return iso(d)};
+
+/* ============ Regeln & Rechnen ============ */
+function bonus(views,r){const counted=r.maxViews?Math.min(views,r.maxViews):views;return Math.min(r.maxBonus,Math.floor(Math.max(0,counted)/r.step)*r.rate)}
+function latest(c,date){let b=null;for(const m of c.metrics)if(m.date<=date&&(!b||m.date>b.date))b=m;return b}
+function gained(c,r){const e=latest(c,r.to),s=latest(c,addDays(r.from,-1));if(!e)return 0;let base=0;
+ if(s)base=s.views;else if(!(c.published&&c.published>=r.from)){const f=[...c.metrics].filter(m=>m.date>=r.from&&m.date<=r.to).sort((a,b)=>a.date.localeCompare(b.date))[0];base=f?f.views:0}
+ return Math.max(0,e.views-base)}
+function daily(clips,r,plat){const days={};for(const c of clips){if(plat&&c.platform!==plat)continue;const ms=[...c.metrics].sort((a,b)=>a.date.localeCompare(b.date));let p=ms.length&&!(c.published&&ms[0].date<=addDays(c.published,1))?ms[0].views:0;for(const m of ms){const d=Math.max(0,m.views-p);p=m.views;if(m.date>=r.from&&m.date<=r.to)days[m.date]=(days[m.date]||0)+d}}return Object.keys(days).sort().map(x=>({x,y:days[x]}))}
+function bucket(pts,by){const o={};for(const p of pts){const d=new Date(p.x+"T00:00:00");const k=by==="monat"?p.x.slice(0,7):iso(new Date(d.getFullYear(),d.getMonth(),d.getDate()-((d.getDay()+6)%7)));o[k]=(o[k]||0)+p.y}return Object.keys(o).sort().map(x=>({x,y:o[x]}))}
+function fser(plat,r){return db.followers.filter(f=>f.platform===plat&&f.date>=r.from&&f.date<=r.to).sort((a,b)=>a.date.localeCompare(b.date)).map(f=>({x:f.date,y:f.followers}))}
+function flast(plat,to){const l=db.followers.filter(f=>f.platform===plat&&f.date<=to).sort((a,b)=>b.date.localeCompare(a.date))[0];return l?l.followers:null}
+const period=id=>db.periods.find(p=>p.id===id);
+const rule=p=>({rate:p.rate,step:p.step,maxViews:p.maxViews,maxBonus:p.maxBonus});
+
+/* ============ Zeitraum ============ */
+let R={preset:"30",from:"",to:""};
+function setPreset(p){const t=new Date(),d=new Date(t.getFullYear(),t.getMonth(),t.getDate());let f=new Date(d),to=new Date(d);
+ if(p==="7")f.setDate(d.getDate()-6);else if(p==="30")f.setDate(d.getDate()-29);else if(p==="monat")f=new Date(d.getFullYear(),d.getMonth(),1);
+ else if(p==="letzter"){f=new Date(d.getFullYear(),d.getMonth()-1,1);to=new Date(d.getFullYear(),d.getMonth(),0)}else if(p==="jahr")f=new Date(d.getFullYear(),0,1);else if(p==="gesamt")f=new Date((firstDate()||iso(d))+"T00:00:00");
+ R={preset:p,from:iso(f),to:iso(to)}}
+setPreset("30");
+function prevR(){const n=Math.round((Date.parse(R.to)-Date.parse(R.from))/864e5)+1,to=addDays(R.from,-1);return{from:addDays(to,-(n-1)),to}}
+function firstDate(){let d="";const u=x=>{if(x&&(!d||x<d))d=x};for(const c of db.clips){u(c.published);for(const m of c.metrics)u(m.date)}for(const f of db.followers)u(f.date);for(const r of db.chan||[])u(r.date);for(const r of db.chanIg||[])u(r.date);return d}
+function firstMeasure(){let d="";const u=x=>{if(x&&(!d||x<d))d=x};for(const c of db.clips)for(const m of c.metrics)u(m.date);for(const f of db.followers)if(!f.est)u(f.date);return d}
+function chanIn(r){return(db.chan||[]).filter(x=>x.date>=r.from&&x.date<=r.to)}
+function chanSum(r){const a=chanIn(r);return a.length?{views:a.reduce((t,x)=>t+x.views,0),net:a.reduce((t,x)=>t+x.net,0),days:a.length}:null}
+function igIn(r){return(db.chanIg||[]).filter(x=>x.date>=r.from&&x.date<=r.to)}
+function igSum(r){const a=igIn(r);return a.length?{views:a.reduce((t,x)=>t+x.views,0),days:a.length}:null}
+function firstMeasureP(p){let d="";for(const c of db.clips)if(c.platform===p)for(const m of c.metrics)if(!d||m.date<d)d=m.date;return d}
+function dailyAll(clips,r,plat){const fm=firstMeasure(),a=daily(clips,r),pre=(plat&&plat!=="youtube"?[]:db.chan||[]).filter(x=>x.date>=r.from&&x.date<=r.to&&(!fm||x.date<fm)).map(x=>({x:x.date,y:x.views})),fi=firstMeasureP("instagram"),preIg=(!plat||plat==="instagram"?db.chanIg||[]:[]).filter(x=>x.date>=r.from&&x.date<=r.to&&(!fi||x.date<fi)).map(x=>({x:x.date,y:x.views}));
+ const m=new Map();for(const o of pre.concat(preIg,a))m.set(o.x,(m.get(o.x)||0)+o.y);return[...m].map(([x,y])=>({x,y})).sort((p,q)=>p.x.localeCompare(q.x))}
+const MN=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+function monthList(){const fd=firstDate()||today(),out=[];let y=Number(today().slice(0,4)),m=Number(today().slice(5,7));const fy=Number(fd.slice(0,4)),fm=Number(fd.slice(5,7));
+ while(y>fy||(y===fy&&m>=fm)){out.push([y+"-"+String(m).padStart(2,"0"),MN[m-1]+" "+y]);m--;if(m<1){m=12;y--}}return out}
+function dataNote(){const fm=firstMeasure(),cf=(db.chan||[])[0]||(db.chanIg||[])[0],cs=chanSum(R);
+ if(!fm&&!cf)return`<p class="notice">Noch keine Messwerte. Sobald du Zahlen einträgst oder YouTube lädst, erscheinen sie hier.</p>`;
+ if(cf&&(!fm||R.from<fm)){const bis=fm?`Zahlen pro Clip gibt es erst <b>ab ${dde(fm)}</b>`:"Zahlen pro Clip gibt es noch nicht";return`<p class="notice">Hinweis: ${bis}. Für den <b>YouTube-Kanal</b> (${(db.chan||[])[0]?"seit "+dde(db.chan[0].date):"noch nicht geladen"}) und das <b>Instagram-Konto</b> (${(db.chanIg||[])[0]?"seit "+dde(db.chanIg[0].date):"noch nicht geladen"}) kennt der Hub den Verlauf als Ganzes (aus YouTube Analytics und Instagram). Einzelne Clips (TikTok, Instagram, YouTube) und TikTok insgesamt erscheinen erst ab dem Tag, an dem sie im Hub erfasst wurden.</p>`}
+ if(R.to<fm)return`<div class="empty" style="margin-bottom:14px">Für diesen Zeitraum gibt es keine Messwerte. Der Hub hat Zahlen <b>ab ${dde(fm)}</b> (an dem Tag wurde er eingerichtet). Frühere Tagesstände kennt er nicht.</div>`;
+ if(R.from<fm)return`<p class="notice">Hinweis: Messwerte gibt es erst ab <b>${dde(fm)}</b>. Frühere Tage kann der Hub nicht anzeigen.</p>`;return""}
+let PICK=null,CAL={y:0,m:0,s:null};
+function calMonth(y,m){const d0=new Date(y,m,1),yy=d0.getFullYear(),mm=d0.getMonth(),off=(d0.getDay()+6)%7,n=new Date(yy,mm+1,0).getDate(),t=today(),fd=firstDate(),sel=CAL.s?{a:CAL.s,b:CAL.s}:{a:R.from,b:R.to};
+ let c="";for(let i=0;i<off;i++)c+=`<span class="cd e0"></span>`;
+ for(let d=1;d<=n;d++){const v=yy+"-"+String(mm+1).padStart(2,"0")+"-"+String(d).padStart(2,"0"),fut=v>t,k=["cd"];
+  if(v>=sel.a&&v<=sel.b)k.push("rg");if(v===sel.a)k.push("s");if(v===sel.b)k.push("e");if(v===t)k.push("td");if(fut)k.push("dis");else if(fd&&v<fd)k.push("dim");
+  c+=`<button class="${k.join(" ")}" ${fut?"disabled":""} onclick="A.calDay('${v}')">${d}</button>`}
+ return `<div class="cm"><div class="ct">${MN[mm]} ${yy}</div><div class="cw">${["Mo","Di","Mi","Do","Fr","Sa","So"].map(x=>`<span>${x}</span>`).join("")}</div><div class="cg">${c}</div></div>`}
+const ICAL='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M3 10h18M8 2.5v4M16 2.5v4"/></svg>';
+function picker(nn){const P=[["7","Letzte 7 Tage"],["30","Letzte 30 Tage"],["monat","Dieser Monat"],["letzter","Letzter Monat"],["jahr","Dieses Jahr"],["gesamt","Gesamt"]];
+ const ml=monthList(),cur=String(R.preset).startsWith("m:")?ml.find(x=>"m:"+x[0]===R.preset):null;
+ const mon=PICK==="mon"?`<div class="pop mon">${ml.map(([v,l])=>`<button class="mi ${R.preset==="m:"+v?"on":""}" onclick="A.month('${v}')">${l}</button>`).join("")}</div>`:"";
+ const cal=PICK==="cal"?`<div class="pop pr"><div class="chd"><button class="cn" onclick="A.calNav(-1)" aria-label="Zurück">‹</button><div class="hint">${CAL.s?`Start: <b>${dde(CAL.s)}</b>. Jetzt das <b>Enddatum</b> anklicken.`:"Klicke zuerst das <b>Startdatum</b>, dann das <b>Enddatum</b>."}</div><button class="cn" onclick="A.calNav(1)" aria-label="Weiter">›</button></div><div class="cms">${calMonth(CAL.y,CAL.m)}${calMonth(CAL.y,CAL.m+1)}</div><div class="cf"><button class="btn gh sm" onclick="A.pick('cal')">Schließen</button></div></div>`:"";
+ return `<div class="chips">${P.map(([k,l])=>`<span class="chip ${R.preset===k?"on":""}" onclick="A.preset('${k}')">${l}</span>`).join("")}
+ <span class="pwrap"><button class="pbtn ${PICK==="mon"?"on":""}" onclick="A.pick('mon')">${cur?cur[1]:"Monat wählen"} <span class="cv">▾</span></button>${mon}</span>
+ <span class="pwrap"><button class="pbtn ${PICK==="cal"?"on":""}" onclick="A.pick('cal')">${ICAL}${dde(R.from)} – ${dde(R.to)}</button>${cal}</span></div>${nn?"":dataNote()}`}
+let PF="";
+function pfSwitch(){return `<div class="seg">${[["","Alle"],["youtube","YouTube"],["tiktok","TikTok"],["instagram","Instagram"]].map(([k,l])=>`<button class="${PF===k?"on":""}" onclick="A.pf('${k}')"><i class="${k?"":"all"}" style="${k?"background:"+COL[k]+";color:"+COL[k]:""}"></i>${l}</button>`).join("")}</div>`}
+
+/* ============ Diagramme ============ */
+const W=640,H=220,PL_=68,PR=12,PT=12,PB=26;
+function nice(v){if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v)));return Math.ceil(v/p)*p}
+const sh=s=>s.length===10?s.slice(8,10)+"."+s.slice(5,7)+".":s;
+const emptyBox=t=>`<div class="empty">${t}</div>`;
+function tipDate(x){if(/^\d{4}-\d{2}-\d{2}$/.test(x))return new Date(x+"T00:00:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric"});if(/^\d{4}-\d{2}$/.test(x))return new Date(x+"-01T00:00:00").toLocaleDateString("de-DE",{month:"long",year:"numeric"});return x}
+function lineChart(series,emptyT){const all=series.flatMap(s=>s.points);if(!all.length)return emptyBox(emptyT);
+ const xs=[...new Set(all.map(p=>p.x))].sort(),mx=nice(Math.max(...all.map(p=>p.y))),pw=W-PL_-PR;
+ const X=x=>PL_+(xs.length===1?pw/2:xs.indexOf(x)/(xs.length-1)*pw),Y=y=>PT+(1-y/mx)*(H-PT-PB),sw=xs.length===1?pw:pw/(xs.length-1),many=xs.length>31;
+ const li=xs.length<=6?xs.map((_,i)=>i):[0,Math.floor(xs.length/3),Math.floor(2*xs.length/3),xs.length-1];
+ const hx=xs.map(x=>{const cx=X(x),x0=Math.max(PL_,cx-sw/2),x1=Math.min(W-PR,cx+sw/2),at=series.map(s=>({s,p:s.points.find(q=>q.x===x)})).filter(o=>o.p);
+  return `<g class="hx${many?" many":""}" data-tip="${esc(tipDate(x)+at.map(o=>`\n${o.s.name}|${o.s.color}|${nf(o.p.y)}`).join(""))}"><rect class="hit" x="${x0}" y="${PT}" width="${Math.max(1,x1-x0)}" height="${H-PT-PB}"/><line class="gl" x1="${cx}" x2="${cx}" y1="${PT}" y2="${H-PB}"/>${at.map(o=>`<circle class="pt" cx="${cx}" cy="${Y(o.p.y)}" r="3.2" fill="${o.s.color}"/>`).join("")}</g>`}).join("");
+ return `<svg class="ch" viewBox="0 0 ${W} ${H}">${[0,.25,.5,.75,1].map(t=>`<line x1="${PL_}" x2="${W-PR}" y1="${Y(mx*t)}" y2="${Y(mx*t)}" stroke="#26352a"/><text x="${PL_-6}" y="${Y(mx*t)+4}" text-anchor="end">${nf(mx*t)}</text>`).join("")}
+ ${li.map(i=>`<text x="${X(xs[i])}" y="${H-6}" text-anchor="middle">${sh(xs[i])}</text>`).join("")}
+ ${series.map(s=>s.points.length>1?`<polyline class="ln" pathLength="1" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${s.points.map(p=>X(p.x)+","+Y(p.y)).join(" ")}"/>`:"").join("")}${hx}</svg>
+ ${series.length>1?`<div class="lg">${series.map(s=>`<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>`:""}`}
+function barChart(d,emptyT,color="#ffc400",pre=""){if(!d.length)return emptyBox(emptyT);const mx=nice(Math.max(...d.map(x=>x.y))),bw=(W-PL_-PR)/d.length,Y=y=>PT+(1-y/mx)*(H-PT-PB),st=Math.ceil(d.length/8);
+ return `<svg class="ch" viewBox="0 0 ${W} ${H}">${[0,.5,1].map(t=>`<line x1="${PL_}" x2="${W-PR}" y1="${Y(mx*t)}" y2="${Y(mx*t)}" stroke="#26352a"/><text x="${PL_-6}" y="${Y(mx*t)+4}" text-anchor="end">${nf(mx*t)}</text>`).join("")}
+ ${d.map((p,i)=>`<g class="hx" data-tip="${esc(pre+tipDate(p.x)+"\nAufrufe|"+color+"|"+nf(p.y))}"><rect class="hit" x="${PL_+i*bw}" y="${PT}" width="${bw}" height="${H-PT-PB}"/><rect class="bx" x="${PL_+i*bw+bw*.15}" y="${Y(p.y)}" width="${bw*.7}" height="${H-PB-Y(p.y)}" rx="4" fill="${color}" style="animation-delay:${Math.min(i*14,420)}ms"/></g>${i%st===0?`<text x="${PL_+i*bw+bw/2}" y="${H-6}" text-anchor="middle">${sh(p.x)}</text>`:""}`).join("")}</svg>`}
+function hbars(rows,emptyT){if(!rows.length)return emptyBox(emptyT);const mx=Math.max(...rows.map(r=>r.value),1);
+ return rows.map(r=>`<div class="hb"><div style="display:flex;justify-content:space-between;font-size:13px;gap:10px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.label)}</span><b>${nf(r.value)}</b></div><div class="bar" style="margin:5px 0 2px"><i style="width:${r.value/mx*100}%"></i></div>${r.sub?`<div class="mf">${esc(r.sub)}</div>`:""}</div>`).join("")}
+const stat=(l,v,f,g)=>`<div class="card"><div class="ml">${l}</div><div class="mv ${g?"g":""}">${v}</div>${f?`<div class="mf">${f}</div>`:""}</div>`;
+const head=(e,t,i)=>`<div class="hub">PHILIPP'S CREATOR HUB</div><div class="notice" style="margin-top:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc);font-weight:700">${e}</div><h1>${t}</h1>${i?`<p class="intro">${i}</p>`:""}`;
+
+/* ============ Seiten ============ */
+let V="dashboard",F={plat:"",sort:"datum"},OPEN=null,MSG="";
+const NAV=[["dashboard","◧","Dashboard"],["follower","↗","Follower & Statistiken"],["radar","◎","Radar"],["submit","➤","Einreichen"],["gtasty","€","Auszahlungen"],["clips","▤","Clip-Verwaltung"],["tools","✦","Creator-Tools"],["daten","⚙","Daten & Backup"]];
+const BOLT='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L8.5 22 20 9.5h-6.2z" fill="currentColor"/></svg>';
+function side(){const nv=([k,i,l])=>`<button class="nav ${V===k||(V==="stats"&&k==="follower")||(V==="clip"&&k==="clips")||(k==="tools"&&["pb","zeit","hash"].includes(V))?"on":""}" onclick="A.go('${k}')"><i>${i}</i>${l}${k==="submit"&&gtList().length?` <span class="pill" style="background:var(--red);color:#fff;margin-left:auto">${gtList().length}</span>`:""}</button>`;
+ document.getElementById("side").innerHTML=`<div class="brand"><div class="mark">${BOLT}</div><div><div class="bt">PHILIPP'S<br>CREATOR HUB</div><div class="bs">CONTROL CENTER</div></div></div>`+NAV.map(nv).join("")+syncBox()}
+const YTEVERY=15*60*1000;let YTNEXT=0,YTFLASH=false;
+function ytVals(){const n=Date.now(),left=Math.max(0,YTNEXT-n),m=Math.floor(left/60000),sc=Math.floor(left%60000/1000);return{cd:YTBUSY?"lädt …":n>=YTNEXT?"gleich …":m+":"+String(sc).padStart(2,"0"),pct:YTBUSY?100:Math.min(100,Math.max(0,(1-left/YTEVERY)*100)),last:db.yt&&db.yt.last?"Zuletzt geladen: "+new Date(db.yt.last).toLocaleTimeString("de-DE"):"Noch nicht geladen",bad:!!(db.yt&&db.yt.err)}}
+function syncBox(){if(!db.yt||!ytUrlOk(db.yt.url))return`<div class="syb"><div class="syl"><span>YouTube-Daten</span></div><div class="sym">Nicht verbunden. Verbinde deine Google-Tabelle, dann aktualisiert sich alles von selbst.</div><button class="btn gh sm" onclick="A.go('daten')">Verbinden</button></div>`;
+ const v=ytVals(),fl=YTFLASH;YTFLASH=false;
+ return`<div class="syb ${fl?"flash":""}" id="sy-box"><div class="syl"><span>Nächste Aktualisierung</span><span class="dot ${v.bad?"bad":""}" id="sy-dot"></span></div><div class="syc" id="sy-cd">${v.cd}</div><div class="sybar"><i id="sy-bar" style="width:${v.pct}%"></i></div><div class="sym" id="sy-last">${v.bad?"Letzter Versuch fehlgeschlagen, neuer Versuch folgt.":v.last}</div><button class="btn gh sm" onclick="A.ytNow()">Jetzt aktualisieren</button></div>`}
+function ytTick(){if(SY&&SY.url&&Date.now()>=SYNEXT&&!document.hidden&&!SYBUSY&&!pbBusy)syCycle();if(!db.yt||!ytUrlOk(db.yt.url))return;if(Date.now()>=YTNEXT&&!document.hidden&&!YTBUSY&&!pbBusy)ytSync();
+ if(Date.now()>=TWNEXT&&!document.hidden&&!TWBUSY&&!pbBusy)twSync();if(Date.now()-TWDRAW>30000)twDraw();
+ const cd=document.getElementById("sy-cd");if(!cd)return;const v=ytVals();cd.textContent=v.cd;document.getElementById("sy-bar").style.width=v.pct+"%";document.getElementById("sy-last").textContent=v.bad?"Letzter Versuch fehlgeschlagen, neuer Versuch folgt.":v.last;document.getElementById("sy-dot").className="dot "+(v.bad?"bad":"")}
+
+let QP="tiktok";
+function gtRow(c){const l=latest(c,"9999-12-31");
+ return `<div class="row" style="align-items:flex-start;flex-wrap:wrap"><div style="min-width:220px;flex:1"><a onclick="A.open('${c.id}')"><b>${esc(c.title)}</b></a><div class="mf">${PL[c.platform]} · veröffentlicht ${dde(c.published)} · <b style="color:#fff">${nf(gtMax(c))}</b> Aufrufe${l?" (Stand "+dde(l.date)+")":""}${c.url&&/^https?:\/\//i.test(c.url)?` · <a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">Video ansehen ↗</a>`:""}</div></div>
+ <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${gtPill(c)}<button class="btn gh sm" onclick="A.gtEdit('${c.id}')">Bearbeiten</button><button class="btn gh sm" onclick="A.gtCopy('${c.id}','link',this)">${c.url?"Link kopieren":"Kein Link"}</button><button class="btn gh sm" onclick="A.gtCopy('${c.id}','info',this)">Angaben kopieren</button><button class="btn sm" onclick="A.gtDone('${c.id}')">✓ Eingereicht</button></div></div>`}
+function gtOverview(L,done){const all=L.concat(done),a=gtSumSure(all),b=gtSumPend(all),n=all.filter(c=>!gtSure(c)).length,ad=gtSumSure(done);
+ return `<section class="cards c3" style="margin:16px 0 0">${stat("Sicher (ab 100.000 Aufrufe)",eur(a),"Davon bereits eingereicht: "+eur(ad),1)}${stat("Vorgemerkt (unter 100.000)",eur(b),n+" Clip"+(n===1?"":"s")+", noch nicht sicher")}${stat("Zusammen, wenn alle die Marke schaffen",eur(a+b),"Rechnerisch, keine Zusage")}</section>`}
+function gtEditor(){const c=GE&&GE!=="new"?db.clips.find(x=>x.id===GE):null,syn=c&&!c.manual&&(c.yt||c.ig||c.tt),v=c?gtMax(c):"";
+ return `<section class="panel" id="gt-editor" style="margin-top:16px;${c?"border-color:var(--acc)":""}"><h2>${c?"Clip bearbeiten":"Clip von Hand hinzufügen"}</h2>
+ <p class="notice" style="font-size:13px">${c?"Hier änderst du Name, Link, Datum, Verdienst und Status. "+(syn?"Die Aufrufe kommen bei diesem Clip automatisch und lassen sich nicht ändern.":""):"Für Clips, die der Hub nicht von selbst kennt, z. B. gesperrte. Lass „Verdienst“ leer, dann rechnet der Hub nach der Staffel; trägst du einen Betrag ein, gilt genau dieser."}</p>
+ <form onsubmit="return A.gtSave(event)"><div class="fg">
+ <div><label class="f">Plattform</label><select class="in" name="platform" ${c&&!c.manual?"disabled":""}>${PLS.map(p=>`<option value="${p}" ${c&&c.platform===p?"selected":""}>${PL[p]}</option>`).join("")}</select></div>
+ <div class="span2"><label class="f">Name / Titel</label><input class="in" name="title" required value="${esc(c?c.title:"")}"></div>
+ <div><label class="f">Veröffentlicht am</label><input class="in" type="date" name="published" value="${c?c.published||"":today()}"></div>
+ <div class="span2"><label class="f">Link (optional)</label><input class="in" name="url" placeholder="https://…" value="${esc(c?c.url||"":"")}"></div>
+ <div><label class="f">Aufrufe</label><input class="in" name="views" inputmode="numeric" ${syn?"disabled":""} value="${syn?nf(v):v}" placeholder="z. B. 207000"></div>
+ <div><label class="f">Verdienst in € (leer = automatisch)</label><input class="in" name="euro" inputmode="decimal" placeholder="automatisch" value="${c&&c.euro!=null?String(c.euro).replace(".",","):""}"></div>
+ <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:10px"><input type="checkbox" name="gtasty" ${!c||c.gtasty?"checked":""}> bei G-Tasty eingereicht</label>
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn">${c?"Änderungen speichern":"Clip hinzufügen"}</button>${c?`<button type="button" class="btn gh" onclick="A.gtEdit('')">Abbrechen</button>`:""}${c&&c.manual?`<button type="button" class="btn gh" onclick="A.gtDel('${c.id}')">Clip löschen</button>`:""}</div></div></form>
+ <p class="${MSG.startsWith("✓")?"ok":"err"}">${MSG}</p></section>`}
+function pSubmit(){const a=db.gtAuto||{on:false,from:"2026-10-28",min:80000},L=gtList(GP),done=db.clips.filter(c=>c.gtasty&&(!GP||c.platform===GP)).sort(gtCmp),cnt=pf=>gtList(pf).length+db.clips.filter(c=>c.gtasty&&(!pf||c.platform===pf)).length;
+ return head("G-Tasty","Einreichen",a.on?`Clips, die ab ${dde(a.from)} veröffentlicht wurden und mindestens ${nf(a.min)} Aufrufe haben. Die Regel stellst du unten auf dieser Seite ein.`:"Die Erinnerung ist ausgeschaltet (einstellbar unten auf dieser Seite).")+
+ `${gtOverview(L,done)}<div class="chips" style="margin:16px 0 0"><span class="muted" style="font-size:12px">Plattform:</span>${[["","Alle"],...PLS.map(k=>[k,PL[k]])].map(([k,l])=>`<span class="chip ${GP===k?"on":""}" onclick="A.gtPf('${k}')">${l} (${cnt(k)})</span>`).join("")}</div>${L.length+done.length>1?`<div class="chips" style="margin:8px 0 0"><span class="muted" style="font-size:12px">Sortieren nach:</span>${[["aufrufe","Aufrufe"],["datum","Veröffentlicht am"]].map(([k,l])=>`<span class="chip ${GS.by===k?"on":""}" onclick="A.gtSort('${k}')">${l}${GS.by===k?(GS.dir<0?" ↓":" ↑"):""}</span>`).join("")}<span class="muted" style="font-size:12px">${GS.by==="aufrufe"?(GS.dir<0?"meiste zuerst":"wenigste zuerst"):(GS.dir<0?"neueste zuerst":"älteste zuerst")} · gilt für beide Listen · nochmal klicken dreht die Reihenfolge um</span></div>`:""}<section class="panel" style="margin:16px 0;${L.length?"border-color:var(--red)":""}"><h2>★ Bereit zum Einreichen${L.length?` (${L.length})`:""}</h2>${L.length?`<p class="notice" style="margin:-6px 0 8px">${gtSplit(L)}</p>`:""}
+ <p class="notice" style="font-size:13px">Das <b>≈ €</b> bei jedem Clip ist das, was er laut Regel einbringt: ab 80.000 Aufrufen <b>20 €</b> (vorgemerkt), 100.000–200.000: <b>20 €</b>, 200.000–300.000: <b>40 €</b>, 300.000–400.000: <b>60 €</b>, 400.000–500.000: <b>80 €</b>, ab 500.000: <b>100 €</b>. Rechnerisch, keine Zusage von G-Tasty.</p><p class="notice" style="font-size:13px">So gehst du vor: <b>Link kopieren</b> (oder <b>Angaben kopieren</b>), den Clip bei G-Tasty einreichen, dann hier auf <b>✓ Eingereicht</b> klicken. Eingereicht wird bei G-Tasty selbst, der Hub kann dort nichts absenden. Mit „✓ Eingereicht“ merkt sich nur der Hub, dass du es getan hast, und der Clip verschwindet aus dieser Liste.</p>
+ ${L.length?L.map(gtRow).join("")+`<p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="btn gh sm" onclick="A.gtCopyAll(this)">Alle Links kopieren (${L.length})</button><button class="btn gh sm" onclick="A.gtDoneAll()">Alle ${L.length} als eingereicht markieren</button></p>`:`<div class="empty">Aktuell ist kein Clip bereit. Sobald ein Clip die Regel erfüllt, erscheint er hier.</div>`}</section>
+ <section class="panel"><h2>Bereits eingereicht (${done.length})</h2>${done.length?`<p class="notice" style="margin:-6px 0 8px">${gtSplit(done)}</p>`:""}${done.length?done.slice(0,50).map(c=>`<div class="row"><span><a onclick="A.open('${c.id}')">${esc(c.title)}</a> <span class="muted">· ${PL[c.platform]} · ${dde(c.published)}${c.gtAt?" · eingereicht am "+dde(c.gtAt):""}</span></span><span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><b>${nf(gtMax(c))}</b> ${gtPill(c)} <button class="btn gh sm" onclick="A.gtEdit('${c.id}')">Bearbeiten</button><button class="btn gh sm" onclick="A.gtUndo('${c.id}')">Rückgängig</button></span></div>`).join("")+(done.length>50?`<p class="notice">… und ${done.length-50} weitere.</p>`:""):`<div class="empty">Noch nichts als eingereicht markiert.</div>`}${done.length?`<p class="notice" style="margin-top:10px">Betrag bestätigt, ausgezahlt? Das trägst du unter <a onclick="A.go('gtasty')">Auszahlungen</a> ein. Dort steht dieselbe Liste.</p>`:""}</section>${gtEditor()}${gtAutoPanel()}`}
+function gtDashPanel(pf){const a=db.gtAuto,L=gtList().filter(c=>!pf||c.platform===pf);if(!a||!a.on)return"";
+ return `<section class="panel" style="margin-bottom:14px;border-color:${L.length?"var(--red)":"var(--line)"}"><h2>★ Zum Einreichen bei G-Tasty bereit${L.length?` (${L.length})`:""}</h2>
+ ${L.length?`<p class="notice">Veröffentlicht ab ${dde(a.from)} und mindestens ${nf(a.min)} Aufrufe. Klicke einen Clip an, dann siehst du Link und Angaben zum Kopieren.</p>`+L.slice(0,8).map(c=>`<div class="row"><span><a onclick="A.open('${c.id}')"><b>${esc(c.title)}</b></a> <span class="muted">· ${PL[c.platform]} · ${dde(c.published)}</span></span><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><b>${nf(gtMax(c))}</b><button class="btn gh sm" onclick="A.gtCopy('${c.id}','link',this)">${c.url?"Link kopieren":"Kein Link"}</button><button class="btn sm" onclick="A.gtDone('${c.id}')">✓ Eingereicht</button></span></div>`).join("")+(L.length>8?`<p class="notice">… und ${L.length-8} weitere. <a onclick="A.go('submit')">Alle auf der Seite „Einreichen“ ansehen →</a></p>`:""):`<p class="notice" style="margin:0">Aktuell kein Clip bereit. Sobald ein Clip (veröffentlicht ab ${dde(a.from)}) ${nf(a.min)} Aufrufe erreicht, erscheint er hier.</p>`}</section>`}
+function pDash(){
+ const clips=PF?db.clips.filter(c=>c.platform===PF):db.clips,PFL=PF?[PF]:PLS,yok=!PF||PF==="youtube",total=clips.reduce((a,c)=>a+(latest(c,R.to)?.views||0),0),g=clips.reduce((a,c)=>a+gained(c,R),0),pg=clips.reduce((a,c)=>a+gained(c,prevR()),0);
+ const hasM=clips.some(c=>latest(c,R.to)),cs=yok?chanSum(R):null;
+ const byP=p=>clips.filter(c=>c.platform===p).reduce((a,c)=>a+(latest(c,R.to)?.views||0),0);
+ const fol=PFL.map(p=>flast(p,R.to)),folT=fol.some(x=>x!=null)?fol.reduce((a,x)=>a+(x||0),0):null;
+ const fg=PFL.reduce((a,p)=>{const s=fser(p,R);return s.length>1?a+s[s.length-1].y-s[0].y:a},0),hasF=PFL.some(p=>fser(p,R).length>1);
+ const pub=clips.filter(c=>c.published>=R.from&&c.published<=R.to).length;
+ const conf=db.clips.reduce((a,c)=>a+(c.conf||0),0),paid=db.clips.reduce((a,c)=>a+(c.paid||0),0),exp=expectedAll();
+ const top=clips.map(c=>({c,v:latest(c,R.to)?.views||0})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10);
+ const dl=dailyAll(clips,R,PF);
+ return head("Dein persönliches Creator-Dashboard","Volle Geschwindigkeit.",`Zeitraum: ${dde(R.from)} – ${dde(R.to)}. Angezeigt werden nur Werte, die du eingetragen hast.${PF?" Plattform: "+PL[PF]+".":""}`)+pfSwitch()+picker(true)+
+ `<section class="cards">${stat("Gesamtaufrufe",hasM?nf(total):cs?nf(cs.views):"—",hasM?`+${nf(g)} im Zeitraum (Vorzeitraum +${nf(pg)})`:cs?"im Zeitraum, nur YouTube-Kanal (YouTube Analytics)":"Noch keine Messwerte",1)}${stat("Follower gesamt",nf(folT),hasF?`${fg>=0?"+":""}${nf(fg)} im Zeitraum`:"Zu wenig Messwerte")}${stat("Veröffentlichte Clips",nf(pub),nf(clips.length)+" insgesamt erfasst")}${stat("G-Tasty erwartet",eur(exp),"Eingereicht, ab 100.000 Aufrufe, keine Zusage")}</section>
+ <section class="cards">${PFL.map((p,i)=>stat(PL[p]+"-Aufrufe",clips.some(c=>c.platform===p&&latest(c,R.to))?nf(byP(p)):"—","Follower: "+nf(fol[i]))).join("")}${stat("G-Tasty bestätigt / ausgezahlt",eur(conf)+" / "+eur(paid),"Offen: "+eur(Math.max(0,conf-paid)))}</section>
+ ${gtDashPanel(PF)}
+ <section class="panel" style="margin-bottom:14px">${PF?`<h2>Aufrufe pro Monat</h2>${barChart(bucket(dl,"monat"),"Noch keine Messwerte im Zeitraum.")}`:`<h2>Plattformvergleich</h2>${barChart(PLS.map(p=>({x:PL[p],y:byP(p)})).filter(x=>x.y>0),"Noch keine Aufrufe erfasst.")}`}</section>
+ <section class="g2"><div class="panel"><h2>Follower-Entwicklung</h2><div class="chips" style="margin:0 0 10px">${[["all","Gesamt"],["90","Letzte 90 Tage"],["R","Wie oben"]].map(([k,l])=>`<span class="chip ${FR===k?"on":""}" onclick="A.fr('${k}')">${l}</span>`).join("")}</div>${lineChart(PFL.map(p=>({name:PL[p],color:COL[p],points:fser(p,FR==="R"?R:FR==="90"?{from:addDays(R.to,-89),to:R.to}:{from:"0000-01-01",to:R.to})})),"Noch keine Follower-Werte im Zeitraum.")}${db.followers.some(f=>f.est&&(PF?f.platform===PF:true))?`<p class="notice" style="margin:8px 0 0">Ältere Werte bei YouTube und Instagram sind zurückgerechnet (Schätzung).</p>`:""}</div><div class="panel"><h2>Top-10-Videos</h2>${hbars(top.map(x=>({label:x.c.title,value:x.v,sub:PL[x.c.platform]})),"Noch keine Videos mit Aufrufen.")}</div></section>`}
+
+
+function chanPanel(){if(!db.chan||!db.chan.length)return"";const cs=chanSum(R),sg=n=>(n>=0?"+":"")+nf(n);
+ return `<section class="panel" style="margin-bottom:14px"><h2>YouTube-Kanal seit Kanalstart (${dde(db.chan[0].date)})</h2>
+ <section class="cards c3" style="margin:6px 0 14px">${stat("Kanal-Aufrufe im Zeitraum",cs?nf(cs.views):"—",cs?cs.days+" Tage mit Daten":"Keine Daten im Zeitraum",1)}${stat("Neue Abonnenten im Zeitraum",cs?sg(cs.net):"—","Zuwachs minus Verluste")}${stat("Letzter Analytics-Tag",dde(db.chan[db.chan.length-1].date),"YouTube meldet 1–2 Tage verzögert")}</section>
+ ${barChart(chanIn(R).map(x=>({x:x.date,y:x.views})),"Keine Kanal-Daten im Zeitraum.")}<p class="notice">Alle Aufrufe deines YouTube-Kanals pro Tag laut YouTube Analytics (inkl. aller Videos, auch gelöschter). TikTok und Instagram sind nicht enthalten.</p></section>`}
+function igPanel(){if(!db.chanIg||!db.chanIg.length)return"";const cs=igSum(R),L=db.chanIg[db.chanIg.length-1],pk=db.chanIg.reduce((a,x)=>x.views>a.views?x:a,db.chanIg[0]);
+ return `<section class="panel" style="margin-bottom:14px"><h2>Instagram-Konto seit Kontostart (${dde(db.chanIg[0].date)})</h2>
+ <section class="cards c3" style="margin:6px 0 14px">${stat("Konto-Aufrufe im Zeitraum",cs?nf(cs.views):"—",cs?cs.days+" Tage mit Daten":"Keine Daten im Zeitraum",1)}${stat("Bester Tag insgesamt",nf(pk.views),dde(pk.date))}${stat("Letzter Instagram-Tag",dde(L.date),"Instagram meldet mit etwas Verzögerung")}</section>
+ ${barChart(igIn(R).map(x=>({x:x.date,y:x.views})),"Keine Instagram-Daten im Zeitraum.","#e1306c")}<p class="notice">Alle Aufrufe deines Instagram-Kontos pro Tag laut Instagram (alle Reels und Beiträge zusammen, auch gelöschte). Die Tage zählen nach Instagram-Zeit (Pazifik), daher kann ein Tag gegenüber deiner Ortszeit leicht versetzt sein. Einen Follower-Verlauf in die Vergangenheit liefert Instagram nicht, Follower zählt der Hub ab seiner Einrichtung.</p></section>`}
+function expectedAll(){return gtSumSure(db.clips.filter(c=>c.gtasty))}
+
+function pClips(){
+ let rows=db.clips.filter(c=>!F.plat||c.platform===F.plat).map(c=>{const l=latest(c,today());return{c,v:l?l.views:null,b:c.gtasty?gtEuro(c):null}});
+ rows.sort((a,b)=>F.sort==="aufrufe"?(b.v??-1)-(a.v??-1):F.sort==="verdienst"?(b.b??-1)-(a.b??-1):(b.c.published||"").localeCompare(a.c.published||""));
+ return head("Clip-Verwaltung","Alle Clips","Jeder Clip hat einen Messverlauf. Trage Aufrufe ein, wenn du nachschaust (z. B. einmal täglich).")+
+ `<section class="panel" style="margin:16px 0"><h2>Clip hinzufügen</h2><form onsubmit="return A.addClip(event)"><div class="fg">
+ <div><label class="f">Plattform</label><select class="in" name="platform">${PLS.map(p=>`<option value="${p}">${PL[p]}</option>`).join("")}</select></div>
+ <div class="span2"><label class="f">Titel</label><input class="in" name="title" required></div>
+ <div><label class="f">Veröffentlicht am</label><input class="in" type="date" name="published" value="${today()}"></div>
+ <div class="span2"><label class="f">Video-URL (optional)</label><input class="in" name="url" placeholder="https://…"></div>
+ <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:10px"><input type="checkbox" name="gtasty"> bei G-Tasty eingereicht</label>
+ <div><button class="btn">Clip speichern</button></div></div></form></section>
+ <div class="chips"><span class="chip ${!F.plat?"on":""}" onclick="A.fplat('')">Alle</span>${PLS.map(p=>`<span class="chip ${F.plat===p?"on":""}" onclick="A.fplat('${p}')">${PL[p]}</span>`).join("")}<span class="muted" style="font-size:12px;margin-left:10px">Sortieren:</span>${["datum","aufrufe","verdienst"].map(s=>`<span class="chip ${F.sort===s?"on":""}" onclick="A.fsort('${s}')">${s[0].toUpperCase()+s.slice(1)}</span>`).join("")}</div>
+ <section class="panel tw">${rows.length?`<table><thead><tr><th>Titel</th><th>Plattform</th><th>Veröffentlicht</th><th class="num">Aufrufe</th><th>G-Tasty</th><th class="num">Erwarteter Bonus</th></tr></thead><tbody>${rows.map(({c,v,b})=>`<tr class="cl"><td><a onclick="A.open('${c.id}')"><b>${esc(c.title)}</b></a></td><td>${PL[c.platform]}</td><td>${dde(c.published)}</td><td class="num">${nf(v)}</td><td>${gtReady(c)?`<button class="pill" style="cursor:pointer;background:var(--red);color:#fff" onclick="A.open('${c.id}')">★ bereit zum Einreichen</button> `:""}<button class="pill ${c.gtasty?"":"w"}" style="cursor:pointer" onclick="A.toggle('${c.id}')">${c.gtasty?"eingereicht":"nicht eingereicht"}</button></td><td class="num">${b==null?"—":eur(b)}</td></tr>`).join("")}</tbody></table>`:emptyBox("Noch keine Clips. Füge oben deinen ersten Clip hinzu.")}
+ <p class="notice">Der erwartete Betrag kommt aus der festen Staffel (oder deinem eingetragenen Betrag beim Clip), keine zugesagte Auszahlung.</p></section>`}
+
+function gtDetail(c){const a=db.gtAuto,l=latest(c,"9999-12-31"),rd=gtReady(c),r0=gtReached(c);
+ const ti=c.gtasty?"✓ Bei G-Tasty eingereicht":rd?"★ Zum Einreichen bei G-Tasty bereit":"G-Tasty";
+ const hint=c.gtasty?"":rd?`Dieser Clip hat ${nf(a.min)} Aufrufe erreicht${r0?` (erste Messung darüber: ${dde(r0)})`:""}. Kopiere Link und Angaben, reiche ihn bei G-Tasty ein und markiere ihn danach als eingereicht.`:`Noch nicht bereit${a&&a.on?` (nötig: veröffentlicht ab ${dde(a.from)} und ${nf(a.min)} Aufrufe)`:""}. Du kannst ihn trotzdem manuell einreichen.`;
+ return `<section class="panel" style="margin-bottom:14px;${rd?"border-color:var(--red)":""}"><h2>${ti}</h2><p class="notice">${hint}</p>
+ <div class="row"><span class="muted">Plattform</span><b>${PL[c.platform]}</b></div><div class="row"><span class="muted">Veröffentlicht am</span><b>${dde(c.published)}</b></div><div class="row"><span class="muted">Aufrufe</span><b>${nf(l?.views)}${l?` <span class="muted">(Stand ${dde(l.date)})</span>`:""}</b></div>
+ <label class="f" style="margin-top:12px">Video-Link</label>
+ ${c.url?`<div class="qr"><input class="in" id="gt-link" readonly value="${esc(c.url)}" onclick="this.select()"><button class="btn" onclick="A.copyId('gt-link',this)">Link kopieren</button></div>`:`<form class="qr" onsubmit="return A.setUrl(event,'${c.id}')"><input class="in" name="url" placeholder="https://… (Link des Videos einfügen)"><button class="btn">Link speichern</button></form><p class="notice">Für diesen Clip ist noch kein Link hinterlegt. Füge ihn hier einmal ein.</p>`}
+ <label class="f" style="margin-top:12px">Alle Angaben</label><textarea class="in" id="gt-block" readonly rows="5" onclick="this.select()">${esc(gtBlock(c))}</textarea>
+ <p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px"><button class="btn gh" onclick="A.copyId('gt-block',this)">Alle Angaben kopieren</button><button class="btn ${c.gtasty?"gh":""}" onclick="A.toggle('${c.id}')">${c.gtasty?"Markierung „eingereicht“ entfernen":"Als eingereicht markieren"}</button></p></section>`}
+function pClip(){const c=db.clips.find(x=>x.id===OPEN);if(!c){OPEN=null;return pClips()}
+ const ms=[...c.metrics].sort((a,b)=>a.date.localeCompare(b.date)),l=ms[ms.length-1];
+ return head(PL[c.platform]+" · veröffentlicht "+dde(c.published),esc(c.title))+`<p><a onclick="A.open(null)">← Alle Clips</a>${c.url&&/^https?:\/\//i.test(c.url)?` · <a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">Video öffnen ↗</a>`:""}</p>
+ <section class="cards">${stat("Aufrufe",nf(l?.views),l?"Stand "+dde(l.date):"Noch kein Messwert",1)}${stat("Likes",nf(l?.likes))}${stat("Kommentare",nf(l?.comments))}${stat("Shares",nf(l?.shares))}</section>
+ ${gtDetail(c)}
+ <section class="panel" style="margin-bottom:14px"><h2>Verlauf der Aufrufe</h2>${lineChart([{name:"Aufrufe",color:COL.tiktok,points:ms.map(m=>({x:m.date,y:m.views}))}],"Noch keine Messwerte. Trage unten den ersten Wert ein.")}</section>
+ <section class="panel" style="margin-bottom:14px"><h2>Messwert eintragen</h2><form onsubmit="return A.addMetric(event,'${c.id}')"><div class="fg">
+ <div><label class="f">Datum</label><input class="in" type="date" name="date" value="${today()}" required></div><div><label class="f">Aufrufe gesamt</label><input class="in" name="views" inputmode="numeric" required></div>
+ <div><label class="f">Likes</label><input class="in" name="likes" inputmode="numeric"></div><div><label class="f">Kommentare</label><input class="in" name="comments" inputmode="numeric"></div>
+ <div><label class="f">Shares</label><input class="in" name="shares" inputmode="numeric"></div><div><button class="btn">Speichern</button></div></div></form>
+ <p class="notice">Trage die Gesamtaufrufe so ein, wie die Plattform sie anzeigt. Pro Tag gilt ein Wert; erneutes Speichern überschreibt ihn.</p><p class="err">${MSG}</p></section>
+ <section class="panel tw"><h2>Messhistorie</h2>${ms.length?`<table><thead><tr><th>Datum</th><th class="num">Aufrufe</th><th class="num">Likes</th><th class="num">Kommentare</th><th class="num">Shares</th><th></th></tr></thead><tbody>${[...ms].reverse().map(m=>`<tr><td>${dde(m.date)}</td><td class="num">${nf(m.views)}</td><td class="num">${nf(m.likes)}</td><td class="num">${nf(m.comments)}</td><td class="num">${nf(m.shares)}</td><td><a onclick="A.delMetric('${c.id}','${m.date}')">löschen</a></td></tr>`).join("")}</tbody></table>`:emptyBox("Keine Messwerte.")}</section>
+ <p style="margin-top:16px"><button class="btn gh sm" onclick="A.delClip('${c.id}')">Clip samt Messwerten löschen</button></p>`}
+
+function pFollower(){
+ const PFL=PF?[PF]:PLS,st=PFL.map(p=>{const s=fser(p,R),f=s[0],l=s[s.length-1],gain=s.length>1?l.y-f.y:null,days=s.length>1?Math.max(1,Math.round((Date.parse(l.x)-Date.parse(f.x))/864e5)):null;return{p,s,gain,per:gain!=null?gain/days:null}});
+ const gs=st.filter(x=>x.gain!=null),fast=gs.length?gs.reduce((a,b)=>b.per>a.per?b:a):null,tg=gs.reduce((a,x)=>a+x.gain,0);
+ const sg=n=>n==null?"—":(n>=0?"+":"")+new Intl.NumberFormat("de-DE",{maximumFractionDigits:1}).format(n);
+ const all={from:"0000-01-01",to:"9999-12-31"},x0=st[0];
+ const since=`<div class="panel"><h2>Seit Beginn der Aufzeichnung</h2>${PFL.map(p=>{const s=fser(p,all);return s.length>1?`<div class="row"><span>${PL[p]} <span class="muted">(${dde(s[0].x)} → ${dde(s[s.length-1].x)})</span></span><b>${sg(s[s.length-1].y-s[0].y)}</b></div>`:""}).join("")||emptyBox("Noch nicht genug Werte.")}</div>`;
+ const fol=PF?`<section class="cards c3">${stat(PL[PF]+" Follower",nf(flast(PF,R.to)),"Stand "+dde(R.to),1)}${stat("Zuwachs im Zeitraum",sg(x0.gain),x0.gain!=null?"letzter minus erster Wert":"Zu wenig Werte")}${stat("Ø pro Tag",sg(x0.per),x0.per!=null?"im Zeitraum":"Zu wenig Werte")}</section>
+ <section class="panel" style="margin-bottom:14px"><h2>${PL[PF]}</h2>${lineChart([{name:PL[PF],color:COL[PF],points:x0.s}],"Keine Follower-Werte im Zeitraum.")}</section>
+ <section style="margin-bottom:14px">${since}</section>`
+ :`<section class="cards">${stat("Zuwachs im Zeitraum",gs.length?sg(tg):"—",gs.length?"Plattformen mit ≥ 2 Werten":"Zu wenig Werte",1)}${stat("Wächst am schnellsten",fast?PL[fast.p]:"—",fast?sg(fast.per)+" pro Tag":"Zu wenig Werte")}</section>
+ <section class="cards c3">${st.map(x=>stat(PL[x.p],sg(x.gain),x.per!=null?sg(x.per)+" pro Tag":"Zu wenig Werte")).join("")}</section>
+ <section class="panel" style="margin-bottom:14px"><h2>Alle Plattformen</h2>${lineChart(st.map(x=>({name:PL[x.p],color:COL[x.p],points:x.s})),"Noch keine Follower-Werte im Zeitraum.")}</section>
+ <section style="margin-bottom:14px">${since}</section>`;
+ return head("Auswertung","Follower & Statistiken",`Zeitraum: ${dde(R.from)} – ${dde(R.to)}. Zuwachs = letzter minus erster Wert im Zeitraum.${db.followers.some(f=>f.est&&f.date>=R.from&&f.date<=R.to&&(!PF||f.platform===PF))?" Ältere Werte sind zurückgerechnet und ungefähr: bei YouTube aus YouTube Analytics (YouTube rundet Abonnentenzahlen), bei Instagram aus den täglichen Zu- und Abgängen deines Kontos":""}`)+pfSwitch()+picker()+fol+statsBody()+
+ `<section class="panel" style="margin-top:14px"><h2>Follower eintragen</h2><form onsubmit="return A.addFol(event)"><div class="fg"><div><label class="f">Plattform</label><select class="in" name="platform">${PLS.map(p=>`<option value="${p}" ${p===PF?"selected":""}>${PL[p]}</option>`).join("")}</select></div><div><label class="f">Datum</label><input class="in" type="date" name="date" value="${today()}" required></div><div><label class="f">Follower</label><input class="in" name="followers" inputmode="numeric" required></div><div><button class="btn">Speichern</button></div></div></form>
+ <p class="notice">Ein Wert pro Plattform und Tag; erneutes Speichern überschreibt. Am besten einmal täglich eintragen.</p><p class="err">${MSG}</p></section>`}
+
+function gtAutoPanel(){const a=db.gtAuto||{on:false,from:"2026-10-28",min:80000},mk=db.clips.filter(c=>c.gtasty).length;
+ return `<section class="panel" style="margin:14px 0"><h2>Erinnerung bei Mindestaufrufen</h2><p class="notice" style="font-size:13px">Sobald ein Clip, der <b>ab einem Datum</b> veröffentlicht wurde, die <b>Mindestzahl an Aufrufen</b> erreicht, erscheint er oben als „bereit zum Einreichen“ (auch auf dem Dashboard und in der Clip-Liste). Als „eingereicht“ markierst du ihn selbst, der Hub macht das nie automatisch.</p>
+ <form onsubmit="return A.gtAuto(event)"><div class="fg"><label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:10px"><input type="checkbox" name="on" ${a.on?"checked":""}> Erinnerung an</label>
+ <div><label class="f">Veröffentlicht ab</label><input class="in" type="date" name="from" value="${a.from}"></div><div><label class="f">Mindestaufrufe</label><input class="in" name="min" inputmode="numeric" value="${a.min}"></div><div><button class="btn">Speichern</button></div></div></form>
+ <p class="${MSG.startsWith("✓")?"ok":"err"}">${MSG}</p>
+ <p class="notice">${mk} Clips sind als eingereicht markiert. <a onclick="A.gtReset()">Alle „eingereicht“-Markierungen zurücksetzen</a></p></section>`}
+function pG(){
+ const sub=db.clips.filter(c=>c.gtasty),L=sub.filter(c=>!GP||c.platform===GP).sort(gtCmp),cnt=pf=>sub.filter(c=>!pf||c.platform===pf).length,
+  sm=k=>sub.reduce((a,c)=>a+(c[k]||0),0),conf=sm("conf"),paid=sm("paid"),exp=gtSumSure(sub),pend=gtSumPend(sub),np=sub.filter(c=>!gtSure(c)).length,
+  tc=L.reduce((a,c)=>a+(c.conf||0),0),tp=L.reduce((a,c)=>a+(c.paid||0),0);
+ const inp=(c,k)=>`<input class="in" style="width:84px;display:inline-block;padding:6px;text-align:right" inputmode="decimal" placeholder="—" value="${c[k]!=null?String(c[k]).replace(".",","):""}" onchange="A.setPay('${c.id}','${k}',this.value)">`;
+ return head("G-Tasty","Auszahlungen","Alles, was du bei G-Tasty eingereicht hast, mit erwartetem, bestätigtem und ausgezahltem Betrag. Die Liste ist dieselbe wie unter „Einreichen“ → „Bereits eingereicht“: Markierst du dort einen Clip, steht er hier sofort. Der erwartete Betrag kommt aus der festen Staffel (oder deinem eingetragenen Betrag beim Clip).")+
+ `<section class="cards">${stat("Erwartet, sicher",eur(exp),"Eingereicht, ab 100.000 Aufrufe",1)}${stat("Vorgemerkt",eur(pend),np+" Clip"+(np===1?"":"s")+" unter 100.000")}${stat("Bestätigt",eur(conf),"Von dir eingetragen")}${stat("Ausgezahlt",eur(paid),"Von dir eingetragen")}${stat("Noch offen",eur(Math.max(0,conf-paid)),"Bestätigt minus ausgezahlt")}</section>
+ <div class="chips" style="margin:16px 0 0"><span class="muted" style="font-size:12px">Plattform:</span>${[["","Alle"],...PLS.map(k=>[k,PL[k]])].map(([k,l])=>`<span class="chip ${GP===k?"on":""}" onclick="A.gtPf('${k}')">${l} (${cnt(k)})</span>`).join("")}</div>
+ ${sub.length>1?`<div class="chips" style="margin:8px 0 0"><span class="muted" style="font-size:12px">Sortieren nach:</span>${[["aufrufe","Aufrufe"],["datum","Veröffentlicht am"]].map(([k,l])=>`<span class="chip ${GS.by===k?"on":""}" onclick="A.gtSort('${k}')">${l}${GS.by===k?(GS.dir<0?" ↓":" ↑"):""}</span>`).join("")}<span class="muted" style="font-size:12px">gilt auch unter „Einreichen“</span></div>`:""}
+ <section class="panel" style="margin:16px 0"><h2>Eingereichte Clips (${L.length})</h2>
+ ${L.length?`<div class="tw"><table><thead><tr><th>Clip</th><th>Plattform</th><th class="num">Aufrufe</th><th class="num">Erwartet</th><th class="num">Bestätigt (€)</th><th class="num">Ausgezahlt (€)</th><th class="num">Offen</th></tr></thead><tbody>${L.map(c=>`<tr><td><a onclick="A.open('${c.id}')">${esc(c.title)}</a><div class="mf">${dde(c.published)}${c.gtAt?" · eingereicht am "+dde(c.gtAt):""}</div></td><td>${PL[c.platform]}</td><td class="num">${nf(gtMax(c))}</td><td class="num">${gtPill(c)}</td><td class="num">${inp(c,"conf")}</td><td class="num">${inp(c,"paid")}</td><td class="num">${eur(Math.max(0,(c.conf||0)-(c.paid||0)))}</td></tr>`).join("")}<tr><td colspan="4"><b>Summe${GP?" ("+PL[GP]+")":""}</b></td><td class="num"><b>${eur(tc)}</b></td><td class="num"><b>${eur(tp)}</b></td><td class="num"><b>${eur(Math.max(0,tc-tp))}</b></td></tr></tbody></table></div>
+ <p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="btn gh sm" onclick="A.payConf()">Bestätigt aus Erwartet füllen (leere, sichere Clips)</button><button class="btn gh sm" onclick="A.payPaid()">Ausgezahlt = Bestätigt (leere Felder)</button></p>`:`<div class="empty">Noch kein Clip als eingereicht markiert. Das machst du unter <a onclick="A.go('submit')">Einreichen</a>, danach erscheint der Clip hier.</div>`}
+ <p class="notice">Erwartet ist eine Rechnung nach der Staffel, keine Zusage von G-Tasty. Bestätigt und ausgezahlt trägst du selbst ein, sobald G-Tasty es meldet. Leere Felder zählen als 0.</p></section>
+ <section class="panel"><h2>So kommt das Geld an</h2><p class="notice">Auszahlung als USDC (Solana) an deine hinterlegte Wallet bei Kraken, dort in Euro tauschen und per SEPA aufs Bankkonto überweisen. Erste Auszahlung laut G-Tasty: 1. Dezember 2026.</p></section>`}
+
+function statsBody(){const pr=prevR(),cl=PF?db.clips.filter(c=>c.platform===PF):db.clips,g=cl.reduce((a,c)=>a+gained(c,R),0),o=cl.reduce((a,c)=>a+gained(c,pr),0),d=o>0?(g-o)/o*100:null,dl=dailyAll(cl,R,PF),hasM=cl.some(c=>latest(c,R.to)),cs=(!PF||PF==="youtube")?chanSum(R):null;
+ const per=PLS.map(p=>({p,v:db.clips.filter(c=>c.platform===p).reduce((a,c)=>a+gained(c,R),0),o:db.clips.filter(c=>c.platform===p).reduce((a,c)=>a+gained(c,pr),0)})).filter(x=>x.v>0||x.o>0);
+ const best=cl.map(c=>({c,v:gained(c,R)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10);
+ const bestP=`<div class="panel"><h2>Erfolgreichste Clips im Zeitraum</h2>${hbars(best.map(x=>({label:x.c.title,value:x.v,sub:PL[x.c.platform]})),"Noch keine Zuwächse gemessen.")}</div>`;
+ return `<h2 style="margin:30px 0 4px;font-size:22px">Statistiken & Analysen${PF?" · "+PL[PF]:""}</h2><p class="notice" style="margin:0 0 6px">Vergleich mit ${dde(pr.from)} – ${dde(pr.to)}.</p>
+ <section class="cards">${stat("Aufrufe im Zeitraum",hasM?nf(g):cs?nf(cs.views):"—",hasM?"Vorzeitraum: "+nf(o):cs?"nur YouTube-Kanal (Analytics)":"Vorzeitraum: "+nf(o),1)}${stat("Veränderung",d==null?"—":(d>=0?"+":"")+d.toFixed(1).replace(".",",")+" %",d==null?"Kein Vergleichswert":"Aufrufzuwachs")}${stat("Ø Aufrufe je Clip",cl.length?nf(g/cl.length):"—",nf(cl.length)+" Clips")}${stat("Messwerte gespeichert",nf(cl.reduce((a,c)=>a+c.metrics.length,0)+db.followers.filter(f=>!PF||f.platform===PF).length))}</section>
+ <section class="g2"><div class="panel"><h2>Aufrufe pro Tag</h2>${barChart(dl,"Keine Messwerte im Zeitraum.")}</div><div class="panel"><h2>Aufrufe pro Monat</h2>${barChart(bucket(dl,"monat"),"Keine Messwerte im Zeitraum.")}</div></section>
+ ${PF?`<section style="margin-bottom:14px">${bestP}</section>`:`<section class="g2e"><div class="panel"><h2>Plattformvergleich (Zuwachs)</h2>${hbars(per.map(x=>({label:PL[x.p],value:x.v,sub:"Vorzeitraum: "+nf(x.o)})),"Keine Aufrufe im Zeitraum.")}</div>${bestP}</section>`}`}
+const pStats=()=>pFollower();
+/* ============ Radar: Läuft gerade + Fast geschafft ============ */
+const GT_STEPS=[80000,100000,200000,300000,400000,500000];
+const tierEuro=v=>{for(const [m,e] of GT_TIERS)if(v>=m)return e;return 0};
+const nowH=()=>{const d=new Date();return d.getHours()+d.getMinutes()/60};
+const dfmt=(n,d=1)=>new Intl.NumberFormat("de-DE",{maximumFractionDigits:d}).format(n);
+/* Fenster = seit Ende von vorgestern bis jetzt (Tageswerte), dazu das Fenster davor. Nur Clips mit Wert von heute und sicherem Ausgangswert. */
+function clipWin(c,T){const a=latest(c,T),pub=c.published||"";if(!a||a.date!==T)return null;
+ const t2=addDays(T,-2),t4=addDays(T,-4),b=latest(c,t2),p=latest(c,t4),okB=!!b&&b.date>=addDays(T,-4),okP=!!p&&p.date>=addDays(T,-6);
+ const b0=okB?b.views:(pub&&pub>t2?0:null);if(b0==null)return null;
+ let prev=null;if(okB){const p0=okP?p.views:(pub&&pub>t4?0:null);if(p0!=null)prev=Math.max(0,b.views-p0)}else if(pub&&pub>t2)prev=0;
+ return{c,g:Math.max(0,a.views-b0),prev,hrs:24+nowH()}}
+const radarLabel=n=>n<=2?"läuft stark":n<=4?"läuft gut":n<=7?"normal":"ruhig";
+function radarPlat(p,T){const cl=db.clips.filter(c=>c.platform===p),w=cl.map(c=>clipWin(c,T)).filter(Boolean),fm=firstMeasureP(p),o={p,w};
+ if(!fm)return Object.assign(o,{why:"Noch keine Messwerte"});
+ if(!w.length)return Object.assign(o,{why:"Noch keine Werte von heute (Sync prüfen)"});
+ const gain=w.reduce((a,x)=>a+x.g,0),hrs=w[0].hrs;Object.assign(o,{gain,hrs});
+ const d0=addDays(T,-30)>addDays(fm,1)?addDays(T,-30):addDays(fm,1),e=addDays(T,-2),nd=Math.round((Date.parse(e)-Date.parse(d0))/864e5)+1;
+ if(nd<4)return Object.assign(o,{why:"Zu wenig Verlauf: vor dem Fenster braucht der Radar mindestens 4 Tage Messwerte (bisher "+Math.max(0,nd)+")"});
+ const tot=daily(cl,{from:d0,to:e},p).reduce((a,x)=>a+x.y,0);
+ if(!(tot>0))return Object.assign(o,{why:"Kein Vergleichswert (davor keine Aufrufe gemessen)"});
+ const base=tot/(nd*24),ratio=gain/hrs/base;return Object.assign(o,{base,ratio,nd,score:clampN(Math.round(11-ratio*5),1,10)})}
+function radarCard(x){const sc=x.score;
+ return `<div class="card"><div class="ml">${PL[x.p]}</div>${sc!=null?`<div class="mv g">${sc}<span style="font-size:16px;color:var(--muted);font-style:normal"> / 10</span></div><div class="bar" style="margin:6px 0 8px"><i style="width:${(11-sc)*10}%"></i></div><div class="mf"><b style="color:#fff">${radarLabel(sc)}</b> · ${dfmt(x.ratio)}× dein Schnitt</div><div class="mf">${nf(x.gain)} Aufrufe in den letzten 48 h</div>`:`<div class="mv">—</div><div class="mf">${esc(x.why||"")}</div>${x.gain!=null?`<div class="mf">${nf(x.gain)} Aufrufe in den letzten 48 h</div>`:""}`}</div>`}
+function nearList(pr,PFsel){const a=db.gtAuto||{},rate=new Map(pr.flatMap(x=>x.w).map(x=>[x.c.id,x.g/x.hrs*24]));
+ return db.clips.filter(c=>(!PFsel||c.platform===PFsel)&&c.euro==null&&(c.gtasty||c.manual||(c.published&&c.published>=(a.from||"0000-01-01")))).map(c=>{const v=gtMax(c),next=GT_STEPS.find(s=>s>v);if(!next||v<next*.7)return null;
+  const rem=next-v,r=rate.get(c.id),eta=r>0?rem/r:null,cur=gtEuro(c),ne=tierEuro(next);return{c,v,next,rem,eta,cur,ne,add:ne-cur,r}}).filter(Boolean).sort((x,y)=>(x.eta==null)-(y.eta==null)||(x.eta??0)-(y.eta??0)||x.rem-y.rem)}
+function pRadar(){const T=today(),PFL=PF?[PF]:PLS,pr=PFL.map(p=>radarPlat(p,T)),
+ rows=pr.flatMap(x=>x.w).filter(x=>x.g>0).sort((a,b)=>b.g-a.g).slice(0,10),near=nearList(pr,PF),addSum=near.reduce((a,x)=>a+Math.max(0,x.add),0),
+ eta=x=>x.eta==null?"Tempo unbekannt":x.eta<1?"unter 1 Tag":x.eta>60?"über 60 Tage":"ca. "+Math.ceil(x.eta)+(Math.ceil(x.eta)===1?" Tag":" Tage"),
+ nxt=x=>x.next===80000&&x.v<80000?"20 € vorgemerkt":x.next===100000?"wird sicher, "+eur(x.ne):eur(x.ne)+(x.add>0?" (+"+eur(x.add)+")":"");
+ return head("Auswertung","Radar","Zeigt, welche deiner Clips gerade laufen und welche kurz vor der nächsten G-Tasty-Stufe stehen. Alles wird aus deinen eigenen Messwerten gerechnet.")+pfSwitch()+
+ `<h2 style="margin:24px 0 4px;font-size:22px">Läuft gerade</h2><p class="notice" style="margin:0 0 6px">Bewertung je Plattform, 1 ist das Beste und 10 das Schlechteste: Aufrufe der letzten 48 Stunden im Vergleich zu deinem eigenen Schnitt auf dieser Plattform.</p>
+ <section class="cards c3" style="margin-top:12px">${pr.map(radarCard).join("")}</section>
+ <section class="panel" style="margin-bottom:14px"><h2>Clips mit den meisten Aufrufen in den letzten 48 Stunden</h2>
+ ${rows.length?`<div class="tw"><table><thead><tr><th>Clip</th><th>Plattform</th><th class="num">Letzte 48 h</th><th class="num">48 h davor</th><th class="num">Trend</th><th class="num">Gesamt</th></tr></thead><tbody>${rows.map(x=>{const tr=x.prev==null?null:x.prev===0?(x.g>0?"neu":null):((x.g/x.hrs)/(x.prev/48)-1)*100;
+  return `<tr class="cl"><td><a onclick="A.open('${x.c.id}')"><b>${esc(x.c.title)}</b></a><div class="mf">${dde(x.c.published)}</div></td><td>${PL[x.c.platform]}</td><td class="num"><b>${nf(x.g)}</b></td><td class="num">${x.prev==null?"—":nf(x.prev)}</td><td class="num">${tr==null?"—":tr==="neu"||typeof tr==="string"?"▲ neu":(tr>=0?"▲ +":"▼ ")+dfmt(tr,0)+" %"}</td><td class="num">${nf(gtMax(x.c))}</td></tr>`}).join("")}</tbody></table></div>
+ <p class="notice" style="margin-top:10px">Läuft ein Clip stark und der Trend zeigt ▲, ist das der Moment, einen Teil 2 oder einen ähnlichen Clip nachzulegen oder ihn auf einer weiteren Plattform zu posten. Eine Garantie, dass er weiter wächst, gibt es nicht.</p>`:emptyBox("Noch keine Clips mit Aufrufen in den letzten 48 Stunden. Der Radar braucht Messwerte von heute (Sync läuft alle 15 Minuten).")}
+ <p class="notice">So wird gerechnet: Der Hub speichert pro Clip einen Wert pro Tag. „Letzte 48 h“ heißt: Zuwachs seit Ende von vorgestern bis jetzt, also gestern plus der bisherige Tag. Die 48 h davor sind der Zuwachs im Fenster zuvor. Der Trend vergleicht die Aufrufe pro Stunde in beiden Fenstern. Bewertet wird nur, was der Hub sicher kennt (Clips mit Wert von heute und bekanntem Ausgangswert). 1 = mindestens doppelt so viel wie sonst bei dir, 6 = so viel wie sonst, 10 = kaum Bewegung. „Dein Schnitt“ sind die Aufrufe pro Stunde der letzten bis zu 30 Tage vor dem Fenster, es braucht mindestens 4 Tage Verlauf.</p></section>
+ <h2 style="margin:30px 0 4px;font-size:22px">Fast geschafft</h2><p class="notice" style="margin:0 0 6px">Clips, die höchstens 30 % unter der nächsten G-Tasty-Stufe liegen (Staffel: 80.000, 100.000, 200.000, 300.000, 400.000, 500.000 Aufrufe).</p>
+ <section class="cards c3" style="margin-top:12px">${stat("Clips kurz vor der nächsten Stufe",nf(near.length),near.length?"Zuerst die, die am schnellsten ankommen":"Aktuell keiner nah genug dran",1)}${stat("Möglicher Mehrbetrag",near.length?"+ "+eur(addSum):"—","Wenn alle die nächste Stufe schaffen, rechnerisch")}${stat("Davon schon eingereicht",nf(near.filter(x=>x.c.gtasty).length),"Die anderen reichst du ein, sobald sie bereit sind")}</section>
+ <section class="panel" style="margin-bottom:14px"><h2>Nächste Stufe in Reichweite</h2>
+ ${near.length?`<div class="tw"><table><thead><tr><th>Clip</th><th>Plattform</th><th class="num">Aufrufe</th><th class="num">Nächste Stufe</th><th class="num">Noch</th><th class="num">Dann</th><th class="num">Bei aktuellem Tempo</th></tr></thead><tbody>${near.slice(0,15).map(x=>`<tr class="cl"><td><a onclick="A.open('${x.c.id}')"><b>${esc(x.c.title)}</b></a><div class="mf">${dde(x.c.published)} · ${x.c.gtasty?"eingereicht":"noch nicht eingereicht"}</div></td><td>${PL[x.c.platform]}</td><td class="num">${nf(x.v)}</td><td class="num">${nf(x.next)}</td><td class="num"><b>${nf(x.rem)}</b></td><td class="num">${nxt(x)}</td><td class="num">${eta(x)}</td></tr>`).join("")}</tbody></table></div>`:emptyBox("Aktuell steht kein Clip nah genug vor einer Stufe. Berücksichtigt werden Clips, die ab dem Datum der Einreich-Regel veröffentlicht wurden, bereits eingereichte und von Hand angelegte Clips. Clips mit von dir eingetragenem Betrag fehlen hier.")}
+ <p class="notice">„Bei aktuellem Tempo“ ist eine grobe Rechnung: Fehlende Aufrufe geteilt durch die Aufrufe pro Tag der letzten 48 Stunden. Das Tempo ändert sich oft schnell, nimm es nur als Anhaltspunkt. Die Beträge sind rechnerisch nach der Staffel, keine Zusage von G-Tasty.</p></section>`}
+/* ============ Zeitrechner ============ */
+let ZT={fps:60,m:"0",s:"35",f:"22",sec:"18,18"};
+const ztInt=x=>{const n=Math.floor(Number(String(x).trim().replace(",",".")));return isFinite(n)&&n>=0?n:0};
+const ztZ=x=>String(x).padStart(2,"0");
+const ztTC=(n,fps)=>{const t=Math.floor(n/fps);return ztZ(Math.floor(t/3600))+":"+ztZ(Math.floor(t/60)%60)+":"+ztZ(t%60)+":"+ztZ(n%fps)};
+const ztMS=ms=>Math.floor(ms/60000)+":"+ztZ(Math.floor(ms/1000)%60)+","+String(ms%1000).padStart(3,"0");
+const ztRow=(l,v)=>`<div class="row"><span class="muted">${l}</span><b>${v}</b></div>`;
+function ztA(){const fps=ZT.fps,f=ztInt(ZT.f),t=ztInt(ZT.m)*60+ztInt(ZT.s);
+ if(f>=fps)return `<p class="err">Bei ${fps} Bildern pro Sekunde kann „Bilder“ höchstens ${fps-1} sein.</p>`;
+ const n=t*fps+f,sec=n/fps,ms=Math.round(sec*1000);
+ return `<div class="mv g" style="font-size:34px">${dfmt(sec,3)} <span style="font-size:16px;color:var(--muted);font-style:normal">${Math.abs(sec-1)<1e-9?"Sekunde":"Sekunden"}</span></div>${ztRow("Als Zeit (Min:Sek,Millisekunden)",ztMS(ms))}${ztRow("Millisekunden gesamt",nf(ms))}${ztRow("Bilder gesamt",nf(n))}${ztRow("CapCut-Anzeige (Std:Min:Sek:Bilder)",ztTC(n,fps))}<p style="margin-top:12px"><button class="btn gh sm" onclick="A.ztPb('a')">In den Progress-Bar-Generator übernehmen</button></p>`}
+function ztB(){const fps=ZT.fps,sec=Number(String(ZT.sec).trim().replace(",","."));
+ if(!(sec>=0)||String(ZT.sec).trim()==="")return `<p class="notice">Trage eine Dauer in Sekunden ein, z. B. 18,18.</p>`;
+ const n=Math.round(sec*fps),t=Math.floor(n/fps),diff=Math.abs(n/fps-sec)*1000;
+ return `<div class="mv g" style="font-size:34px">${t}:${ztZ(n%fps)} <span style="font-size:16px;color:var(--muted);font-style:normal">Sekunden:Bilder</span></div>${ztRow("Das sind",t+(t===1?" Sekunde":" Sekunden")+" und "+(n%fps)+(n%fps===1?" Bild":" Bilder"))}${ztRow("CapCut-Anzeige (Std:Min:Sek:Bilder)",ztTC(n,fps))}${ztRow("Bilder gesamt",nf(n))}${diff>.05?`<p class="notice">Auf das nächste ganze Bild gerundet (Abweichung ${dfmt(diff,1)} ms), denn CapCut kennt nur ganze Bilder.</p>`:""}<p style="margin-top:12px"><button class="btn gh sm" onclick="A.ztPb('b')">In den Progress-Bar-Generator übernehmen</button></p>`}
+function pZeit(){return head("Creator-Tool","CapCut-Zeitrechner","CapCut zeigt Zeit als Sekunden:Bilder. Hier rechnest du das in echte Sekunden um und zurück.")+`<p><a onclick="A.go('tools')">← Alle Tools</a></p>
+ <section class="panel" style="margin-top:16px"><h2>Bildrate deines CapCut-Projekts</h2><select class="in" style="max-width:260px" onchange="A.ztSet('fps',this.value)">${[60,30,50,25,24].map(f=>`<option value="${f}" ${ZT.fps===f?"selected":""}>${f} Bilder pro Sekunde</option>`).join("")}</select>
+ <p class="notice"><b>35:22</b> in CapCut heißt 35 Sekunden und 22 Bilder, <u>nicht</u> 35,22 Sekunden. Bei 60 Bildern pro Sekunde sind das 35,367 Sekunden.</p></section>
+ <section class="g2e" style="margin-top:14px"><div class="panel"><h2>CapCut-Zeit → echte Sekunden</h2><div class="fg" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div><label class="f">Minuten</label><input class="in" inputmode="numeric" value="${esc(ZT.m)}" oninput="A.ztSet('m',this.value)"></div><div><label class="f">Sekunden</label><input class="in" inputmode="numeric" value="${esc(ZT.s)}" oninput="A.ztSet('s',this.value)"></div><div><label class="f">Bilder</label><input class="in" inputmode="numeric" value="${esc(ZT.f)}" oninput="A.ztSet('f',this.value)"></div></div><div id="zt-a" style="margin-top:14px">${ztA()}</div></div>
+ <div class="panel"><h2>Sekunden → CapCut-Zeit</h2><label class="f">Dauer in Sekunden (z. B. 18,18)</label><input class="in" inputmode="decimal" value="${esc(ZT.sec)}" oninput="A.ztSet('sec',this.value)"><div id="zt-b" style="margin-top:14px">${ztB()}</div></div></section>`}
+
+/* ============ Hashtag-Analyse ============ */
+let HS="avg";
+const hashOf=t=>[...new Set((String(t||"").match(/#[\p{L}\p{N}_]+/gu)||[]).map(x=>x.toLowerCase()))];
+function hashStats(pf){const cl=db.clips.filter(c=>!pf||c.platform===pf).map(c=>{const l=latest(c,"9999-12-31");return{c,v:l?l.views:null,tags:hashOf(c.title)}}).filter(x=>x.v!=null),
+ avg=cl.length?cl.reduce((a,x)=>a+x.v,0)/cl.length:0,map=new Map();
+ for(const x of cl)for(const t of x.tags){const o=map.get(t)||{t,n:0,sum:0,best:x};o.n++;o.sum+=x.v;if(x.v>o.best.v)o.best=x;map.set(t,o)}
+ const rows=[...map.values()].map(o=>Object.assign(o,{avg:o.sum/o.n}));
+ return{cl,avg,rows,multi:rows.filter(r=>r.n>=2),once:rows.filter(r=>r.n<2)}}
+function pHash(){const st=hashStats(PF),by=HS,srt={avg:(a,b)=>b.avg-a.avg,n:(a,b)=>b.n-a.n||b.avg-a.avg,sum:(a,b)=>b.sum-a.sum},M=[...st.multi].sort(srt[by]),O=[...st.once].sort((a,b)=>b.avg-a.avg),
+ withT=st.cl.filter(x=>x.tags.length).length,
+ bk=[["Ohne Hashtag",x=>x.tags.length===0],["1–3 Hashtags",x=>x.tags.length>=1&&x.tags.length<=3],["4–6 Hashtags",x=>x.tags.length>=4&&x.tags.length<=6],["7 und mehr",x=>x.tags.length>=7]].map(([l,f])=>{const a=st.cl.filter(f);return{l,n:a.length,avg:a.length?a.reduce((t,x)=>t+x.v,0)/a.length:null}});
+ return head("Creator-Tool","Hashtag-Analyse","Liest die Hashtags aus den Titeln deiner Clips und zeigt, bei welchen deine Clips im Schnitt die meisten Aufrufe hatten.")+`<p><a onclick="A.go('tools')">← Alle Tools</a></p>`+pfSwitch()+
+ `<section class="cards" style="margin-top:16px">${stat("Clips ausgewertet",nf(st.cl.length),"Clips mit mindestens einem Messwert",1)}${stat("Davon mit Hashtags",nf(withT),st.cl.length?dfmt(withT/st.cl.length*100,0)+" % der Clips":"—")}${stat("Verschiedene Hashtags",nf(st.rows.length),nf(st.multi.length)+" davon in mindestens 2 Clips")}${stat("Ø Aufrufe je Clip",st.cl.length?nf(st.avg):"—","Vergleichswert für unten")}</section>
+ ${st.rows.length?`<div class="chips" style="margin:0"><span class="muted" style="font-size:12px">Sortieren nach:</span>${[["avg","Ø Aufrufe"],["n","Anzahl Clips"],["sum","Aufrufe gesamt"]].map(([k,l])=>`<span class="chip ${by===k?"on":""}" onclick="A.hsSort('${k}')">${l}</span>`).join("")}</div>
+ <section class="panel" style="margin:14px 0"><h2>Hashtags in mindestens 2 Clips (${M.length})</h2>
+ ${M.length?`<div class="tw"><table><thead><tr><th>Hashtag</th><th class="num">Clips</th><th class="num">Ø Aufrufe</th><th class="num">Gegenüber Schnitt</th><th class="num">Aufrufe gesamt</th><th>Bester Clip</th></tr></thead><tbody>${M.map(r=>{const f=st.avg>0?r.avg/st.avg:null;return `<tr class="cl"><td><b>${esc(r.t)}</b></td><td class="num">${nf(r.n)}</td><td class="num"><b>${nf(r.avg)}</b></td><td class="num" style="color:${f==null?"inherit":f>=1.2?"var(--acc)":f<=.8?"var(--warn)":"inherit"}">${f==null?"—":(f>=1?"▲ ":"▼ ")+dfmt(f,1)+"×"}</td><td class="num">${nf(r.sum)}</td><td><a onclick="A.open('${r.best.c.id}')">${esc(r.best.c.title.length>46?r.best.c.title.slice(0,46)+"…":r.best.c.title)}</a> <span class="muted">(${nf(r.best.v)})</span></td></tr>`}).join("")}</tbody></table></div>
+ <p style="margin-top:12px"><button class="btn gh sm" onclick="A.hsCopy(this)">Beste 5 nach Ø Aufrufe kopieren</button></p>`:emptyBox("Noch kein Hashtag kommt in mindestens 2 Clips vor. Sobald du Hashtags mehrfach benutzt hast, erscheint hier eine Rangliste.")}</section>
+ <section class="panel" style="margin-bottom:14px"><h2>Nur in einem Clip benutzt (${O.length})</h2>${O.length?`<div style="display:flex;gap:8px;flex-wrap:wrap">${O.map(r=>`<span class="pill" style="font-size:12px" title="${esc(r.best.c.title)}">${esc(r.t)} · ${nf(r.avg)}</span>`).join("")}</div><p class="notice" style="margin-top:10px">Zahl hinter dem Hashtag = Aufrufe des einen Clips. Das ist zu wenig für einen Vergleich.</p>`:emptyBox("Keine.")}</section>
+ <section class="panel" style="margin-bottom:14px"><h2>Wie viele Hashtags pro Clip?</h2><div class="tw"><table><thead><tr><th>Gruppe</th><th class="num">Clips</th><th class="num">Ø Aufrufe</th></tr></thead><tbody>${bk.map(b=>`<tr><td>${b.l}</td><td class="num">${nf(b.n)}</td><td class="num">${b.avg==null?"—":nf(b.avg)}</td></tr>`).join("")}</tbody></table></div></section>`:`<div class="empty" style="margin-top:16px">${st.cl.length?"In den Titeln deiner Clips stehen keine Hashtags (mit #). Der Hub liest sie aus dem Titel bzw. der Beschreibung, die er von TikTok, Instagram und YouTube bekommt.":"Noch keine Clips mit Messwerten."}</div>`}
+ <p class="notice">So wird gerechnet: Für jeden Clip zählt sein neuester Messwert (Aufrufe gesamt seit Veröffentlichung). Pro Hashtag wird der Durchschnitt aller Clips gebildet, die ihn im Titel haben. Ältere Clips hatten mehr Zeit für Aufrufe, und viele Hashtags kommen nur in wenigen Clips vor. Ein hoher Wert zeigt deshalb nur, wo bei dir viele Aufrufe zusammenkamen, nicht sicher, dass der Hashtag der Grund war. Die Tabelle „Wie viele Hashtags pro Clip?“ hilft, das einzuordnen.</p>`}
+function pTools(){const T=[["pb","▰","Progress-Bar-Generator","Animierter Fortschrittsbalken als WebM für CapCut, exakt so lang wie dein Clip."],["zeit","◷","CapCut-Zeitrechner","Rechnet Sekunden:Bilder aus CapCut in echte Sekunden um und zurück."],["hash","#","Hashtag-Analyse","Zeigt, bei welchen Hashtags deine Clips am besten gelaufen sind."]];
+ return head("Creator-Tools","Deine Tools","Eigene Werkzeuge direkt im Hub.")+`<section class="toolgrid" style="margin-top:20px">${T.map(([k,i,n,d])=>`<a class="tool" onclick="A.go('${k}')" style="text-decoration:none;color:inherit;border-color:var(--line2)"><span style="color:var(--acc)">${i}</span><b>${n}</b><p>${d}</p></a>`).join("")}${["Thumbnail-Generator","Titel-Generator","Upload-Planer","Video-Analyse"].map(n=>`<div class="tool" style="opacity:.55"><b>${n}</b><p>Geplant.</p></div>`).join("")}</section>`}
+
+/* ============ G-Tasty live-Status (Twitch) ============ */
+let TWBUSY=false,TWNEXT=0,TWDRAW=0,TWERR="";
+function twApply(t){const m={};for(const r of t.slice(1))m[String(r[0]||"").trim()]=String(r[1]??"");
+ const n=x=>{const v=Number(String(x).replace(",","."));return isFinite(v)?v:0};
+ if(!m.login)throw new Error("Im Blatt „Twitch“ fehlt der Kanalname");
+ return{login:m.login,name:m.name||m.login,live:m.live==="ja",title:m.titel||"",game:m.spiel||"",viewers:n(m.zuschauer),started:m.gestartet||"",last:m.zuletzt_live||"",next:m.naechster_start||"",nextTitle:m.naechster_titel||"",checked:Date.parse(m.abgefragt)||0}}
+async function twSync(){if(!db.yt||!ytUrlOk(db.yt.url)||TWBUSY)return;const id=ytId(db.yt.url);if(!id)return;TWBUSY=true;
+ try{const o=twApply(ytRowsFromGviz(await ytJsonp(id,"Twitch")));db.tw=o;TWERR="";save()}
+ catch(e){TWERR=e.message}
+ TWBUSY=false;TWNEXT=Date.now()+120000;twDraw();const dp=document.getElementById("tw-panel");if(dp)dp.innerHTML=twDataLine()}
+const twAgo=ms=>{const m=Math.max(0,Math.round((Date.now()-ms)/60000));return m<2?"gerade eben":m<60?"vor "+m+" Min":m<1440?"vor "+Math.floor(m/60)+" Std":"vor "+Math.floor(m/1440)+(Math.floor(m/1440)===1?" Tag":" Tagen")};
+const twWhen=iso=>{const t=Date.parse(iso);return isFinite(t)?new Date(t).toLocaleString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})+" Uhr":""};
+const twDur=ms=>{const m=Math.max(0,Math.floor(ms/60000));return Math.floor(m/60)+":"+String(m%60).padStart(2,"0")+" Std"};
+function twState(){const t=db.tw;if(!t||!t.login)return null;return{t,stale:!t.checked||Date.now()-t.checked>20*60000,url:"https://www.twitch.tv/"+encodeURIComponent(t.login)}}
+function twLines(x){const{t,stale}=x,L=[];
+ if(t.live&&!stale){L.push(t.title?esc(t.title):"Kein Titel");if(t.game)L.push(esc(t.game));const d=Date.parse(t.started);L.push(nf(t.viewers)+" Zuschauer"+(isFinite(d)?" · seit "+twDur(Date.now()-d):""))}
+ else{L.push(t.last?"Zuletzt live: "+twAgo(Date.parse(t.last))+" ("+twWhen(t.last)+")":"Zuletzt live: nicht bekannt");L.push(t.next?"Nächster Stream: "+twWhen(t.next)+(t.nextTitle?" · "+esc(t.nextTitle):""):"Kein Sendeplan bei Twitch hinterlegt")}
+ if(stale)L.push("Stand "+(t.checked?twAgo(t.checked):"unbekannt")+", noch nicht aktualisiert");return L}
+function twPill(){const x=twState();
+ if(!x)return`<a class="twp off" onclick="A.go('daten')" title="Live-Status von G-Tasty einrichten"><span class="dot off"></span><span>G-Tasty · Einrichten</span></a>`;
+ const{t,stale,url}=x,live=t.live&&!stale,L=twLines(x),lbl=live?"G-Tasty live"+(t.viewers?" · "+nf(t.viewers):""):stale?"G-Tasty · Status veraltet":"G-Tasty offline";
+ return`<span class="twp-w"><a class="twp ${live?"live":""}" href="${url}" target="_blank" rel="noopener noreferrer"><span class="dot ${live?"live":"off"}"></span><span>${lbl}</span></a><span class="twpop"><b>${live?"G-Tasty ist live":stale?"Status veraltet":"G-Tasty ist offline"}</b><br>${L.map((l,k)=>k===0&&live?`<b style="color:#fff">${l}</b>`:l).join("<br>")}<br><span style="color:var(--acc)">Klicken öffnet Twitch ↗</span></span></span>`}
+function twDraw(){TWDRAW=Date.now();const a=document.getElementById("tw-pill"),x=twState();if(a)a.innerHTML=twPill();
+ document.title=x&&x.t.live&&!x.stale?"● G-TASTY LIVE · Creator Hub":"Philipp's Creator Hub"}
+function twDataLine(){const t=db.tw;return TWERR?`<p class="err">${esc(TWERR.length>200?TWERR.slice(0,200)+"…":TWERR)}</p>`:t&&t.login?`<p class="ok">✓ Verbunden mit dem Kanal ${esc(t.name)} (${esc(t.login)}). Letzte Abfrage: ${t.checked?twAgo(t.checked):"unbekannt"}. ${t.live?"Er ist gerade live.":"Er ist gerade offline."}</p>`:`<p class="notice">${db.yt&&db.yt.last?"Noch nicht eingerichtet.":"Zuerst oben YouTube verbinden, dieselbe Google-Tabelle wird mitbenutzt."}</p>`}
+/* ============ YouTube automatisch (über eigene Google-Tabelle) ============ */
+let YTBUSY=false;
+const ytUrlOk=u=>/^https:\/\/docs\.google\.com\/spreadsheets\//.test(String(u||"").trim());
+function ytApply(t,plat){plat=plat||"youtube";const ig=plat!=="youtube",PLN=plat==="tiktok"?"TikTok":"Instagram",key=plat==="tiktok"?"tt":ig?"ig":"yt",h=t[0].map(x=>String(x).trim().toLowerCase()),ix=n=>h.findIndex(x=>x.startsWith(n));
+ const I={d:ix("datum"),id:ix(ig?"post-id":"video-id"),t:ix("titel"),p:ix("ver"),v:ix("aufrufe"),l:ix("likes"),c:ix("kommentare"),s:ix("shares"),u:ix("link")};
+ if(I.d<0||I.v<0||I.id<0||I.t<0)throw new Error(ig?"Das Blatt „"+PLN+"“ fehlt oder hat andere Spalten (noch nicht eingerichtet).":"Die Spalten wurden nicht erkannt. Wurde das Blatt „Verlauf“ veröffentlicht (nicht ein anderes)?");
+ const byId=new Map(db.clips.filter(c=>c[key]).map(c=>[c[key],c])),byUrl=new Map(db.clips.filter(c=>c.platform===plat&&c.url).map(c=>[c.url,c])),claimed=new Set(),days=new Set();let vids=new Set(),n=0,last="";
+ const o=(r,i)=>{const x=i>=0?impNum(r[i]):NaN;return x>=0?x:0};
+ for(const r of t.slice(1)){const d=impDate(r[I.d]),v=impNum(r[I.v]),id=String(r[I.id]||"").trim();if(!d||!(v>=0)||!id)continue;
+  if(d>last)last=d;
+  if(id==="KONTO"){db.followers=db.followers.filter(x=>!(x.platform===plat&&x.date===d));db.followers.push({platform:plat,date:d,followers:v});days.add(d);continue}
+  const title=String(r[I.t]||"").replace(/\s+/g," ").trim()||id,link=I.u>=0&&/^https?:\/\//i.test(String(r[I.u]||"").trim())?(plat==="tiktok"?String(r[I.u]).trim().split("?")[0]:String(r[I.u]).trim()):"";let c=byId.get(id);
+  if(!c){c=link?byUrl.get(link):null;if(c&&c[key]&&c[key]!==id)c=null;
+   if(!c)c=db.clips.find(x=>!x[key]&&!claimed.has(x.id)&&x.platform===plat&&(!link||!x.url)&&x.title.trim().toLowerCase()===title.toLowerCase());
+   if(!c){c={id:uid(),platform:plat,title,url:"",published:"",gtasty:false,metrics:[]};db.clips.push(c)}
+   c[key]=id;byId.set(id,c)}
+  claimed.add(c.id);
+  if(!c.url)c.url=plat==="tiktok"?link.split("?")[0]:ig?link:"https://www.youtube.com/watch?v="+encodeURIComponent(id);
+  if(!c.published&&I.p>=0)c.published=impDate(r[I.p]);
+  const m={date:d,views:v,likes:o(r,I.l),comments:o(r,I.c),shares:o(r,I.s)},k=c.metrics.findIndex(x=>x.date===d);
+  if(k>=0)c.metrics[k]=m;else c.metrics.push(m);vids.add(id);days.add(d);n++}
+ if(!n&&!days.size)throw new Error(ig?"Im Blatt „"+PLN+"“ stehen noch keine Werte.":"In der Tabelle stehen noch keine Werte. Führe in Apps Script einmal „einrichten“ aus.");
+ return{videos:vids.size,days:days.size,last}}
+const ytId=u=>{const m=String(u||"").match(/\/spreadsheets\/d\/([A-Za-z0-9_-]+)/);return m&&m[1]!=="e"?m[1]:null};
+let YTN=0;
+function ytJsonp(id,sheet){sheet=sheet||"Verlauf";return new Promise((res,rej)=>{const cb="__ytcb"+Date.now()+"_"+(++YTN),sc=document.createElement("script");let done=false;
+ const end=()=>{done=true;try{delete window[cb]}catch(e){window[cb]=undefined}sc.remove()};
+ const fail=m=>{if(!done){end();rej(new Error(m))}};
+ window[cb]=d=>{if(done)return;end();res(d)};
+ sc.onload=()=>fail("Google hat keine lesbaren Daten geliefert. Ist die Tabelle auf „Jeder, der den Link hat“ (Betrachter) gestellt und gibt es das Blatt „Verlauf“?");
+ sc.onerror=()=>fail("Die Tabelle konnte nicht geladen werden. Prüfe Internet und Link.");
+ setTimeout(()=>fail("Zeitüberschreitung beim Laden der Tabelle."),20000);
+ sc.src="https://docs.google.com/spreadsheets/d/"+id+"/gviz/tq?sheet="+encodeURIComponent(sheet)+"&headers=1&tqx="+encodeURIComponent("out:json;responseHandler:"+cb);
+ document.head.appendChild(sc)})}
+function ytRowsFromGviz(d){if(!d||d.status!=="ok"||!d.table)throw new Error("Google meldet: "+((d&&d.errors&&d.errors[0]&&(d.errors[0].detailed_message||d.errors[0].message))||"Zugriff nicht möglich")+". Tabelle freigeben („Jeder, der den Link hat“) und Blatt „Verlauf“ prüfen.");
+ const cell=c=>c==null||c.v==null?"":String(c.v);let head=d.table.cols.map(c=>String(c.label||"").trim()),rows=d.table.rows.map(r=>(r.c||[]).map(cell));
+ if(!head.some(x=>x)){head=rows[0]||[];rows=rows.slice(1)}return[head,...rows]}
+function ytChanApply(t){const h=t[0].map(x=>String(x).trim().toLowerCase()),ix=n=>h.findIndex(x=>x.startsWith(n)),I={d:ix("datum"),v:ix("aufrufe"),p:ix("abonnentenplus"),m:ix("abonnentenminus")};
+ if(I.d<0||I.v<0)throw new Error("Spalten im Blatt Kanalverlauf nicht erkannt");
+ const out=[];for(const r of t.slice(1)){const d=impDate(r[I.d]),v=impNum(r[I.v]);if(!d||!(v>=0))continue;const pl=I.p>=0?impNum(r[I.p]):0,mi=I.m>=0?impNum(r[I.m]):0;out.push({date:d,views:v,net:(pl>=0?pl:0)-(mi>=0?mi:0)})}
+ if(!out.length)throw new Error("Blatt Kanalverlauf ist leer");out.sort((a,b)=>a.date.localeCompare(b.date));db.chan=out;rebuildEst();return out.length}
+function igChanApply(t){const hd=t[0].map(x=>String(x).trim().toLowerCase()),ix=n=>hd.findIndex(x=>x.startsWith(n)),I={d:ix("datum"),v:ix("aufrufe"),r:ix("reichweite")};
+ if(I.d<0||I.v<0)throw new Error("Spalten im Blatt Instagram-Verlauf nicht erkannt");
+ const out=[];for(const r of t.slice(1)){const d=impDate(r[I.d]),v=impNum(r[I.v]);if(!d||!(v>=0))continue;const rc=I.r>=0?impNum(r[I.r]):0;out.push({date:d,views:v,reach:rc>=0?rc:0})}
+ if(!out.length)throw new Error("Blatt Instagram-Verlauf ist leer");out.sort((a,b)=>a.date.localeCompare(b.date));db.chanIg=out;return out.length}
+function igFolApply(t){const hd=t[0].map(x=>String(x).trim().toLowerCase()),ix=n=>hd.findIndex(x=>x.startsWith(n)),I={d:ix("datum"),a:ix("zugang"),b:ix("abgang")};
+ if(I.d<0||I.a<0||I.b<0)throw new Error("Spalten im Blatt Instagram-Follower nicht erkannt");
+ const out=[];for(const r of t.slice(1)){const d=impDate(r[I.d]),a=impNum(r[I.a]),b=impNum(r[I.b]);if(!d||!(a>=0)||!(b>=0))continue;out.push({date:d,add:a,lose:b})}
+ if(!out.length)throw new Error("Blatt Instagram-Follower ist leer");out.sort((x,y)=>x.date.localeCompare(y.date));db.chanIgF=out;return out.length}
+function estBack(plat,rows){const real=db.followers.filter(f=>f.platform===plat).sort((a,b)=>a.date.localeCompare(b.date));if(!real.length||!rows||!rows.length)return;
+ const a=real[0],have=new Set(real.map(f=>f.date));let v=a.followers;
+ for(const r of rows.filter(x=>x.date<a.date).sort((x,y)=>y.date.localeCompare(x.date))){if(!have.has(r.date))db.followers.push({platform:plat,date:r.date,followers:Math.max(0,Math.round(v)),est:true});v-=r.net}}
+function rebuildEst(){db.followers=db.followers.filter(f=>!f.est);estBack("youtube",db.chan);estBack("instagram",(db.chanIgF||[]).map(x=>({date:x.date,net:x.add-x.lose})))}
+async function ytSync(){if(!db.yt||!ytUrlOk(db.yt.url)||YTBUSY)return;YTBUSY=true;
+ try{const url=db.yt.url.trim(),id=ytId(url);let t;
+  if(id){t=ytRowsFromGviz(await ytJsonp(id))}
+  else{let r;try{r=await fetch(url,{cache:"no-store"})}catch(e){throw new Error("Dein Browser blockiert den Abruf dieses „Im Web veröffentlichen“-Links. Nimm stattdessen den normalen Tabellen-Link: In der Tabelle oben rechts auf Teilen → Allgemeiner Zugriff → „Jeder, der den Link hat“ → Betrachter → Link kopieren, und füge diesen Link hier ein.")}
+   if(!r.ok)throw new Error("Google antwortet mit Fehler "+r.status+". Ist das Blatt im Web veröffentlicht?");t=csvParse(await r.text())}
+  const res=ytApply(t);db.yt.last=Date.now();db.yt.err="";db.yt.info=res;
+  if(id){try{db.yt.chanDays=ytChanApply(ytRowsFromGviz(await ytJsonp(id,"Kanalverlauf")));db.yt.chanErr=""}catch(e){db.yt.chanErr=e.message;rebuildEst()}
+   try{db.yt.igInfo=ytApply(ytRowsFromGviz(await ytJsonp(id,"Instagram")),"instagram");db.yt.igErr=""}catch(e){db.yt.igInfo=null;db.yt.igErr=e.message}
+   try{db.yt.igDays=igChanApply(ytRowsFromGviz(await ytJsonp(id,"Instagram-Verlauf")));db.yt.igChanErr=""}catch(e){db.yt.igChanErr=e.message}
+   try{db.yt.igFolDays=igFolApply(ytRowsFromGviz(await ytJsonp(id,"Instagram-Follower")));db.yt.igFolErr=""}catch(e){db.yt.igFolErr=e.message}
+   rebuildEst();
+   try{db.yt.ttInfo=ytApply(ytRowsFromGviz(await ytJsonp(id,"TikTok")),"tiktok");db.yt.ttErr=""}catch(e){db.yt.ttInfo=null;db.yt.ttErr=e.message}}}
+ catch(e){db.yt.err=e.message}
+ YTBUSY=false;YTNEXT=Date.now()+(db.yt&&db.yt.err?60000:YTEVERY);YTFLASH=!!(db.yt&&!db.yt.err);save();
+ const typing=[...document.querySelectorAll("#main input:not([type=checkbox]):not([type=file]):not([type=date]):not([readonly]),#main textarea:not([readonly])")].some(x=>x.value&&x.id!=="yt-url");
+ if(!pbBusy&&V!=="pb"&&!typing)paint()}
+function ytPanel(){const y=db.yt,code=document.getElementById("gs-code").textContent.trim();
+ const st=!y?"":y.err?`<p class="err">${esc(y.err)}</p>`:y.last?`<p class="ok">✓ Verbunden. Zuletzt geladen: ${new Date(y.last).toLocaleString("de-DE")} (${y.info?y.info.videos+" Videos, "+y.info.days+(y.info.days===1?" Tag":" Tage"):""}).</p>${y.chanDays?`<p class="ok">✓ Kanalverlauf seit Kanalstart geladen (${nf(y.chanDays)} Tage).</p>`:`<p class="notice">Kanalverlauf seit Kanalstart: noch nicht vorhanden (das Blatt „Kanalverlauf“ fehlt oder ist leer). Siehe „Verlauf nachladen“ unten.</p>`}`:`<p class="notice">Wird geladen …</p>`;
+ return `<section class="panel" style="margin:16px 0"><h2>YouTube automatisch laden</h2>
+  <p class="notice" style="font-size:13px">So holt sich dein eigenes Google-Konto alle 15 Minuten deine YouTube-Zahlen (und, wenn eingerichtet, die von Instagram und TikTok) (und einmal am Tag den Verlauf seit Kanalstart), und der Hub lädt sie beim Öffnen und alle 15 Minuten, solange er offen ist. (YouTube selbst liefert die Zahlen mit etwas Verzögerung, Echtzeit gibt es nicht.) Es wird nur gelesen, nichts bei YouTube geändert. Einmalig ca. 10 Minuten.</p>
+  <ol class="notice" style="font-size:13px;line-height:1.8">
+   <li>Öffne <b>sheets.new</b> (neue leere Google-Tabelle, Name egal) – mit dem Google-Konto, dem dein YouTube-Kanal gehört.</li>
+   <li>Menü <b>Erweiterungen → Apps Script</b>.</li>
+   <li>Den vorhandenen Code komplett löschen, den Code aus dem Kasten unten einfügen (Strg+A, Strg+V) und mit Strg+S speichern.</li>
+   <li>Links bei <b>Dienste</b> auf <b>＋</b> → <b>YouTube Data API v3</b> → <b>Hinzufügen</b>.</li>
+   <li>Oben die Funktion <b>einrichten</b> wählen und auf <b>Ausführen</b> klicken. Google fragt nach Erlaubnis. Das ist dein eigenes Skript; bei „nicht verifiziert“ auf <i>Erweitert → … öffnen</i> klicken und erlauben.</li>
+   <li>Zurück in der Tabelle: oben rechts auf <b>Teilen</b> → bei „Allgemeiner Zugriff“ <b>„Jeder, der den Link hat“</b> wählen (Rolle: <b>Betrachter</b>) → <b>Link kopieren</b>.</li>
+   <li>Diesen Link unten einfügen und auf „Verbinden“ klicken.</li></ol>
+  <p class="notice" style="font-size:13px;line-height:1.7"><b>Verlauf nachladen (seit Kanalstart):</b> Im Apps Script bei <b>Dienste ＋</b> zusätzlich <b>YouTube Analytics API</b> hinzufügen (Kennung <i>YouTubeAnalytics</i>). Dazu den Code unten neu einfügen (alten komplett ersetzen), speichern, <b>einrichten</b> noch einmal ausführen und die neue Erlaubnis bestätigen. Danach holt der Hub zusätzlich den Tagesverlauf deines ganzen Kanals (Aufrufe und Abonnenten) seit dem Tag, an dem der Kanal erstellt wurde. Das gilt nur für den Kanal als Ganzes, nicht pro Video.</p>
+  <textarea class="in" readonly rows="10" style="font-family:monospace;font-size:12px" onclick="this.select()">${esc(code)}</textarea>
+  <p><button class="btn gh sm" onclick="A.ytCopy(this)">Code kopieren</button></p>
+  <label class="f" style="margin-top:12px">Link deiner Google-Tabelle (aus „Teilen“)</label>
+  <div class="qr"><input class="in" id="yt-url" placeholder="https://docs.google.com/spreadsheets/d/…/edit?usp=sharing" value="${esc(y?y.url:"")}"><button class="btn" onclick="A.ytConnect()">${y?"Neu laden":"Verbinden"}</button>${y?`<button class="btn gh" onclick="A.ytOff()">Trennen</button>`:""}</div>
+  ${st}<p class="notice">Jeder mit diesem Link kann die Tabelle lesen (nicht ändern). Er ist nicht erratbar und enthält nur deine ohnehin öffentlichen Video-Zahlen. Gib ihn nicht weiter. Er ist auch in deinem Backup enthalten.</p>
+  <h3 style="margin-top:22px">Instagram automatisch (optional)</h3>
+  ${y&&y.igInfo?`<p class="ok">✓ Instagram wird geladen: ${y.igInfo.videos} Beiträge, letzter Datenstand ${dde(y.igInfo.last)}.</p>${y.igDays?`<p class="ok">✓ Konto-Verlauf seit Kontostart geladen (${nf(y.igDays)} Tage).</p>`:`<p class="notice">Konto-Verlauf seit Kontostart: noch nicht vorhanden (Blatt „Instagram-Verlauf“ fehlt oder ist leer). Der Abholer legt es einmal am Tag an.</p>`}${y.igFolDays?`<p class="ok">✓ Follower-Verlauf seit Kontostart geladen (${nf(y.igFolDays)} Tage, aus täglichen Zu- und Abgängen zurückgerechnet).</p>`:""}`:`<p class="notice">${y&&y.last?"Nicht eingerichtet."+(y.igErr&&!/noch nicht eingerichtet/.test(y.igErr)?" "+esc(y.igErr):""):"Zuerst oben YouTube verbinden, dieselbe Google-Tabelle wird mitbenutzt."}</p>`}
+  <p class="notice" style="font-size:13px;line-height:1.7"><b>Eingerichtet.</b> Der Abholer im Code oben läuft für Instagram im selben 15-Minuten-Takt wie YouTube. Er nutzt einen Zugangsschlüssel (Token) und die Konto-Nummer, die nur in den <b>Skripteigenschaften</b> deines Google-Skripts stehen (<b>IG_TOKEN</b> und <b>IG_USER_ID</b>), nie im Code und nie hier im Hub. Er liest nur Aufrufe, Likes, Kommentare, Shares und die Follower-Zahl, und einmal am Tag die Tageswerte deines ganzen Instagram-Kontos seit Kontostart (Blatt „Instagram-Verlauf“, Instagram liefert bis zu 2 Jahre rückwirkend) und die täglichen Follower-Zu- und Abgänge (Blatt „Instagram-Follower“; daraus rechnet der Hub die Follower früherer Tage aus der heutigen Zahl zurück, als Schätzung markiert). Zugangs-Weg: Meta-App → Systemnutzer „Hub Leser“ mit den Rechten instagram_basic und instagram_manage_insights, Token ohne Ablaufdatum. Wenn Instagram einmal keine Zahlen mehr liefert, steht der Grund oben im Status. Dann hilft ein neues Token (Meta Business Settings → Systemnutzer → Token generieren) in der Skripteigenschaft <b>IG_TOKEN</b>. Der <b>CSV-Import</b> unten bleibt als Ersatz.</p>
+  <h3 style="margin-top:22px">TikTok automatisch (optional)</h3>
+  ${y&&y.ttInfo?`<p class="ok">✓ TikTok wird geladen: ${y.ttInfo.videos} Videos, letzter Datenstand ${dde(y.ttInfo.last)}.</p>`:`<p class="notice">${y&&y.last?"Nicht eingerichtet."+(y.ttErr&&!/noch nicht eingerichtet/.test(y.ttErr)?" "+esc(y.ttErr):""):"Zuerst oben YouTube verbinden, dieselbe Google-Tabelle wird mitbenutzt."}</p>`}
+  <p class="notice" style="font-size:13px;line-height:1.7"><b>Eingerichtet.</b> Der Abholer im Code oben läuft auch für TikTok im 15-Minuten-Takt. Er nutzt die offizielle TikTok-Schnittstelle (TikTok for Developers, App „Creator Hub Philipp“ im Testmodus „Sandbox“ mit deinem Konto als Testnutzer). Client-Schlüssel, Client-Secret und der Dauer-Schlüssel stehen nur in den <b>Skripteigenschaften</b> deines Google-Skripts (<b>TIKTOK_CLIENT_KEY</b>, <b>TIKTOK_CLIENT_SECRET</b>, <b>TIKTOK_REFRESH_TOKEN</b>), nie im Code und nie hier im Hub. Er liest nur Aufrufe, Likes, Kommentare, Shares, Veröffentlichungsdatum und die Follower-Zahl. Die Freigabe gilt 365 Tage und verlängert sich bei jedem Lauf von selbst. Wenn TikTok einmal keine Zahlen mehr liefert, steht der Grund oben im Status. Dann muss die TikTok-Freigabe einmal erneuert werden (das geht mit Claude in ca. 5 Minuten). Videos, die du schon von Hand eingetragen hast, werden über den Titel zugeordnet; bleiben doppelte Einträge übrig, kannst du die alten von Hand löschen. Der <b>CSV-Import</b> unten bleibt als Ersatz.</p>
+  <h3 style="margin-top:22px">G-Tasty live-Status (Twitch, optional)</h3>
+  <div id="tw-panel">${twDataLine()}</div>
+  <p class="notice" style="font-size:13px;line-height:1.7">Der Hub zeigt oben rechts auf jeder Seite ein kleines Feld, ob G-Tasty gerade live ist (rot, mit Zuschauerzahl). Fährst du mit der Maus darüber, siehst du Titel, Spiel, Zuschauer und seit wann. Ist er offline, steht dort, wann er zuletzt live war und, falls er bei Twitch einen Sendeplan eingetragen hat, wann der nächste Stream beginnt. Ein Klick öffnet seinen Twitch-Kanal. Solange er live ist, steht „● G-TASTY LIVE“ auch im Titel des Browser-Tabs. Der Abholer im Code oben prüft alle 5 Minuten, der Hub liest das Ergebnis alle 2 Minuten, solange er offen ist. Es werden nur öffentliche Kanal-Infos über die offizielle Twitch-Schnittstelle gelesen.</p>
+  <ol class="notice" style="font-size:13px;line-height:1.8">
+   <li>Öffne <b>dev.twitch.tv/console</b> und melde dich mit deinem Twitch-Konto an. Twitch verlangt dafür, dass in deinem Twitch-Konto die Zwei-Faktor-Anmeldung eingeschaltet ist.</li>
+   <li>Klicke auf <b>Anwendung registrieren</b>. Name zum Beispiel „Creator Hub Philipp“, OAuth-Weiterleitungs-URL <b>http://localhost</b>, Kategorie „Website Integration“ (oder eine ähnliche), Client-Typ <b>Vertraulich</b>. Dann erstellen.</li>
+   <li>Öffne die Anwendung über <b>Verwalten</b>. Kopiere die <b>Client-ID</b> und klicke auf <b>Neues Geheimnis</b>, dann kopiere auch das Geheimnis (es wird nur einmal angezeigt).</li>
+   <li>Im Apps Script links auf das <b>Zahnrad (Projekteinstellungen)</b>, unten bei <b>Skripteigenschaften</b> auf „Skripteigenschaft hinzufügen“: <b>TWITCH_CLIENT_ID</b> = deine Client-ID und <b>TWITCH_CLIENT_SECRET</b> = dein Geheimnis. Optional <b>TWITCH_LOGIN</b> = Kanalname bei Twitch (ohne diese Zeile gilt „gtasty“).</li>
+   <li>Den Code oben neu kopieren und im Apps Script einfügen (den alten komplett ersetzen), speichern, die Funktion <b>twitchEinrichten</b> wählen und auf <b>Ausführen</b> klicken. Bestätige die Erlaubnis.</li></ol>
+  <p class="notice">Client-ID und Geheimnis stehen nur in den Skripteigenschaften deines Google-Skripts, nie im Code und nie hier im Hub. Gib das Geheimnis niemandem weiter und schreib es auch nicht in den Chat.</p></section>`}
+
+
+/* ============ Abgleich zwischen Geräten (über dein eigenes Google-Skript) ============ */
+/* Abgeglichen wird nur, was du von Hand einstellst: eingereicht-Markierung, Beträge, Auszahlungen, eigene/importierte Clips, Einreich-Regel.
+   Die Zahlen von YouTube/Instagram/TikTok/Twitch holt jedes Gerät selbst aus der Google-Tabelle. Url und Sync-Code stehen nur in diesem Browser (nicht im Backup). */
+const SYK="creator-hub-sync.v1";let SY=null,SYBUSY=false,SYMSG="",SYNEXT=0,SYT=null,SYAPPLY=false,SYDIRTY=false;
+function syLoad(){try{SY=JSON.parse(localStorage.getItem(SYK)||"null")}catch(e){SY=null}if(SY&&(!SY.url||!SY.code))SY=null}
+function sySave(){try{localStorage.setItem(SYK,JSON.stringify(SY))}catch(e){}}
+const syH=s=>{let h=5381;for(let i=0;i<s.length;i++)h=(h*33^s.charCodeAt(i))>>>0;return h.toString(36)+"."+s.length};
+const syKey=c=>c.yt?"yt:"+c.yt:c.ig?"ig:"+c.ig:c.tt?"tt:"+c.tt:"c:"+c.id;
+const syN=x=>x==null?null:x;
+function syRec(c){
+ if(c.yt||c.ig||c.tt){if(!(c.gtasty||c.euro!=null||c.conf!=null||c.paid!=null))return null;return{g:!!c.gtasty,a:c.gtAt||"",e:syN(c.euro),cf:syN(c.conf),pd:syN(c.paid)}}
+ return{id:c.id,platform:c.platform,title:c.title,url:c.url||"",published:c.published||"",gtasty:!!c.gtasty,gtAt:c.gtAt||"",manual:!!c.manual,euro:syN(c.euro),conf:syN(c.conf),paid:syN(c.paid),
+  metrics:[...c.metrics].sort((a,b)=>a.date.localeCompare(b.date)).map(m=>[m.date,m.views,m.likes,m.comments,m.shares])}}
+function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[syKey(c)]=r}const g=db.gtAuto;if(g)m["s:gtAuto"]={on:!!g.on,from:g.from,min:g.min};return m}
+const syHash=r=>r==null?"":syH(JSON.stringify(r));
+function syApply(k,r,idx){
+ if(k==="s:gtAuto"){if(r)db.gtAuto={on:!!r.on,from:r.from,min:r.min,v2:true};return true}
+ if(k.startsWith("c:")){const old=idx.get(k);
+  if(r===null){if(old){db.clips=db.clips.filter(c=>c!==old);idx.delete(k)}return true}
+  const nc={id:r.id,platform:r.platform,title:r.title,url:r.url||"",published:r.published||"",gtasty:!!r.gtasty,metrics:(r.metrics||[]).map(m=>({date:m[0],views:m[1],likes:m[2],comments:m[3],shares:m[4]}))};
+  if(r.gtAt)nc.gtAt=r.gtAt;if(r.manual)nc.manual=true;if(r.euro!=null)nc.euro=r.euro;if(r.conf!=null)nc.conf=r.conf;if(r.paid!=null)nc.paid=r.paid;
+  if(old)db.clips[db.clips.indexOf(old)]=nc;else db.clips.push(nc);idx.set(k,nc);return true}
+ const c=idx.get(k);if(!c)return r===null;
+ if(r===null){c.gtasty=false;delete c.gtAt;delete c.euro;delete c.conf;delete c.paid;return true}
+ c.gtasty=!!r.g;if(r.a)c.gtAt=r.a;else delete c.gtAt;
+ for(const [f,g] of [["e","euro"],["cf","conf"],["pd","paid"]]){if(r[f]==null)delete c[g];else c[g]=r[f]}return true}
+async function syPost(o){let r;
+ try{r=await fetch(SY.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({code:SY.code},o)),redirect:"follow"})}
+ catch(e){throw new Error("Das Abgleich-Skript ist nicht erreichbar (kein Internet, oder der Link stimmt nicht).")}
+ let j;try{j=await r.json()}catch(e){throw new Error("Keine gültige Antwort vom Abgleich-Skript. Ist die Web-App bei „Wer hat Zugriff“ auf „Jeder“ gestellt und ist das der Link aus „Bereitstellen“?")}
+ if(!j||!j.ok)throw new Error((j&&j.error)||"Abgleich fehlgeschlagen");return j}
+function syKick(){if(!SY||!SY.url||SYAPPLY)return;if(SYBUSY){SYDIRTY=true;return}clearTimeout(SYT);SYT=setTimeout(()=>syCycle(),4000)}
+async function syCycle(){if(!SY||!SY.url||SYBUSY)return;SYBUSY=true;SYMSG="";let applied=0,pushed=0;
+ try{
+  const res=await syPost({action:"get",since:SY.since||0});
+  SY.pend=Object.assign(SY.pend||{},res.items||{});
+  const L0=syLayer(),first=!SY.init,changed={};
+  for(const k of new Set([...Object.keys(L0),...Object.keys(SY.base||{})])){const cur=k in L0?L0[k]:null;if(syHash(cur)!==((SY.base||{})[k]||""))changed[k]=cur}
+  SY.base=SY.base||{};
+  const idx=new Map(db.clips.map(c=>[syKey(c),c]));SYAPPLY=true;
+  try{for(const k of Object.keys(SY.pend)){
+    if(k in changed&&!first){delete SY.pend[k];continue}
+    const r=SY.pend[k].r===undefined?null:SY.pend[k].r;
+    if(syApply(k,r,idx)){applied++;delete SY.pend[k];delete changed[k];const e=syLayer()[k];if(e)SY.base[k]=syHash(e);else delete SY.base[k]}}
+  }finally{SYAPPLY=false}
+  const items={};for(const k of Object.keys(changed))items[k]={r:changed[k]};pushed=Object.keys(items).length;
+  if(pushed){await syPost({action:"put",items,since:SY.since||0});for(const k of Object.keys(items)){if(changed[k]===null)delete SY.base[k];else SY.base[k]=syHash(changed[k])}}
+  SY.since=res.max||SY.since||0;SY.init=true;SY.last=Date.now();SY.err="";SY.stat={applied,pushed};
+  if(applied){SYAPPLY=true;try{save()}finally{SYAPPLY=false}}
+ }catch(e){SY.err=e.message}
+ SYBUSY=false;SYNEXT=Date.now()+(SY.err?60000:120000);sySave();
+ const d=document.getElementById("sy-status");if(d)d.innerHTML=syStatus();
+ if(applied&&!pbBusy){const typing=[...document.querySelectorAll("#main input:not([type=checkbox]):not([type=file]):not([type=date]):not([readonly]),#main textarea:not([readonly])")].some(x=>x.value&&x.id!=="sy-url"&&x.id!=="sy-code"&&x.id!=="yt-url");if(V!=="pb"&&!typing)paint()}
+ if(SYDIRTY){SYDIRTY=false;syKick()}}
+function syStatus(){if(!SY)return`<p class="notice">Noch nicht verbunden.</p>`;
+ if(SY.err)return`<p class="err">${esc(SY.err)}</p>`;
+ if(!SY.last)return`<p class="notice">Verbinde …</p>`;
+ return`<p class="ok">✓ Verbunden. Letzter Abgleich: ${new Date(SY.last).toLocaleString("de-DE")}${SY.stat?` (${SY.stat.applied} Änderungen übernommen, ${SY.stat.pushed} gesendet)`:""}.</p>`}
+function syPanel(){const code=document.getElementById("gs-code").textContent.trim();
+ return`<section class="panel" style="margin:16px 0"><h2>Abgleich zwischen PC und Handy</h2>
+ <p class="notice" style="font-size:13px;line-height:1.7">Damit PC und Handy dieselben Daten haben, legt dein eigenes Google-Skript eine <b>private Datei in deinem Google Drive</b> an. Abgeglichen wird, was du von Hand einstellst: „eingereicht“-Markierungen, Beträge, Auszahlungen, eigene und importierte Clips und die Einreich-Regel. Die Zahlen von YouTube, Instagram, TikTok und Twitch holt jedes Gerät selbst aus der Google-Tabelle. Alle 2 Minuten und nach jeder Änderung gleicht der Hub ab, solange er offen ist. Wurde auf beiden Geräten gleichzeitig dasselbe geändert, gewinnt das Gerät, das zuletzt abgleicht.</p>
+ <ol class="notice" style="font-size:13px;line-height:1.8">
+  <li>Im Apps Script den Code aus dem Kasten bei „YouTube automatisch laden“ weiter unten komplett neu kopieren und den alten ersetzen (Strg+A, Strg+V), speichern. <button class="btn gh sm" onclick="A.ytCopy(this)">Code kopieren</button></li>
+  <li>Links auf das <b>Zahnrad</b> (Projekteinstellungen) → bei Skripteigenschaften „Skripteigenschaft hinzufügen“: Name <b>HUB_SYNC_CODE</b>, Wert = ein <b>langer, eigener Code</b> (mindestens 16 Zeichen, Buchstaben und Zahlen gemischt, nichts, was du schon als Passwort nutzt). Speichern. Merke dir den Code, du brauchst ihn gleich auf jedem Gerät einmal. Schreib ihn nicht in den Chat.</li>
+  <li>Oben rechts auf <b>Bereitstellen → Neue Bereitstellung</b>. Beim Zahnrad neben „Typ auswählen“ <b>Web-App</b> wählen. <b>Ausführen als: Ich</b>, <b>Wer hat Zugriff: Jeder</b>. Auf <b>Bereitstellen</b> klicken und die Erlaubnis bestätigen (Google fragt nach Zugriff auf Drive, das ist dein eigenes Skript; bei „nicht verifiziert“ auf Erweitert → öffnen).</li>
+  <li>Kopiere die <b>Web-App-URL</b> (endet auf <i>/exec</i>). Zum Testen kannst du sie im Browser öffnen: es muss ein kurzer Satz „Creator-Hub-Abgleich läuft“ erscheinen.</li>
+  <li><b>Zuerst auf dem PC</b> (dort liegen deine Daten) die URL und den Code unten eintragen und auf „Verbinden“ klicken. Danach auf dem Handy dasselbe. Das zweite Gerät übernimmt beim ersten Abgleich alles vom ersten.</li></ol>
+ <label class="f" style="margin-top:12px">Web-App-URL</label><input class="in" id="sy-url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(SY?SY.url:"")}" autocomplete="off">
+ <label class="f" style="margin-top:10px">Sync-Code (steht nur auf diesem Gerät)</label><input class="in" id="sy-code" type="password" autocomplete="off" placeholder="${SY?"gespeichert":"dein Code"}" value="">
+ <p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn" onclick="A.syConnect()">${SY?"Neu verbinden":"Verbinden"}</button>${SY?`<button class="btn gh" onclick="A.syNow()">Jetzt abgleichen</button><button class="btn gh" onclick="A.syOff()">Trennen</button>`:""}</p>
+ <div id="sy-status">${syStatus()}</div>
+ <p class="notice">URL und Code werden nur in diesem Browser gespeichert, nicht in der Hub-Datei und nicht im Backup. Wer den Code nicht kennt, bekommt vom Skript keine Daten. Ändere ich später das Skript, musst du bei <b>Bereitstellen → Bereitstellungen verwalten</b> auf den Stift klicken und eine <b>neue Version</b> wählen, sonst läuft die alte weiter.</p></section>`}
+
+/* ============ CSV-Import ============ */
+let IMP=null;
+function csvParse(t){t=t.replace(/^﻿/,"");const first=t.split(/\r?\n/)[0]||"";const d=[";","\t",","].map(c=>[c,first.split(c).length]).sort((a,b)=>b[1]-a[1])[0][0];
+ const rows=[];let row=[],cur="",q=false;for(let i=0;i<t.length;i++){const c=t[i];
+  if(q){if(c==='"'){if(t[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+  else if(c==='"')q=true;else if(c===d){row.push(cur);cur=""}
+  else if(c==="\n"||c==="\r"){if(c==="\r"&&t[i+1]==="\n")i++;row.push(cur);cur="";if(row.some(x=>x.trim()!==""))rows.push(row);row=[]}
+  else cur+=c}
+ row.push(cur);if(row.some(x=>x.trim()!==""))rows.push(row);return rows}
+const IMPF=[["title","Titel des Videos",1],["views","Aufrufe",1],["published","Veröffentlicht am",0],["likes","Likes",0],["comments","Kommentare",0],["shares","Shares",0],["url","Link zum Video",0]];
+const IMPRE={title:/titel|title|beschreibung|caption|description|video|name|inhalt/i,views:/aufrufe|views|wiedergaben|plays|ansichten|impressions/i,published:/ver[öo]ffentlich|publish|posted|erstellt|date|datum/i,likes:/likes|gef[äa]llt|reactions/i,comments:/kommentar|comments/i,shares:/share|geteilt|weitergeleitet/i,url:/permalink|link|url/i};
+function impGuess(h){const used=new Set(),m={};for(const [k] of IMPF){const L=k==="title"?[/titel|title/i,/beschreibung|caption|description/i,/content|inhalt|video|name/i]:[IMPRE[k]];let i=-1;for(const re of L){i=h.findIndex((x,j)=>!used.has(j)&&re.test(x));if(i>=0)break}if(i>=0){m[k]=i;used.add(i)}else m[k]=-1}return m}
+function laToBerlin(y,mo,d,h,mi){const off=t=>{const f=new Intl.DateTimeFormat("en-US",{timeZone:"America/Los_Angeles",hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric"}).formatToParts(new Date(t)).reduce((a,x)=>(a[x.type]=+x.value,a),{});return Date.UTC(f.year,f.month-1,f.day,f.hour,f.minute)-t};
+ const g=Date.UTC(y,mo-1,d,h,mi);let t=g-off(g);t=g-off(t);return new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Berlin"}).format(new Date(t))}
+function impDate(v,la){v=String(v||"").trim();let m=v.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+"-"+m[2]+"-"+m[3];
+ m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2}))?/);if(m){const mo=+m[1],d=+m[2],y=+m[3];if(la&&m[4]!=null)try{return laToBerlin(y,mo,d,+m[4],+m[5])}catch(e){}return y+"-"+String(mo).padStart(2,"0")+"-"+String(d).padStart(2,"0")}m=v.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);if(m)return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");return ""}
+const impNum=x=>{x=String(x??"").trim();return /^\d{1,3}(,\d{3})+$/.test(x)?Number(x.replace(/,/g,"")):num(x)};
+function impRows(){if(!IMP)return[];const g=(r,k)=>IMP.map[k]>=0?r[IMP.map[k]]:"";const out=[];
+ for(const r of IMP.rows){const url0=String(g(r,"url")||"").trim(),url=/^https?:\/\//i.test(url0)?url0:"";let title=String(g(r,"title")||"").replace(/\s+/g," ").trim();if(!title&&url)title=(IMP.platform==="instagram"?"Reel ":"Video ")+url.replace(/\/+$/,"").split("/").pop();const v=impNum(g(r,"views"));if(!title||/^(gesamt|total|summe)$/i.test(title)||!(v>=0))continue;
+  const o=k=>{const x=impNum(g(r,k));return x>=0?x:0};out.push({title,url,views:v,published:impDate(g(r,"published"),IMP.tz==="la"),likes:o("likes"),comments:o("comments"),shares:o("shares")})}
+ return out}
+function impPanel(){
+ const head0=`<section class="panel" style="margin:16px 0"><h2>Tabelle importieren (CSV)</h2><p class="notice" style="font-size:13px">Für YouTube-Studio- oder Meta-Business-Suite-Exporte (Instagram wird erkannt) und jede andere Tabelle mit Titel und Aufrufen. Der Hub rät die Spalten, du siehst vor dem Import eine Vorschau. <b>Wichtig:</b> Die Aufrufe müssen die <b>Gesamtaufrufe seit Veröffentlichung</b> sein, nicht nur die Aufrufe eines Zeitraums (sonst stimmen Zuwachs und Verdienst nicht). Stelle den Export im Studio deshalb auf „Gesamt“ bzw. „Seit Veröffentlichung“.</p>
+  <p><label class="btn gh" style="cursor:pointer">CSV-Datei wählen<input type="file" accept=".csv,.tsv,.txt,text/csv" hidden onchange="A.impFile(this)"></label></p>`;
+ if(!IMP)return head0+`<p class="${MSG.startsWith("✓")?"ok":"err"}">${MSG}</p></section>`;
+ const h=IMP.head,opt=k=>`<option value="-1">— nicht verwenden —</option>`+h.map((x,i)=>`<option value="${i}" ${IMP.map[k]===i?"selected":""}>${esc(x)}</option>`).join("");
+ const rows=impRows(),sk=IMP.rows.length-rows.length,pv=rows.slice(0,5);
+ return head0+`<p class="notice">Datei: <b>${esc(IMP.name)}</b> · ${IMP.rows.length} Zeilen</p>
+  <div class="fg"><div><label class="f">Plattform</label><select class="in" onchange="A.impSet('platform',this.value)">${PLS.map(p=>`<option value="${p}" ${IMP.platform===p?"selected":""}>${PL[p]}</option>`).join("")}</select></div>
+  ${IMP.rows.some(r=>/^\d{1,2}\/\d{1,2}\/\d{4} \d/.test(r[IMP.map.published]||""))?`<div><label class="f">Uhrzeiten in der Datei</label><select class="in" onchange="A.impSet('tz',this.value)"><option value="la" ${IMP.tz==="la"?"selected":""}>US-Westküste (Meta-Export) → deutsche Zeit</option><option value="none" ${IMP.tz!=="la"?"selected":""}>unverändert übernehmen</option></select></div>`:""}
+  <div><label class="f">Stand der Zahlen (Datum)</label><input class="in" type="date" value="${IMP.date}" onchange="A.impSet('date',this.value)"></div>
+  ${IMPF.map(([k,l,req])=>`<div><label class="f">${l}${req?" *":""}</label><select class="in" onchange="A.impMap('${k}',this.value)">${opt(k)}</select></div>`).join("")}</div>
+  <h3>Vorschau (${rows.length} Videos erkannt${sk?`, ${sk} Zeilen übersprungen`:""})</h3>
+  ${pv.length?`<div class="tw"><table><thead><tr><th>Titel</th><th class="num">Aufrufe</th><th>Veröffentlicht</th><th class="num">Likes</th></tr></thead><tbody>${pv.map(r=>`<tr><td>${esc(r.title)}</td><td class="num">${nf(r.views)}</td><td>${r.published?dde(r.published):"—"}</td><td class="num">${nf(r.likes)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">Noch keine passenden Zeilen. Wähle oben die Spalten für Titel und Aufrufe.</div>`}
+  <p style="display:flex;gap:10px;margin-top:12px"><button class="btn" ${rows.length?"":"disabled"} onclick="A.impRun()">${rows.length} Videos importieren</button><button class="btn gh" onclick="A.impCancel()">Abbrechen</button></p>
+  <p class="notice">Bekannte Clips (gleicher Link, sonst gleicher Titel, jeweils auf derselben Plattform) bekommen einen neuen Messwert für das gewählte Datum, unbekannte werden als neue Clips angelegt. Ein vorhandener Wert am selben Datum wird überschrieben.</p><p class="${MSG.startsWith("✓")?"ok":"err"}">${MSG}</p></section>`}
+
+function pDaten(){return head("Daten & Backup","Deine Daten","Alles wird nur in diesem Browser auf diesem Gerät gespeichert. Es gibt keinen Server und keine Anmeldung.")+
+ `<section class="panel" style="margin:16px 0"><h2>Backup</h2><p class="notice" style="font-size:13px">Lade regelmäßig ein Backup herunter, vor allem bevor du Browserdaten löschst. Wenn du die Datei hier wieder importierst, ist alles zurück. So kannst du die Daten auch auf ein anderes Gerät mitnehmen.</p>
+ <p style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="A.export()">Backup herunterladen</button><label class="btn gh" style="cursor:pointer">Backup importieren<input type="file" accept=".json,application/json" hidden onchange="A.import(this)"></label><button class="btn gh" onclick="A.wipe()">Alles löschen</button></p><p class="${MSG.startsWith("✓")?"ok":"err"}">${MSG}</p></section>
+ ${syPanel()}
+ ${ytPanel()}
+ ${impPanel()}
+ <section class="panel"><h2>Was dieses Dashboard (noch) nicht kann</h2><p class="notice" style="font-size:13px">YouTube kann sich über die Google-Tabelle (oben) automatisch aktualisieren. <b>Instagram</b> geht automatisch, wenn du die Einrichtung im YouTube-Kasten oben („Instagram automatisch“) gemacht hast, sonst per CSV-Import. <b>TikTok</b> geht ebenfalls automatisch, sobald die TikTok-Einrichtung im selben Kasten oben gemacht ist (Einträge von Hand bleiben möglich). Alles andere (Auswertung, Diagramme, G-Tasty-Rechnung, Progress-Bar-Tool) läuft sofort.</p></section>`}
+
+/* ============ Progress-Bar-Generator ============ */
+const clampN=(v,a,b)=>Math.min(b,Math.max(a,v));
+const pbEase=(t,k)=>1-Math.pow(1-clampN(t,0,1),Math.max(1,k));
+const pbDims=f=>f==="1920"?{w:1080,h:1920}:f==="2160"?{w:3840,h:2160}:{w:1920,h:1080};
+function pPB(){const c=db.pb;return head("Creator-Tool","Progress-Bar-Generator","Erstelle einen animierten Fortschrittsbalken für CapCut. Der Export läuft über die gesamte Clip-Länge und endet exakt bei 100 %.")+`<p><a onclick="A.go('tools')">← Alle Tools</a></p>
+ <section class="panel" style="margin-top:16px"><h2>1. Video &amp; Design</h2><div class="fg">
+ <div><label class="f">Videolänge – Minuten</label><input class="in" id="pb-minutes" type="number" min="0" max="999" value="${c.minutes}"></div><div><label class="f">Zusätzliche Sekunden</label><input class="in" id="pb-seconds" type="text" inputmode="decimal" value="${String(c.seconds).replace(".",",")}"></div><div><label class="f">Millisekunden (0–999)</label><input class="in" id="pb-ms" type="number" min="0" max="999" step="1" value="${c.ms||0}"></div><div><label class="f">Bilder (wie in CapCut)</label><input class="in" id="pb-frames" type="number" min="0" max="999" step="1" value="${c.frames||0}"></div>
+ <div><label class="f">Balkenfarbe</label><input class="in" id="pb-color" type="color" style="height:42px;padding:3px" value="${c.color}"></div><div><label class="f">Balkendicke (Pixel bei 1080p)</label><input class="in" id="pb-thickness" type="number" min="2" max="40" value="${c.thickness}"></div><div><label class="f">Bildrate deines CapCut-Projekts</label><select class="in" id="pb-pfps">${[60,30,50,25,24].map(f=>`<option value="${f}">${f} Bilder/s</option>`).join("")}</select></div>
+ <div><label class="f">Videoformat</label><select class="in" id="pb-format"><option value="1080">Full HD – 1920 × 1080</option><option value="2160">4K – 3840 × 2160</option><option value="1920">Hochformat – 1080 × 1920</option></select></div>
+ <div><label class="f">Aufnahme-Bildrate</label><select class="in" id="pb-fps"><option value="60">60 Bilder/s (genauer)</option><option value="30">30 Bilder/s</option></select></div>
+ <div class="span2"><label class="f">Hintergrund</label><select class="in" id="pb-bg"><option value="transparent">Transparent (wenn unterstützt)</option><option value="green">Grün für Chroma Key</option></select></div></div><p class="notice"><b>CapCut zeigt Zeit als Sekunden:Bilder</b> (z. B. <b>35:22</b> = 35 Sekunden + 22 Bilder, <u>nicht</u> 35,22 Sekunden). Dann trage bei Sekunden <b>35</b> und bei Bilder <b>22</b> ein und wähle die Bildrate deines CapCut-Projekts. Wenn du dagegen eine Dauer in Sekunden kennst: <b>18,18 s</b> = Sekunden 18 + Millisekunden 180 (oder 18,18 bei Sekunden). 18 Millisekunden sind nur 0,018 s.</p></section>
+ <section class="panel" style="margin-top:14px"><h2>2. Bewegung einstellen</h2><label class="f">Geschwindigkeit am Anfang (k): <b id="pb-easeV"></b></label><input id="pb-ease" type="range" min="1" max="4" step=".1" value="${c.ease}" style="width:100%;accent-color:#ffc400">
+ <p class="notice">p(t) = 1 − (1 − t)<sup>k</sup>. 1× = gleichmäßig. Höher = schneller Start, langsamer zum Ende. 100 % wird erst genau am Ende erreicht.</p>
+ <label class="f">Abstand zum linken/rechten Rand: <b id="pb-marginV"></b></label><input id="pb-margin" type="range" min="0" max="10" step=".5" value="${c.margin}" style="width:100%;accent-color:#ffc400"></section>
+ <section class="panel" style="margin-top:14px"><h2>3. Vorschau &amp; Export</h2><div class="checker" id="pb-box"><canvas id="pb-canvas" style="width:100%;height:100%;display:block;object-fit:contain"></canvas></div>
+ <p class="notice" id="pb-info"></p><p style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="pb-export">WebM exportieren</button><button class="btn gh" id="pb-play">Vorschau abspielen</button></p><div class="bar" id="pb-barw" style="display:none;margin-top:10px"><i id="pb-bar" style="width:0"></i></div><p class="ok" id="pb-status"></p></section>
+ <section class="panel" style="margin-top:14px"><h2>In CapCut verwenden</h2><ol class="notice" style="font-size:13px"><li>WebM-Datei in CapCut importieren und auf eine Videospur über deinen Clip legen, am Anfang ausrichten.</li><li>Bei transparentem Export sollte dein Video darunter sichtbar sein.</li><li>Falls CapCut einen schwarzen oder weißen Hintergrund zeigt: erneut mit „Grün für Chroma Key“ exportieren, in CapCut <i>Chroma Key</i> auf das Overlay anwenden und Grün entfernen.</li></ol>
+ <p class="notice"><b>Hinweis:</b> Transparente WebM-Dateien werden je nach Browser und CapCut-Version unterschiedlich erkannt. Die Chroma-Key-Variante ist die sichere Ausweichlösung. Der Export läuft in Echtzeit (90 s Clip ≈ 90 s Wartezeit). Die Millisekunden werden exakt in die Animation eingerechnet; die fertige Datei ist durch die Bildrate auf ein Bild genau (60 Bilder/s ≈ 17 ms, 30 Bilder/s ≈ 33 ms). Läuft der PC während des Exports am Limit (z. B. 4K), lieber 30 Bilder/s wählen und nichts anderes nebenbei öffnen. Wechselst du den Tab, wird der Export abgebrochen. Chrome oder Edge am PC verwenden. Einstellungen werden automatisch gespeichert.</p></section>`}
+let pbRAF=null,pbBusy=false;
+function vint(b,i){const f=b[i];let n=1,m=0x80;while(n<=8&&!(f&m)){n++;m>>=1}if(n>8)throw new Error("vint");let v=f&(m-1),all=(f&(m-1))===(m-1);for(let k=1;k<n;k++){v=v*256+b[i+k];if(b[i+k]!==255)all=false}return{len:n,val:v,unk:all}}
+async function webmDuration(blob,ms){const b=new Uint8Array(await blob.arrayBuffer());let i=0;
+ const id=()=>{const n=vint(b,i).len,x=b.slice(i,i+n);i+=n;return Array.from(x).map(y=>y.toString(16).padStart(2,"0")).join("")};
+ if(id()!=="1a45dfa3")return blob;let r=vint(b,i);i+=r.len+r.val;
+ if(id()!=="18538067")return blob;r=vint(b,i);if(!r.unk)return blob;i+=r.len;
+ while(i<b.length){const st=i,nm=id();r=vint(b,i);const sl=r.len;i+=sl;
+  if(nm==="1549a966"){const dEnd=i+r.val;let j=i,scale=1e6;
+   while(j<dEnd){const q=vint(b,j),tag=Array.from(b.slice(j,j+q.len)).map(y=>y.toString(16).padStart(2,"0")).join("");j+=q.len;const z=vint(b,j);j+=z.len;if(tag==="4489")return blob;if(tag==="2ad7b1"){scale=0;for(let k=0;k<z.val;k++)scale=scale*256+b[j+k]}j+=z.val}
+   const dur=new Uint8Array(11);dur[0]=0x44;dur[1]=0x89;dur[2]=0x88;new DataView(dur.buffer).setFloat64(3,ms*1e6/scale,false);
+   const nl=r.val+11,sz=new Uint8Array(sl);let v=nl;for(let k=sl-1;k>=0;k--){sz[k]=v%256;v=Math.floor(v/256)}sz[0]|=(0x80>>(sl-1));if(nl>=Math.pow(2,7*sl)-1)return blob;
+   const out=new Uint8Array(b.length+11);out.set(b.slice(0,st+(nm.length/2)),0);out.set(sz,st+nm.length/2);out.set(b.slice(i,dEnd),st+nm.length/2+sl);out.set(dur,dEnd-i+st+nm.length/2+sl);out.set(b.slice(dEnd),dEnd+11);return new Blob([out],{type:"video/webm"})}
+  i+=r.val}
+ return blob}
+function pbInit(){const $=id=>document.getElementById(id),cv=$("pb-canvas");
+ $("pb-format").value=db.pb.format;$("pb-bg").value=db.pb.bg;$("pb-fps").value=db.pb.fps===30?"30":"60";$("pb-pfps").value=String([60,30,50,25,24].includes(db.pb.pfps)?db.pb.pfps:60);
+ const secV=()=>{const x=Number(String($("pb-seconds").value).trim().replace(",","."));return isFinite(x)?clampN(x,0,59.999):0};
+ const pfpsV=()=>Number($("pb-pfps").value)||60;
+ const cfg0=()=>({totalExact:Math.max(1,(clampN(Math.floor(Number($("pb-minutes").value))||0,0,999)*60+secV())*1000+clampN(Math.floor(Number($("pb-ms").value))||0,0,999)+clampN(Math.floor(Number($("pb-frames").value))||0,0,999)*1000/pfpsV()),pf:pfpsV(),color:/^#[0-9a-f]{6}$/i.test($("pb-color").value)?$("pb-color").value:"#22c55e",thickness:clampN(Number($("pb-thickness").value)||9,2,40),format:$("pb-format").value,fps:$("pb-fps").value==="30"?30:60,bg:$("pb-bg").value,ease:clampN(Number($("pb-ease").value)||1,1,4),margin:clampN(Number($("pb-margin").value)||0,0,10)}),fmtD=ms=>Math.floor(ms/60000)+":"+String(Math.floor(ms/1000)%60).padStart(2,"0")+"."+String(ms%1000).padStart(3,"0");
+ const cfg=()=>{const c=cfg0();c.totalMs=Math.round(c.totalExact);c.duration=c.totalExact/1000;return c};
+ const capT=c=>{const n=Math.round(c.totalExact*c.pf/1000),t=Math.floor(n/c.pf),z=x=>String(x).padStart(2,"0");return z(Math.floor(t/3600))+":"+z(Math.floor(t/60)%60)+":"+z(t%60)+":"+z(n%c.pf)};
+ const draw=(ctx,p,c)=>{const{w,h}=pbDims(c.format),x=w*c.margin/100,tr=w-2*x,y=h-h*.045,t=Math.max(2,c.thickness*h/1080);ctx.clearRect(0,0,w,h);if(c.bg==="green"){ctx.fillStyle="#00ff00";ctx.fillRect(0,0,w,h)}ctx.fillStyle=c.color;const ww=Math.max(t,tr*p);ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y-t/2,ww,t,t/2);else ctx.rect(x,y-t/2,ww,t);ctx.fill()};
+ const render=()=>{const c=cfg(),{w,h}=pbDims(c.format);cv.width=w;cv.height=h;$("pb-box").style.height=(c.format==="1920"?320:170)+"px";draw(cv.getContext("2d"),pbEase(.4,c.ease),c);
+  $("pb-easeV").textContent=c.ease.toFixed(1).replace(".",",")+"×";$("pb-marginV").textContent=String(c.margin).replace(".",",")+" %";
+  $("pb-info").textContent=`Dauer: ${fmtD(c.totalMs)} (${c.duration.toFixed(3).replace(".",",")} Sekunden) · in CapCut (${c.pf} B/s): ${capT(c)} · Aufnahme ${c.fps} B/s · Vorschau bei 40 % der Laufzeit · Ausgabe ${w} × ${h}.`;
+  db.pb={minutes:clampN(Math.floor(Number($("pb-minutes").value))||0,0,999),seconds:secV(),ms:clampN(Math.floor(Number($("pb-ms").value))||0,0,999),frames:clampN(Math.floor(Number($("pb-frames").value))||0,0,999),pfps:c.pf,color:c.color,thickness:c.thickness,format:c.format,fps:c.fps,bg:c.bg,ease:c.ease,margin:c.margin};save()};
+ ["minutes","seconds","ms","frames","pfps","color","thickness","format","fps","bg","ease","margin"].forEach(k=>$("pb-"+k).addEventListener("input",()=>{if(!pbBusy){if(pbRAF){cancelAnimationFrame(pbRAF);pbRAF=null}render()}}));
+ render();
+ $("pb-play").onclick=()=>{if(pbBusy)return;if(pbRAF)cancelAnimationFrame(pbRAF);const c=cfg(),st=performance.now(),ctx=cv.getContext("2d");const f=n=>{const t=Math.min(1,(n-st)/(c.duration*1000));draw(ctx,pbEase(t,c.ease),c);pbRAF=t<1?requestAnimationFrame(f):null};pbRAF=requestAnimationFrame(f)};
+ $("pb-export").onclick=()=>{if(pbBusy)return;if(pbRAF){cancelAnimationFrame(pbRAF);pbRAF=null}
+  const c=cfg(),{w,h}=pbDims(c.format),st=$("pb-status");
+  if(typeof MediaRecorder==="undefined"){st.textContent="Dieser Browser kann keine Videos aufnehmen. Bitte Chrome oder Edge am PC verwenden.";return}
+  const off=document.createElement("canvas");off.width=w;off.height=h;const ctx=off.getContext("2d",{alpha:true}),stream=off.captureStream(c.fps);
+  const mime=["video/webm;codecs=vp8","video/webm;codecs=vp9","video/webm"].find(t=>MediaRecorder.isTypeSupported(t));
+  if(!mime){st.textContent="WebM-Aufnahme wird hier nicht unterstützt. Bitte Chrome oder Edge verwenden.";return}
+  let rec;try{rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:c.format==="2160"?12e6:6e6})}catch(e){st.textContent="Export konnte nicht gestartet werden: "+e.message;return}
+  const chunks=[];let abort=false;rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  const onHide=()=>{if(document.hidden){abort=true;if(rec.state!=="inactive")rec.stop()}};document.addEventListener("visibilitychange",onHide);
+  rec.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());document.removeEventListener("visibilitychange",onHide);pbBusy=false;$("pb-export").disabled=false;$("pb-play").disabled=false;$("pb-barw")&&($("pb-barw").style.display="none");
+   if(abort){st.textContent="Export abgebrochen: Der Tab war im Hintergrund, das Video wäre zu kurz oder ruckelig geworden. Bitte erneut starten und den Tab offen lassen.";return}
+   let blob=new Blob(chunks,{type:"video/webm"});try{blob=await webmDuration(blob,c.totalExact-0.25)}catch(e){}const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`progress-bar-${fmtD(c.totalMs).replace(":","m").replace(".","s")}ms-${c.format==="1920"?"hochformat":c.format==="2160"?"4k":"fullhd"}${c.bg==="green"?"-chromakey":""}.webm`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5e3);st.textContent=`Export fertig (${fmtD(c.totalMs)}). Datei wurde heruntergeladen.`};
+  pbBusy=true;$("pb-export").disabled=true;$("pb-play").disabled=true;$("pb-barw").style.display="block";st.textContent="Export läuft in Echtzeit – bitte diesen Tab offen und im Vordergrund lassen …";
+  draw(ctx,0,c);rec.start(250);const t0=performance.now();
+  const f=n=>{if(abort)return;const t=Math.min(1,(n-t0)/(c.duration*1000));draw(ctx,pbEase(t,c.ease),c);const b=document.getElementById("pb-bar");if(b)b.style.width=Math.round(t*100)+"%";
+   if(t<1)requestAnimationFrame(f);else{draw(ctx,1,c);setTimeout(()=>{if(rec.state!=="inactive")rec.stop()},250)}};requestAnimationFrame(f)}}
+
+/* ============ Aktionen ============ */
+function go(v){if(pbBusy&&v!=="pb"){if(!confirm("Der Export läuft noch. Seite wirklich verlassen?"))return;}V=v;OPEN=null;MSG="";paint()}
+const fd=e=>{e.preventDefault();return Object.fromEntries(new FormData(e.target))};
+const A={
+ go,preset:p=>{PICK=null;CAL.s=null;setPreset(p);paint()},
+ pick:k=>{if(PICK===k){PICK=null;CAL.s=null}else{PICK=k;CAL.s=null;if(k==="cal"){const d=new Date(R.to+"T00:00:00");CAL.y=d.getFullYear();CAL.m=d.getMonth()-1}}paint()},
+ calNav:n=>{const d=new Date(CAL.y,CAL.m+n,1);CAL.y=d.getFullYear();CAL.m=d.getMonth();paint()},
+ calDay:v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||v>today())return;if(!CAL.s){CAL.s=v;paint();return}const a=CAL.s<v?CAL.s:v,b=CAL.s<v?v:CAL.s;R={preset:"custom",from:a,to:b};CAL.s=null;PICK=null;paint()},
+ pf:v=>{PF=PLS.includes(v)?v:"";if(PF)QP=PF;paint()},
+ ytNow:()=>{YTNEXT=0;ytTick()},
+ custom:(f,t)=>{R={preset:"custom",from:f||R.from,to:t||R.to};if(R.from>R.to)[R.from,R.to]=[R.to,R.from];paint()},
+ fplat:p=>{F.plat=p;paint()},fsort:s=>{F.sort=s;paint()},open:id=>{OPEN=id;MSG="";V=id?"clip":"clips";if(id&&V==="clip"){}paint()},
+ month:v=>{if(!/^\d{4}-\d{2}$/.test(v))return;PICK=null;CAL.s=null;const y=Number(v.slice(0,4)),m=Number(v.slice(5,7)),last=iso(new Date(y,m,0)),t=today();R={preset:"m:"+v,from:v+"-01",to:last>t?t:last};paint()},
+ qPlat:v=>{QP=PLS.includes(v)?v:"tiktok";paint()},
+ copyId:(id,b)=>{const el=document.getElementById(id);if(!el)return;const t=el.value!==undefined?el.value:el.textContent,done=()=>{const o=b.textContent;b.textContent="✓ Kopiert";setTimeout(()=>{if(b.isConnected)b.textContent=o},1600)};
+  const fb=()=>{el.select();try{document.execCommand("copy");done()}catch(e){b.textContent="Strg+C drücken"}};
+  try{navigator.clipboard.writeText(t).then(done,fb)}catch(e){fb()}},
+ setUrl:(e,id)=>{const f=fd(e),c=db.clips.find(x=>x.id===id),u=(f.url||"").trim();if(!c||!/^https?:\/\//i.test(u)){alert("Bitte einen Link einfügen, der mit https:// beginnt.");return false}c.url=u;save();paint();return false},
+ gtReset:()=>{if(confirm("Bei ALLEN Clips die Markierung „eingereicht“ entfernen? (Das kannst du nicht rückgängig machen. Lade vorher ein Backup herunter, wenn du unsicher bist.)")){db.clips.forEach(c=>{c.gtasty=false;delete c.gtOff});save();paint()}},
+ toggle:id=>{const c=db.clips.find(x=>x.id===id);c.gtasty=!c.gtasty;if(c.gtasty)c.gtAt=today();else delete c.gtAt;save();paint()},
+ gtCopy:(id,kind,b)=>{const c=db.clips.find(x=>x.id===id);if(!c)return;if(kind==="link"&&!c.url){A.open(id);return}const t=kind==="link"?c.url:gtBlock(c),o=b.textContent,done=()=>{b.textContent="✓ Kopiert";setTimeout(()=>{if(b.isConnected)b.textContent=o},1600)};
+  const fb=()=>{const x=document.createElement("textarea");x.value=t;document.body.appendChild(x);x.select();try{document.execCommand("copy");done()}catch(e){b.textContent="Nicht möglich"}x.remove()};
+  try{navigator.clipboard.writeText(t).then(done,fb)}catch(e){fb()}},
+ gtEdit:id=>{GE=id;MSG="";paint();if(id){const el=document.getElementById("gt-editor");if(el)el.scrollIntoView({behavior:"smooth",block:"center"})}},
+ gtSave:e=>{const f=fd(e),t=(f.title||"").trim();if(!t){MSG="Bitte einen Namen eintragen.";paint();return false}
+  const eu=String(f.euro??"").trim()===""?null:num(f.euro),vw=f.views===undefined||String(f.views).trim()===""?null:num(f.views),url=(f.url||"").trim();
+  if(eu!==null&&!(eu>=0)){MSG="Verdienst muss eine Zahl sein (z. B. 40).";paint();return false}
+  if(vw!==null&&!(vw>=0)){MSG="Aufrufe müssen eine Zahl sein.";paint();return false}
+  if(url&&!/^https?:\/\//i.test(url)){MSG="Der Link muss mit https:// beginnen (oder leer bleiben).";paint();return false}
+  let c=GE&&GE!=="new"?db.clips.find(x=>x.id===GE):null;
+  if(!c){c={id:uid(),platform:PLS.includes(f.platform)?f.platform:"tiktok",title:t,url:"",published:"",gtasty:false,manual:true,metrics:[]};db.clips.push(c)}
+  c.title=t;c.url=url;c.published=f.published||"";c.gtasty=!!f.gtasty;if(c.gtasty){if(!c.gtAt)c.gtAt=today()}else delete c.gtAt;
+  if(f.platform&&c.manual&&PLS.includes(f.platform))c.platform=f.platform;
+  if(eu===null)delete c.euro;else c.euro=eu;
+  if(vw!==null&&(c.manual||!(c.yt||c.ig||c.tt))){const o=latest(c,today())||{};c.metrics=c.metrics.filter(m=>m.date!==today());c.metrics.push({date:today(),views:vw,likes:o.likes||0,comments:o.comments||0,shares:o.shares||0})}
+  GE="";MSG="✓ Gespeichert: "+t;save();paint();return false},
+ gtDel:id=>{const c=db.clips.find(x=>x.id===id);if(!c||!c.manual)return;if(!confirm("Diesen von Hand angelegten Clip löschen?"))return;db.clips=db.clips.filter(x=>x.id!==id);for(const k of Object.keys(db.settle))if(k.endsWith("|"+id))delete db.settle[k];GE="";MSG="";save();paint()},
+ gtPf:k=>{GP=PLS.includes(k)?k:"";paint()},
+ gtSort:k=>{if(GS.by===k)GS.dir=-GS.dir;else{GS.by=k;GS.dir=-1}paint()},
+ fr:v=>{FR=v;paint()},
+ gtCopyAll:b=>{const t=gtList(GP).map(c=>c.url||"(kein Link: "+c.title+")").join("\n"),o=b.textContent,done=()=>{b.textContent="✓ Kopiert";setTimeout(()=>{if(b.isConnected)b.textContent=o},1600)};
+  const fb=()=>{const x=document.createElement("textarea");x.value=t;document.body.appendChild(x);x.select();try{document.execCommand("copy");done()}catch(e){b.textContent="Nicht möglich"}x.remove()};
+  try{navigator.clipboard.writeText(t).then(done,fb)}catch(e){fb()}},
+ gtDone:id=>{const c=db.clips.find(x=>x.id===id);if(!c)return;c.gtasty=true;c.gtAt=today();save();paint()},
+ gtDoneAll:()=>{const L=gtList(GP);if(!L.length)return;if(!confirm("Alle "+L.length+" Clips als eingereicht markieren? Das heißt: Du hast sie bei G-Tasty wirklich eingereicht. (Einzeln kannst du es unten wieder rückgängig machen.)"))return;for(const c of L){c.gtasty=true;c.gtAt=today()}save();paint()},
+ gtUndo:id=>{const c=db.clips.find(x=>x.id===id);if(!c)return;c.gtasty=false;delete c.gtAt;save();paint()},
+
+ gtAuto:e=>{const f=fd(e),m=num(f.min);if(!f.from||!(m>=0)){MSG="Bitte Datum und Mindestaufrufe (Zahl) eintragen.";paint();return false}db.gtAuto={on:!!f.on,from:f.from,min:m,v2:true};MSG="✓ Gespeichert.";save();paint();return false},
+ addClip:e=>{const f=fd(e);if(!f.title.trim())return false;const url=(f.url||"").trim();db.clips.push({id:uid(),platform:PLS.includes(f.platform)?f.platform:"tiktok",title:f.title.trim(),url:/^https?:\/\//i.test(url)?url:"",published:f.published||"",gtasty:!!f.gtasty,metrics:[]});save();paint();return false},
+ addMetric:(e,id)=>{const f=fd(e),c=db.clips.find(x=>x.id===id),v=num(f.views);if(!(v>=0)||!f.date){MSG="Bitte gültiges Datum und Aufrufe (Zahl ≥ 0) eintragen.";paint();return false}
+  const o=k=>{const x=num(f[k]);return x>=0?x:0};c.metrics=c.metrics.filter(m=>m.date!==f.date);c.metrics.push({date:f.date,views:v,likes:o("likes"),comments:o("comments"),shares:o("shares")});MSG="";save();paint();return false},
+ quickViews:e=>{const f=fd(e),c=db.clips.find(x=>x.id===f.clip),v=num(f.views);if(!c||!(v>=0)){MSG="Bitte Clip wählen und Aufrufe (Zahl) eintragen.";paint();return false}
+  const old=c.metrics.find(m=>m.date===today())||{};c.metrics=c.metrics.filter(m=>m.date!==today());c.metrics.push({date:today(),views:v,likes:old.likes||0,comments:old.comments||0,shares:old.shares||0});MSG="✓ Gespeichert.";save();paint();return false},
+ quickFol:e=>{const f=fd(e),n=num(f.followers);if(!(n>=0)||!PLS.includes(f.platform)){MSG="Bitte Follower (Zahl) eintragen.";paint();return false}
+  db.followers=db.followers.filter(x=>!(x.platform===f.platform&&x.date===today()));db.followers.push({platform:f.platform,date:today(),followers:n});MSG="✓ Gespeichert.";save();paint();return false},
+ delMetric:(id,d)=>{const c=db.clips.find(x=>x.id===id);c.metrics=c.metrics.filter(m=>m.date!==d);save();paint()},
+ delClip:id=>{if(confirm("Clip samt allen Messwerten löschen?")){db.clips=db.clips.filter(c=>c.id!==id);for(const k of Object.keys(db.settle))if(k.endsWith("|"+id))delete db.settle[k];OPEN=null;V="clips";save();paint()}},
+ addFol:e=>{const f=fd(e),n=num(f.followers);if(!(n>=0)||!f.date){MSG="Bitte Datum und Follower (Zahl ≥ 0) eintragen.";paint();return false}
+  db.followers=db.followers.filter(x=>!(x.platform===f.platform&&x.date===f.date));db.followers.push({platform:f.platform,date:f.date,followers:n});MSG="";save();paint();return false},
+ ztSet:(k,v)=>{ZT[k]=k==="fps"?Number(v):v;const a=document.getElementById("zt-a"),b=document.getElementById("zt-b");if(a)a.innerHTML=ztA();if(b)b.innerHTML=ztB()},
+ ztPb:w=>{const fps=ZT.fps;let t,f;if(w==="a"){f=ztInt(ZT.f);if(f>=fps)return;t=ztInt(ZT.m)*60+ztInt(ZT.s)}else{const sec=Number(String(ZT.sec).trim().replace(",","."));if(!(sec>=0))return;const n=Math.round(sec*fps);t=Math.floor(n/fps);f=n%fps}
+  db.pb=Object.assign({},db.pb,{minutes:Math.min(999,Math.floor(t/60)),seconds:t%60,ms:0,frames:f,pfps:fps});save();go("pb")},
+ hsSort:k=>{HS=k;paint()},
+ hsCopy:b=>{const t=hashStats(PF).multi.sort((x,y)=>y.avg-x.avg).slice(0,5).map(r=>r.t).join(" "),o=b.textContent,done=()=>{b.textContent="✓ Kopiert";setTimeout(()=>{if(b.isConnected)b.textContent=o},1600)};
+  const fb=()=>{const x=document.createElement("textarea");x.value=t;document.body.appendChild(x);x.select();try{document.execCommand("copy");done()}catch(e){b.textContent="Nicht möglich"}x.remove()};
+  try{navigator.clipboard.writeText(t).then(done,fb)}catch(e){fb()}},
+ setPay:(id,k,v)=>{const c=db.clips.find(x=>x.id===id);if(!c||(k!=="conf"&&k!=="paid"))return;const t=String(v).trim();if(t==="")delete c[k];else{const n=num(v);if(!(n>=0))return paint();c[k]=n}save();paint()},
+ payConf:()=>{for(const c of db.clips)if(c.gtasty&&gtSure(c)&&c.conf==null)c.conf=gtEuro(c);save();paint()},
+ payPaid:()=>{for(const c of db.clips)if(c.gtasty&&c.conf>0&&c.paid==null)c.paid=c.conf;save();paint()},
+ export:()=>{const b=new Blob([JSON.stringify(db,null,1)],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="creator-hub-backup-"+today()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(u),5e3);MSG="✓ Backup heruntergeladen.";paint()},
+ import:inp=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.clips))throw 0;if(!confirm("Aktuelle Daten durch das Backup ersetzen?"))return;db=fixDb(Object.assign(blank(),d));save();MSG="✓ Backup importiert.";paint()}catch(e){MSG="Datei ist kein gültiges Backup.";paint()}};r.readAsText(f)},
+ impFile:inp=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const t=csvParse(String(r.result));if(t.length<2)throw 0;const hd=t[0].map(x=>x.trim()),meta=hd.includes("Permalink")&&hd.includes("Post ID");IMP={name:f.name,head:hd,rows:t.slice(1),platform:meta?"instagram":"youtube",tz:meta?"la":"none",date:today(),map:impGuess(hd)};MSG=""}catch(e){IMP=null;MSG="Die Datei konnte nicht als Tabelle gelesen werden."}paint()};r.readAsText(f,"utf-8")},
+ impSet:(k,v)=>{IMP[k]=v;paint()},impMap:(k,v)=>{IMP.map[k]=Number(v);paint()},impCancel:()=>{IMP=null;MSG="";paint()},
+ impRun:()=>{const rows=impRows();if(!rows.length||!IMP.date)return;let neu=0,upd=0;const used=new Set();
+  for(const r of rows){let c=(r.url&&db.clips.find(x=>x.platform===IMP.platform&&x.url===r.url))||db.clips.find(x=>x.platform===IMP.platform&&!used.has(x.id)&&(!r.url||!x.url)&&x.title.trim().toLowerCase()===r.title.toLowerCase());
+   if(!c){c={id:uid(),platform:IMP.platform,title:r.title,url:r.url||"",published:r.published,gtasty:false,metrics:[]};db.clips.push(c);neu++}else{upd++;if(!c.published&&r.published)c.published=r.published;if(!c.url&&r.url)c.url=r.url}
+   used.add(c.id);
+   c.metrics=c.metrics.filter(m=>m.date!==IMP.date);c.metrics.push({date:IMP.date,views:r.views,likes:r.likes,comments:r.comments,shares:r.shares})}
+  IMP=null;MSG=`✓ Import fertig: ${neu} neue Clips, ${upd} aktualisiert.`;save();paint()},
+ syConnect:()=>{const u=(document.getElementById("sy-url").value||"").trim(),c=(document.getElementById("sy-code").value||"").trim()||(SY&&SY.code)||"";
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u)){alert("Das ist keine Web-App-URL. Sie beginnt mit https://script.google.com/macros/s/ und endet auf /exec.");return}
+  if(c.length<12){alert("Der Sync-Code ist zu kurz. Nimm mindestens 12, besser 16 oder mehr Zeichen.");return}
+  const same=SY&&SY.url===u&&SY.code===c;SY=same?SY:{url:u,code:c,base:{},pend:{},since:0,init:false,last:0,err:"",stat:null};sySave();SYNEXT=0;paint();syCycle()},
+ syNow:()=>{SYNEXT=0;syCycle()},
+ syOff:()=>{if(confirm("Abgleich auf diesem Gerät trennen? Deine Daten hier bleiben erhalten.")){SY=null;try{localStorage.removeItem(SYK)}catch(e){}paint()}},
+ ytCopy:b=>{const t=document.getElementById("gs-code").textContent.trim();const ok=()=>{b.textContent="✓ Kopiert"};try{navigator.clipboard.writeText(t).then(ok,()=>{b.textContent="Kasten anklicken, Strg+A, Strg+C"})}catch(e){b.textContent="Kasten anklicken, Strg+A, Strg+C"}},
+ ytConnect:()=>{const u=(document.getElementById("yt-url").value||"").trim();if(!ytUrlOk(u)){db.yt=null;MSG="";alert("Das ist kein Google-Tabellen-Link (er muss mit https://docs.google.com/spreadsheets/ beginnen).");return}db.yt={url:u,last:0,err:"",info:null};save();paint();ytSync()},
+ ytOff:()=>{if(confirm("Verbindung trennen? Bereits geladene Daten bleiben erhalten.")){db.yt=null;save();paint()}},
+ wipe:()=>{if(confirm("WIRKLICH alle Daten unwiderruflich löschen? Lade vorher ein Backup herunter.")){db=blank();save();MSG="✓ Alle Daten gelöscht.";paint()}}
+};
+function paint(){side();const m=document.getElementById("main");
+ const P={dashboard:pDash,submit:pSubmit,clips:pClips,clip:pClip,follower:pFollower,radar:pRadar,zeit:pZeit,hash:pHash,gtasty:pG,stats:pStats,tools:pTools,pb:pPB,daten:pDaten};
+ let v=V;if(OPEN)v="clip";m.innerHTML=`<div id="tw-pill">${twPill()}</div>`+(P[v]||pDash)();if(v==="pb")pbInit();twDraw();
+}
+(function(){const tip=document.createElement("div");tip.className="tip";document.body.appendChild(tip);let cur=null;
+ const hide=()=>{cur=null;tip.classList.remove("on")};
+ const show=(el,e)=>{if(cur!==el){cur=el;tip.textContent="";const L=el.getAttribute("data-tip").split("\n"),h=document.createElement("b");h.textContent=L[0];tip.appendChild(h);
+   for(const l of L.slice(1)){const [n,c,v]=l.split("|"),d=document.createElement("div"),sp=document.createElement("span"),i=document.createElement("i"),vv=document.createElement("b");i.style.background=c;sp.appendChild(i);sp.appendChild(document.createTextNode(n));vv.textContent=v;vv.style.cssText="display:inline;margin:0;color:#fff;font-size:12px";d.appendChild(sp);d.appendChild(vv);tip.appendChild(d)}}
+  const r=tip.getBoundingClientRect(),x=Math.max(8,Math.min(e.clientX+16,innerWidth-r.width-8)),y=e.clientY-r.height-12<8?e.clientY+20:e.clientY-r.height-12;tip.style.left=x+"px";tip.style.top=y+"px";tip.classList.add("on")};
+ document.addEventListener("pointermove",e=>{const el=e.target.closest&&e.target.closest("[data-tip]");if(el)show(el,e);else hide()});
+ document.addEventListener("scroll",hide,true)})();
+window.A=A;
+try{if("serviceWorker" in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}
+boot();
+document.addEventListener("click",e=>{if(PICK&&!(e.target.closest&&e.target.closest(".pwrap"))){PICK=null;CAL.s=null;paint()}},true);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&PICK){PICK=null;CAL.s=null;paint()}});
+</script>
+</body>
+</html>
