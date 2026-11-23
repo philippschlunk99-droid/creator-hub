@@ -1447,8 +1447,17 @@ function cfNorm(arr,dur){const out=[];
  out.sort((a,b)=>b.bew-a.bew||a.s-b.s);const keep=[];
  for(const c of out){if(!keep.some(k=>Math.min(k.e,c.e)-Math.max(k.s,c.s)>0.3*Math.min(k.e-k.s,c.e-c.s)))keep.push(c)}
  return keep}
+const CF_HINT=`ZUSAETZLICHE AUSWAHLKRITERIEN (haben Vorrang vor allem anderen, auch vor der Laengenangabe oben, wenn es dem Clip hilft):
+1. STARTER (wichtigste Regel): Zuschauer entscheiden in den ersten 1 bis 3 Sekunden, ob sie weiterwischen. Der Clip muss deshalb SOFORT mit dem staerksten Satz beginnen: eine mutige Behauptung, eine Provokation, eine Frage, eine Zahl, ein Streitpunkt oder ein Ausruf. Kein Anlauf, kein "also", "ja", "hallo", keine Einleitung, kein Fuellsatz. Setze den Start lieber spaeter, genau auf den Satz, der packt, auch wenn davor Kontext steht.
+2. BEVORZUGE: starke Meinungen und Hot Takes, Streit und Widerspruch (auch negativ, denn Widerspruch erzeugt die meisten Kommentare), Aussagen, bei denen viele andere Leute eine andere Meinung haben, ueberraschende Wendungen, echte Emotionen (Wut, Lachen, Unglaube), lustige Momente, Geschichten mit Pointe und Erklaerungen, die ohne Vorwissen verstaendlich sind.
+3. VERMEIDE: langsame Einstiege, Begruessungen, Abschweifungen, Stellen, die ohne den Rest unverstaendlich sind.
+4. Das Feld "haken" ist der erste gesprochene Satz des Clips und muss ein starker Einstieg sein.
+5. In "grund" kurz benennen, warum die ersten 3 Sekunden stoppen lassen und ob die Stelle eher Zustimmung oder Widerspruch ausloest.
+6. Sortiere die Clips: bester zuerst.
+
+`;
 async function cfAsk(){if(!SY||!SY.url)throw new Error("Für die KI-Auswahl muss der Abgleich eingerichtet sein (Mehr, Daten & Backup, Abgleich zwischen PC und Handy).");
- const text=CF.segs.map(s=>"["+Math.round(s.s)+"] "+s.t).join("\n");
+ const text=CF_HINT+"TRANSKRIPT (jede Zeile beginnt mit der Startzeit in Sekunden):\n"+CF.segs.map(s=>"["+Math.round(s.s)+"] "+s.t).join("\n");
  const j=await syPost({action:"clips",text,kategorien:plCfg().list});
  if(!Array.isArray(j.clips))throw new Error("Dein Abgleich-Skript kennt den Clip-Finder noch nicht. Der neue Skript-Code muss eingefügt und als neue Version bereitgestellt werden.");
  return j.clips}
@@ -1514,12 +1523,13 @@ function cfLoadFile(f){if(!f)return;if(CF.url)URL.revokeObjectURL(CF.url);
  const key=f.name+"|"+f.size;
  if(db.cf&&db.cf.key===key){CF.key=key;CF.segs=db.cf.segs||[];CF.clips=db.cf.clips||[];CF.dur=db.cf.dur||0;CF.sel={};CF.clips.forEach((c,i)=>CF.sel[i]=true)}
  else{CF.key=key;CF.segs=[];CF.clips=[];CF.sel={};CF.dur=0}
- const v=document.createElement("video");v.controls=true;v.playsInline=true;v.preload="metadata";v.style.cssText="width:100%;max-height:360px;border-radius:12px;background:#000;margin-top:12px";v.src=CF.url;
+ const v=document.createElement("video");v.controls=true;v.playsInline=true;v.preload="metadata";v.style.cssText="width:100%;max-height:min(360px,42vh);border-radius:12px;background:#000;margin-top:12px;box-shadow:0 6px 24px #000a";v.src=CF.url;
  v.onloadedmetadata=()=>{CF.dur=v.duration||CF.dur;cfRender()};v.onerror=()=>{CF.err="Das Video kann der Browser nicht abspielen. Am sichersten ist eine MP4-Datei (H.264, AAC).";cfRender()};
  v.ontimeupdate=()=>{const c=CF.clips[CF.prev];if(c&&!v.paused&&v.currentTime>=c.e){v.currentTime=c.s}};
  CF.vel=v;paint()}
 function cfRender(){
- const run=document.getElementById("cf-run"),list=document.getElementById("cf-list"),exp=document.getElementById("cf-exp"),vid=document.getElementById("cf-vid");if(!run)return;
+ const run=document.getElementById("cf-run"),list=document.getElementById("cf-list"),exp=document.getElementById("cf-exp"),vid=document.getElementById(CF.clips.length?"cf-vid2":"cf-vid"),vo=document.getElementById(CF.clips.length?"cf-vid":"cf-vid2");if(!run)return;
+ if(vo&&vo.firstChild&&CF.vel&&vo.firstChild===CF.vel)vo.innerHTML="";
  if(vid&&CF.vel&&CF.vel.parentNode!==vid){vid.innerHTML="";vid.appendChild(CF.vel)}
  const has=!!CF.file,restored=!has&&CF.segs.length;
  const info=has?`<div class="mf" style="margin-top:8px"><b style="color:#fff">${esc(CF.file.name)}</b> · ${cfSize(CF.file.size)}${CF.dur?" · "+cfT(CF.dur):""}</div>`:"";
@@ -1541,7 +1551,7 @@ function cfRender(){
   `<p class="notice" style="margin:0 0 10px">${nf(CF.clips.length)} Vorschläge, beste zuerst. Haken setzen, ansehen, Anfang und Ende bei Bedarf mit den Pfeilen feinjustieren.</p>`+CF.clips.map((c,i)=>`<div class="row" style="align-items:flex-start;flex-wrap:wrap;gap:10px;${CF.prev===i?"border-color:var(--acc);":""}">
    <label style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:230px;cursor:pointer"><input type="checkbox" ${CF.sel[i]?"checked":""} onchange="A.cfSel(${i},this.checked)" style="margin-top:4px;accent-color:#ffc400"><span><b style="color:#fff">${esc(c.titel)}</b>${c.bew?` <span class="pill" style="font-size:11px">${c.bew} / 10</span>`:""}${c.kat?` <span class="pill" style="font-size:11px">${esc(c.kat)}</span>`:""}
    <div class="mf">${cfT(c.s)} bis ${cfT(c.e)} · ${Math.round(c.e-c.s)} Sekunden</div>${c.haken?`<div class="mf">„${esc(c.haken)}“</div>`:""}${c.grund?`<div class="mf">${esc(c.grund)}</div>`:""}${c.desc?`<div class="mf" style="margin-top:4px">${esc(c.desc)}${c.tags.length?" "+c.tags.map(t=>"#"+esc(t)).join(" "):""}</div>`:""}</span></label>
-   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn gh sm" onclick="A.cfPrev(${i})" ${has?"":"disabled"}>${CF.prev===i?"Läuft":"Ansehen"}</button>
+   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn gh sm" onclick="A.cfPrev(${i})" ${has?"":"disabled"}>${CF.prev===i?"Pause":"Ansehen"}</button><button class="btn gh sm" onclick="A.cfHook(${i})" ${has?"":"disabled"}>Start (3 Sek.)</button>
    <span class="mf">Start</span><button class="btn gh sm" onclick="A.cfNudge(${i},'s',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'s',1)">+</button>
    <span class="mf">Ende</span><button class="btn gh sm" onclick="A.cfNudge(${i},'e',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'e',1)">+</button></div></div>`).join("")}
  if(exp){const n=Object.keys(CF.sel).filter(k=>CF.sel[k]&&CF.clips[k]).length,E=CF.exp;
@@ -1559,7 +1569,7 @@ function pClipfinder(){
   <div id="cf-drop" style="margin-top:10px;border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--muted)">… oder das Video hier hineinziehen</div>
   <div id="cf-info"></div><div id="cf-vid"></div></section>
  <section class="panel" style="margin-top:14px"><h2>2. Analyse</h2><div id="cf-run"></div></section>
- <section class="panel" style="margin-top:14px"><h2>3. Vorschläge</h2><div id="cf-list"></div></section>
+ <section class="panel" style="margin-top:14px"><h2>3. Vorschläge</h2><div id="cf-vid2" style="position:sticky;top:calc(8px + env(safe-area-inset-top,0px));z-index:5"></div><div id="cf-list"></div></section>
  <section class="panel" style="margin-top:14px"><h2>4. Exportieren</h2><div id="cf-exp"></div></section>`}
 function cfInit(){const f=document.getElementById("cf-file"),d=document.getElementById("cf-drop");
  if(f)f.onchange=()=>{if(f.files[0])cfLoadFile(f.files[0])};
@@ -1986,11 +1996,12 @@ Object.assign(A,{
  cfStart:()=>cfStart(),
  cfAgain:()=>{if(CF.busy)return;if(!confirm("Den Text von diesem Video wirklich neu erkennen? Das dauert wieder einige Minuten."))return;CF.segs=[];CF.clips=[];CF.sel={};cfStart()},
  cfPasteOpen:()=>{CF.pasteOpen=!CF.pasteOpen;cfRender()},
- cfCopyText:()=>{const t="Du bist Editor für YouTube Shorts, TikTok und Instagram Reels. Unten steht das Transkript eines langen Videos, jede Zeile beginnt mit der Sekunde in eckigen Klammern. Wähle 6 bis 12 Stellen von 20 bis 75 Sekunden, die als eigenständiger Short funktionieren (starker Einstieg, klare Aussage oder Pointe). Antworte NUR mit JSON in dieser Form: {\"clips\":[{\"start\":Sekunde,\"ende\":Sekunde,\"titel\":\"\",\"haken\":\"\",\"grund\":\"\",\"kategorie\":\"\",\"bewertung\":1-10,\"beschreibung\":\"\",\"tags\":[]}]}\n\nTranskript:\n"+CF.segs.map(s=>"["+Math.round(s.s)+"] "+s.t).join("\n");
+ cfCopyText:()=>{const t="Du bist Editor für YouTube Shorts, TikTok und Instagram Reels. Unten steht das Transkript eines langen Videos, jede Zeile beginnt mit der Sekunde in eckigen Klammern. Wähle 6 bis 12 Stellen von 20 bis 75 Sekunden, die als eigenständiger Short funktionieren (starker Einstieg, klare Aussage oder Pointe). Der Clip muss in den ersten 3 Sekunden mit dem stärksten Satz packen (Behauptung, Provokation, Frage, Streitpunkt), ohne Anlauf. Bevorzuge starke Meinungen, Widerspruch, Emotionen und lustige Momente. Antworte NUR mit JSON in dieser Form: {\"clips\":[{\"start\":Sekunde,\"ende\":Sekunde,\"titel\":\"\",\"haken\":\"\",\"grund\":\"\",\"kategorie\":\"\",\"bewertung\":1-10,\"beschreibung\":\"\",\"tags\":[]}]}\n\nTranskript:\n"+CF.segs.map(s=>"["+Math.round(s.s)+"] "+s.t).join("\n");
   const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand("copy")}catch(e){}ta.remove();
   try{navigator.clipboard.writeText(t).then(()=>{CF.msg="✓ Kopiert"},()=>{})}catch(e){}CF.err=ok?"":"";alert("Text und Anweisung sind kopiert. Jetzt in den Chat mit Claude einfügen.")},
  cfPasteApply:()=>{const v=(document.getElementById("cf-paste")||{}).value||"";try{const m=v.match(/\{[\s\S]*\}/);const j=JSON.parse(m?m[0]:v);CF.clips=cfNorm(j.clips||j,CF.dur);CF.sel={};CF.clips.forEach((c,i)=>CF.sel[i]=true);if(!CF.clips.length)throw 0;CF.err="";CF.pasteOpen=false;cfSave()}catch(e){CF.err="Die Antwort konnte nicht gelesen werden. Sie muss im JSON-Format sein."}cfRender()},
  cfSel:(i,on)=>{CF.sel[i]=on;cfRender()},
+ cfHook:i=>{const v=CF.vel,c=CF.clips[i];if(!v||!c)return;CF.prev=i;v.currentTime=c.s;v.play().catch(()=>{});clearTimeout(CF.ht);CF.ht=setTimeout(()=>{if(CF.prev===i)v.pause()},3200);cfRender()},
  cfPrev:i=>{const v=CF.vel,c=CF.clips[i];if(!v||!c)return;if(CF.prev===i&&!v.paused){v.pause();CF.prev=-1}else{CF.prev=i;v.currentTime=c.s;v.play().catch(()=>{})}cfRender()},
  cfNudge:(i,w,d)=>{const c=CF.clips[i];if(!c)return;c[w]=Math.max(0,Math.round((c[w]+d)*10)/10);if(CF.dur)c[w]=Math.min(CF.dur,c[w]);if(c.e-c.s<5){c[w==="s"?"s":"e"]=w==="s"?c.e-5:c.s+5}cfSave();if(CF.vel&&CF.prev===i)CF.vel.currentTime=w==="s"?c.s:Math.max(c.s,c.e-3);cfRender()},
  cfMode:m=>{CF.mode=m;cfRender()},
