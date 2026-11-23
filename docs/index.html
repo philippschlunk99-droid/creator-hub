@@ -1477,6 +1477,12 @@ async function cfAsk(){if(!SY||!SY.url)throw new Error("Für die KI-Auswahl muss
  const j=await syPost({action:"clips",text,kategorien:plCfg().list});
  if(!Array.isArray(j.clips))throw new Error("Dein Abgleich-Skript kennt den Clip-Finder noch nicht. Der neue Skript-Code muss eingefügt und als neue Version bereitgestellt werden.");
  return j.clips}
+const cfTagClean=t=>String(t||"").replace(/^#+/,"").replace(/[^0-9A-Za-zÄÖÜäöüß]+/g,"");
+const cfFixTag=()=>{const t=cfTagClean(db.cfTag===undefined?"GTasty":db.cfTag);return t};
+function cfTags(c){const out=[],add=t=>{t=cfTagClean(t);if(t&&!out.some(x=>x.toLowerCase()===t.toLowerCase()))out.push(t)};
+ add(cfFixTag());
+ const k=String(c.kat||"").trim();if(k&&!/^sonstiges$/i.test(k))add(k.split(/[^0-9A-Za-zÄÖÜäöüß]+/).filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join(""));
+ (c.tags||[]).forEach(add);return out.slice(0,8)}
 function cfSave(){if(!CF.key)return;db.cf={key:CF.key,dur:CF.dur,segs:CF.segs,clips:CF.clips};save()}
 async function cfStart(){
  if(CF.busy)return;if(!CF.file){CF.err="Bitte zuerst ein Video wählen.";cfRender();return}
@@ -1576,7 +1582,7 @@ async function cfFolder(){
 async function cfInfoFile(E,list){if(!E.sub)return;
  const L=["Clips aus: "+((CF.file&&CF.file.name)||"Video"),"Exportiert am "+cfDay(),""];
  list.forEach(i=>{const c=CF.clips[i];if(!c||!E.files[i])return;L.push(E.files[i],"  Titel: "+c.titel,"  Stelle im Rohvideo: "+cfT(c.s)+" bis "+cfT(c.e)+" ("+Math.round(c.e-c.s)+" Sekunden)");
-  if(c.desc)L.push("  Text: "+c.desc+(c.tags&&c.tags.length?" "+c.tags.map(t=>"#"+t).join(" "):""));L.push("")});
+  L.push("  Text: "+(c.desc?c.desc+" ":"")+cfTags(c).map(t=>"#"+t).join(" "));L.push("")});
  try{await cfWrite(E.sub,"Titel.txt",new Blob([L.join("\r\n")],{type:"text/plain;charset=utf-8"}))}catch(e){}}
 async function cfExportAll(list,dest){if(CF.exp&&CF.exp.busy)return;CF.exp={busy:true,i:-1,pct:0,done:0,total:list.length,err:"",cancel:false,sub:dest?dest.sub:null,folder:dest?dest.root+" / "+dest.name:"",files:{},warn:""};cfRender();
  try{for(const i of list){CF.exp.i=i;CF.exp.pct=0;cfRender();await cfExportOne(i);CF.exp.done++;if(CF.exp.cancel)break}}catch(e){CF.exp.err=String(e&&e.message||e)}
@@ -1614,7 +1620,7 @@ function cfRender(){
  if(list&&list._sig!==lsig){list._sig=lsig;list.innerHTML=!CF.clips.length?emptyBox("Noch keine Vorschläge. Starte oben die Analyse."):
   `<p class="notice" style="margin:0 0 10px">${nf(CF.clips.length)} Vorschläge, beste zuerst. Haken setzen, ansehen, Anfang und Ende bei Bedarf mit den Pfeilen feinjustieren.</p>`+CF.clips.map((c,i)=>`<div class="row" style="align-items:flex-start;flex-wrap:wrap;gap:10px;${CF.prev===i?"border-color:var(--acc);":""}">
    <label style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:230px;cursor:pointer"><input type="checkbox" ${CF.sel[i]?"checked":""} onchange="A.cfSel(${i},this.checked)" style="margin-top:4px;accent-color:#ffc400"><span><b style="color:#fff" title="Titelvorschlag">${esc(c.titel)}</b>${c.bew?` <span class="pill" style="font-size:11px">${c.bew} / 10</span>`:""}${c.kat?` <span class="pill" style="font-size:11px">${esc(c.kat)}</span>`:""}
-   <div class="mf">${cfT(c.s)} bis ${cfT(c.e)} · ${Math.round(c.e-c.s)} Sekunden</div>${c.haken?`<div class="mf">„${esc(c.haken)}“</div>`:""}${c.grund?`<div class="mf">${esc(c.grund)}</div>`:""}${c.desc?`<div class="mf" style="margin-top:4px">${esc(c.desc)}${c.tags.length?" "+c.tags.map(t=>"#"+esc(t)).join(" "):""}</div>`:""}</span></label>
+   <div class="mf">${cfT(c.s)} bis ${cfT(c.e)} · ${Math.round(c.e-c.s)} Sekunden</div>${c.haken?`<div class="mf">„${esc(c.haken)}“</div>`:""}${c.grund?`<div class="mf">${esc(c.grund)}</div>`:""}<div class="mf" style="margin-top:4px">${c.desc?esc(c.desc)+" ":""}<span style="color:var(--acc)">${cfTags(c).map(t=>"#"+esc(t)).join(" ")}</span></div></span></label>
    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn gh sm" onclick="A.cfPrev(${i})" ${has?"":"disabled"}>${CF.prev===i?"Pause":"Ansehen"}</button><button class="btn gh sm" onclick="A.cfCopyTitle(${i},this)">Titel &amp; Text kopieren</button><button class="btn gh sm" onclick="A.cfHook(${i})" ${has?"":"disabled"}>Start (3 Sek.)</button>
    <span class="mf">Start</span><button class="btn gh sm" onclick="A.cfNudge(${i},'s',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'s',1)">+</button>
    <span class="mf">Ende</span><button class="btn gh sm" onclick="A.cfNudge(${i},'e',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'e',1)">+</button></div></div>`).join("")}
@@ -1630,7 +1636,7 @@ function pClipfinder(){
   <div id="cf-drop" style="margin-top:10px;border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--muted)">… oder das Video hier hineinziehen</div>
   <div id="cf-info"></div><div id="cf-vid"></div></section>
  <section class="panel" style="margin-top:14px"><h2>2. Analyse</h2><div id="cf-run"></div></section>
- <section class="panel" style="margin-top:14px"><h2>3. Vorschläge</h2><div id="cf-vid2" style="position:sticky;top:calc(8px + env(safe-area-inset-top,0px));z-index:5"></div><div id="cf-list"></div></section>
+ <section class="panel" style="margin-top:14px"><h2>3. Vorschläge</h2><div class="qf" style="margin:0 0 10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label class="mf" for="cf-tag">Fester Hashtag bei jedem Clip</label><span class="mf">#</span><input class="in" id="cf-tag" style="width:160px" maxlength="30" value="${esc(cfFixTag())}" oninput="A.cfTag(this.value)"><span class="mf">Dazu kommt immer der Hashtag der Kategorie.</span></div><div id="cf-vid2" style="position:sticky;top:calc(8px + env(safe-area-inset-top,0px));z-index:5"></div><div id="cf-list"></div></section>
  <section class="panel" style="margin-top:14px"><h2>4. Exportieren</h2><div id="cf-exp"></div></section>`}
 function cfInit(){const f=document.getElementById("cf-file"),d=document.getElementById("cf-drop");
  if(f)f.onchange=()=>{if(f.files[0])cfLoadFile(f.files[0])};
@@ -2062,8 +2068,9 @@ Object.assign(A,{
   try{navigator.clipboard.writeText(t).then(()=>{CF.msg="✓ Kopiert"},()=>{})}catch(e){}CF.err=ok?"":"";alert("Text und Anweisung sind kopiert. Jetzt in den Chat mit Claude einfügen.")},
  cfPasteApply:()=>{const v=(document.getElementById("cf-paste")||{}).value||"";try{const m=v.match(/\{[\s\S]*\}/);const j=JSON.parse(m?m[0]:v);CF.clips=cfNorm(j.clips||j,CF.dur);CF.sel={};CF.clips.forEach((c,i)=>CF.sel[i]=true);if(!CF.clips.length)throw 0;CF.err="";CF.pasteOpen=false;cfSave()}catch(e){CF.err="Die Antwort konnte nicht gelesen werden. Sie muss im JSON-Format sein."}cfRender()},
  cfSel:(i,on)=>{CF.sel[i]=on;cfRender()},
- cfCopyTitle:(i,b)=>{const c=CF.clips[i];if(!c)return;const t=c.titel+(c.desc?"\n\n"+c.desc+(c.tags&&c.tags.length?" "+c.tags.map(x=>"#"+x).join(" "):""):"");const ok=()=>{b.textContent="✓ Kopiert";setTimeout(()=>{b.textContent="Titel & Text kopieren"},1800)};
+ cfCopyTitle:(i,b)=>{const c=CF.clips[i];if(!c)return;const t=c.titel+"\n\n"+(c.desc?c.desc+" ":"")+cfTags(c).map(x=>"#"+x).join(" ");const ok=()=>{b.textContent="✓ Kopiert";setTimeout(()=>{b.textContent="Titel & Text kopieren"},1800)};
   try{navigator.clipboard.writeText(t).then(ok,()=>{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}ta.remove();ok()})}catch(e){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e2){}ta.remove();ok()}},
+ cfTag:v=>{db.cfTag=cfTagClean(v);save();const l=document.getElementById("cf-list");if(l)l._sig=null;clearTimeout(CF.tgt);CF.tgt=setTimeout(cfRender,250)},
  cfHook:i=>{const v=CF.vel,c=CF.clips[i];if(!v||!c)return;CF.prev=i;v.currentTime=c.s;v.play().catch(()=>{});clearTimeout(CF.ht);CF.ht=setTimeout(()=>{if(CF.prev===i)v.pause()},3200);cfRender()},
  cfPrev:i=>{const v=CF.vel,c=CF.clips[i];if(!v||!c)return;if(CF.prev===i&&!v.paused){v.pause();CF.prev=-1}else{CF.prev=i;v.currentTime=c.s;v.play().catch(()=>{})}cfRender()},
  cfNudge:(i,w,d)=>{const c=CF.clips[i];if(!c)return;c[w]=Math.max(0,Math.round((c[w]+d)*10)/10);if(CF.dur)c[w]=Math.min(CF.dur,c[w]);if(c.e-c.s<5){c[w==="s"?"s":"e"]=w==="s"?c.e-5:c.s+5}cfSave();if(CF.vel&&CF.prev===i)CF.vel.currentTime=w==="s"?c.s:Math.max(c.s,c.e-3);cfRender()},
