@@ -761,6 +761,53 @@ function antwort(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
+// ---------- Clip-Finder (optional) ----------
+// Schickt nur den TEXT eines Videos (nie das Video) an Gemini (kostenlose Stufe von Google AI Studio) und gibt die besten Stellen zurueck.
+// Der Schluessel steht nur in den Skripteigenschaften (GEMINI_KEY), nie im Code und nie im Hub. Ohne richtigen Sync-Code laeuft nichts.
+function clipsAnalyse(req) {
+  var key = PropertiesService.getScriptProperties().getProperty("GEMINI_KEY");
+  if (!key) return {ok: false, error: "GEMINI_KEY fehlt in den Skripteigenschaften. Den Gratis-Schluessel gibt es bei Google AI Studio."};
+  var text = String(req.text || "");
+  if (text.length < 300) return {ok: false, error: "Der Text ist zu kurz fuer eine Auswertung."};
+  if (text.length > 300000) return {ok: false, error: "Der Text ist zu lang."};
+  var kats = (req.kategorien || []).map(String).slice(0, 30);
+  var prompt = "Du hilfst einem deutschen Creator, aus einem langen Video die besten Stellen fuer Kurzvideos (TikTok, Instagram Reels, YouTube Shorts) zu finden.\n\n"
+    + "Unten steht das Transkript des Videos. Jede Zeile beginnt mit der Startzeit in Sekunden in eckigen Klammern.\n\n"
+    + "Aufgabe: Waehle die 6 bis 12 besten Stellen. Gut sind: klare Meinungen und Streitthemen (zum Beispiel PC gegen Konsole), "
+    + "lustige oder ueberraschende Momente, spannende Geschichten, starke Reaktionen und Aussagen, die auch ohne Vorwissen verstaendlich sind "
+    + "(zum Beispiel Erklaerungen zu einer Aktie oder einem Thema).\n"
+    + "Regeln:\n"
+    + "- Jede Stelle ist 20 bis 75 Sekunden lang, bei starken Momenten bis 90 Sekunden.\n"
+    + "- Der Start liegt am Anfang eines Satzes mit einem starken Einstieg, das Ende am Ende eines Satzes. Es soll eine in sich geschlossene Aussage oder Pointe sein.\n"
+    + "- Stellen duerfen sich nicht ueberschneiden.\n"
+    + "- Nutze nur Zeiten, die im Transkript vorkommen oder daraus ableitbar sind. Erfinde nichts.\n"
+    + "- Schreibe auf Deutsch. Titel: kurz und neugierig machend, hoechstens 60 Zeichen, keine Anfuehrungszeichen.\n"
+    + "- bewertung: Zahl von 1 bis 10, wie wahrscheinlich die Stelle als Short gut ankommt.\n"
+    + "- kategorie: genau eine aus dieser Liste oder leer, wenn keine passt: " + JSON.stringify(kats) + "\n\n"
+    + "Antworte NUR mit JSON in genau dieser Form:\n"
+    + "{\"clips\":[{\"start\":123.4,\"ende\":171.0,\"titel\":\"...\",\"haken\":\"der erste Satz der Stelle\",\"grund\":\"ein Satz, warum die Stelle gut ist\",\"kategorie\":\"...\",\"bewertung\":8,\"beschreibung\":\"kurze Beschreibung fuer die Veroeffentlichung, 1 bis 2 Saetze\",\"tags\":[\"stichwort\"]}]}\n\n"
+    + "Transkript:\n" + text;
+  var body = {contents: [{role: "user", parts: [{text: prompt}]}], generationConfig: {responseMimeType: "application/json", temperature: 0.4}};
+  var r = UrlFetchApp.fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
+    method: "post", contentType: "application/json", headers: {"x-goog-api-key": key}, payload: JSON.stringify(body), muteHttpExceptions: true
+  });
+  var code = r.getResponseCode();
+  var j = {};
+  try { j = JSON.parse(r.getContentText()); } catch (e) {}
+  if (code === 429) return {ok: false, error: "Das kostenlose Limit von Gemini ist gerade erreicht. Bitte in ein bis zwei Minuten nochmal versuchen."};
+  if (code === 400 || code === 401 || code === 403) return {ok: false, error: "Gemini hat den Schluessel nicht akzeptiert (" + code + "): " + ((j.error && j.error.message) || "")};
+  if (code !== 200) return {ok: false, error: "Gemini-Fehler " + code + ((j.error && j.error.message) ? ": " + j.error.message : "")};
+  var t = "";
+  try { t = j.candidates[0].content.parts.map(function (p) { return p.text || ""; }).join(""); } catch (e) {}
+  var data = null;
+  try { data = JSON.parse(t); } catch (e) {
+    var m = t.match(/\{[\s\S]*\}/);
+    if (m) { try { data = JSON.parse(m[0]); } catch (e2) {} }
+  }
+  if (!data || !Array.isArray(data.clips)) return {ok: false, error: "Gemini hat keine brauchbare Antwort geliefert. Bitte nochmal versuchen."};
+  return {ok: true, clips: data.clips.slice(0, 20)};
+}
+
 function doPost(e) {
   var lock = LockService.getScriptLock();
   try {
@@ -770,6 +817,7 @@ function doPost(e) {
       Utilities.sleep(2000);
       return antwort({ok: false, error: "Sync-Code falsch oder noch nicht in den Skripteigenschaften (HUB_SYNC_CODE) eingetragen"});
     }
+    if (req.action === "clips") return antwort(clipsAnalyse(req));
     lock.waitLock(25000);
     var f = hubDatei();
     var st = {};
@@ -933,7 +981,7 @@ const NAV=[["dashboard","◧","Dashboard"],["follower","↗","Follower & Statist
 const BOLT='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L8.5 22 20 9.5h-6.2z" fill="currentColor"/></svg>';
 let MORE=false;
 const NAVS={dashboard:"Start",follower:"Statistik",gtasty:"Auszahlung",clips:"Clips"},NAVBAR=["dashboard","follower","gtasty","clips"];
-function side(){const on=k=>V===k||(V==="stats"&&k==="follower")||(V==="clip"&&k==="clips")||(k==="tools"&&["pb","zeit","hash"].includes(V));
+function side(){const on=k=>V===k||(V==="stats"&&k==="follower")||(V==="clip"&&k==="clips")||(k==="tools"&&["pb","zeit","hash","clipfinder"].includes(V));
  const nb=k=>k==="submit"&&gtList().length?` <span class="pill" style="background:var(--red);color:#fff;margin-left:auto">${gtList().length}</span>`:"";
  const nv=([k,i,l],c)=>`<button class="nav ${c||""} ${on(k)?"on":""}" onclick="A.go('${k}')"><i>${i}</i><span class="lf">${l}</span><span class="ls">${NAVS[k]||l}</span>${nb(k)}</button>`;
  const bar=NAV.filter(x=>NAVBAR.includes(x[0])),more=NAV.filter(x=>!NAVBAR.includes(x[0])),n=gtList().length,mon=more.some(x=>on(x[0]));
@@ -1313,8 +1361,185 @@ function pHash(){const st=hashStats(PF),by=HS,srt={avg:(a,b)=>b.avg-a.avg,n:(a,b
  <section class="panel" style="margin-bottom:14px"><h2>Nur in einem Clip benutzt (${O.length})</h2>${O.length?`<div style="display:flex;gap:8px;flex-wrap:wrap">${O.map(r=>`<span class="pill" style="font-size:12px" title="${esc(r.best.c.title)}">${esc(r.t)} · ${nf(r.avg)}</span>`).join("")}</div><p class="notice" style="margin-top:10px">Zahl hinter dem Hashtag = Aufrufe des einen Clips. Das ist zu wenig für einen Vergleich.</p>`:emptyBox("Keine.")}</section>
  <section class="panel" style="margin-bottom:14px"><h2>Wie viele Hashtags pro Clip?</h2><div class="tw"><table><thead><tr><th>Gruppe</th><th class="num">Clips</th><th class="num">Ø Aufrufe</th></tr></thead><tbody>${bk.map(b=>`<tr><td>${b.l}</td><td class="num">${nf(b.n)}</td><td class="num">${b.avg==null?"—":nf(b.avg)}</td></tr>`).join("")}</tbody></table></div></section>`:`<div class="empty" style="margin-top:16px">${st.cl.length?"In den Titeln deiner Clips stehen keine Hashtags (mit #). Der Hub liest sie aus dem Titel bzw. der Beschreibung, die er von TikTok, Instagram und YouTube bekommt.":"Noch keine Clips mit Messwerten."}</div>`}
  <p class="notice">So wird gerechnet: Für jeden Clip zählt sein neuester Messwert (Aufrufe gesamt seit Veröffentlichung). Pro Hashtag wird der Durchschnitt aller Clips gebildet, die ihn im Titel haben. Ältere Clips hatten mehr Zeit für Aufrufe, und viele Hashtags kommen nur in wenigen Clips vor. Ein hoher Wert zeigt deshalb nur, wo bei dir viele Aufrufe zusammenkamen, nicht sicher, dass der Hashtag der Grund war. Die Tabelle „Wie viele Hashtags pro Clip?“ hilft, das einzuordnen.</p>`}
-function pTools(){const T=[["pb","▰","Progress-Bar-Generator","Animierter Fortschrittsbalken als WebM für CapCut, exakt so lang wie dein Clip."],["zeit","◷","CapCut-Zeitrechner","Rechnet Sekunden:Bilder aus CapCut in echte Sekunden um und zurück."],["hash","#","Hashtag-Analyse","Zeigt, bei welchen Hashtags deine Clips am besten gelaufen sind."]];
- return head("Creator-Tools","Deine Tools","Eigene Werkzeuge direkt im Hub.")+`<section class="toolgrid" style="margin-top:20px">${T.map(([k,i,n,d])=>`<a class="tool" onclick="A.go('${k}')" style="text-decoration:none;color:inherit;border-color:var(--line2)"><span style="color:var(--acc)">${i}</span><b>${n}</b><p>${d}</p></a>`).join("")}${["Thumbnail-Generator","Titel-Generator","Video-Analyse"].map(n=>`<div class="tool" style="opacity:.55"><b>${n}</b><p>Geplant.</p></div>`).join("")}</section>`}
+function pTools(){const T=[["clipfinder","✂","Clip-Finder","Langes Video hineinziehen, die besten Stellen finden und als Shorts exportieren."],["pb","▰","Progress-Bar-Generator","Animierter Fortschrittsbalken als WebM für CapCut, exakt so lang wie dein Clip."],["zeit","◷","CapCut-Zeitrechner","Rechnet Sekunden:Bilder aus CapCut in echte Sekunden um und zurück."],["hash","#","Hashtag-Analyse","Zeigt, bei welchen Hashtags deine Clips am besten gelaufen sind."]];
+ return head("Creator-Tools","Deine Tools","Eigene Werkzeuge direkt im Hub.")+`<section class="toolgrid" style="margin-top:20px">${T.map(([k,i,n,d])=>`<a class="tool" onclick="A.go('${k}')" style="text-decoration:none;color:inherit;border-color:var(--line2)"><span style="color:var(--acc)">${i}</span><b>${n}</b><p>${d}</p></a>`).join("")}${["Thumbnail-Generator","Titel-Generator"].map(n=>`<div class="tool" style="opacity:.55"><b>${n}</b><p>Geplant.</p></div>`).join("")}</section>`}
+
+/* ============ Clip-Finder: findet in einem langen Video die besten Stellen für Shorts ============ */
+const CF={file:null,vel:null,url:"",key:"",dur:0,busy:false,step:"",pct:0,msg:"",err:"",model:"onnx-community/whisper-small",segs:[],clips:[],sel:{},mode:"blur",cx:50,prev:-1,exp:null,paste:"",pasteOpen:false,gpu:null,worker:null,wid:0,waits:{}};
+const CF_MODELS=[["onnx-community/whisper-tiny","Schnell","ungenauer"],["onnx-community/whisper-base","Normal","mittel"],["onnx-community/whisper-small","Genau","empfohlen für Deutsch"]];
+const CF_WK=`import {pipeline} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
+let asr=null,cur="";
+self.onmessage=async e=>{const m=e.data;
+ try{
+  if(m.type==="load"){
+   if(cur!==m.model){asr=null;const gpu=!!(self.navigator&&self.navigator.gpu);const cb=p=>self.postMessage({t:"dl",f:p.file||"",p:p.progress||0,s:p.status});
+    asr=await pipeline("automatic-speech-recognition",m.model,gpu?{device:"webgpu",dtype:{encoder_model:"fp32",decoder_model_merged:"q4"},progress_callback:cb}:{dtype:"q8",progress_callback:cb});cur=m.model}
+   self.postMessage({t:"ready",gpu:!!(self.navigator&&self.navigator.gpu)})}
+  else if(m.type==="run"){
+   const o=await asr(m.audio,{language:m.lang,task:"transcribe",return_timestamps:true,chunk_length_s:30,stride_length_s:5});
+   self.postMessage({t:"done",id:m.id,chunks:o.chunks||[]})}
+ }catch(err){self.postMessage({t:"err",id:m.id,m:String(err&&err.message||err)})}};`;
+const cfT=s=>{s=Math.max(0,s||0);const h=Math.floor(s/3600),m=Math.floor(s/60)%60,x=Math.floor(s%60);return(h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0")};
+const cfSize=b=>b>=1e9?(b/1e9).toFixed(1).replace(".",",")+" GB":b>=1e6?Math.round(b/1e6)+" MB":Math.max(1,Math.round(b/1e3))+" KB";
+const cfSlug=t=>String(t||"clip").toLowerCase().replace(/[äöüß]/g,c=>({ä:"ae",ö:"oe",ü:"ue",ß:"ss"}[c])).replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"clip";
+function cfWorker(){if(CF.worker)return CF.worker;const w=new Worker(URL.createObjectURL(new Blob([CF_WK],{type:"text/javascript"})),{type:"module"});
+ w.onmessage=e=>{const m=e.data;
+  if(m.t==="dl"){if(m.s==="progress"&&/\.onnx/.test(m.f)){CF.msg="Sprachmodell wird geladen (nur beim ersten Mal): "+Math.round(m.p)+" %";cfRender()}}
+  else{const k=m.t==="ready"?"load":m.id;const q=CF.waits[k];if(q){delete CF.waits[k];if(m.t==="err")q.rej(new Error(m.m));else q.res(m)}}};
+ w.onerror=e=>{const msg="Der Hintergrundprozess konnte nicht starten: "+(e.message||"unbekannter Fehler");for(const k of Object.keys(CF.waits)){CF.waits[k].rej(new Error(msg));delete CF.waits[k]}CF.worker=null};
+ CF.worker=w;return w}
+const cfCall=(msg,key,tr)=>new Promise((res,rej)=>{CF.waits[key]=({res,rej});cfWorker().postMessage(msg,tr||[])});
+async function cfAudio(file){
+ if(file.size>1.8e9)throw new Error("Die Datei ist größer als 1,8 GB. Der Browser kann sie nicht lesen. Exportiere das Video in CapCut bitte kleiner (zum Beispiel 720p) und wähle es erneut aus. Die Zeiten gelten dann für diese kleinere Datei.");
+ let buf;try{buf=await file.arrayBuffer()}catch(e){throw new Error("Die Datei konnte nicht in den Speicher geladen werden. Exportiere das Video bitte kleiner (zum Beispiel 720p).")}
+ const ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});let ab;
+ try{ab=await ctx.decodeAudioData(buf)}catch(e){throw new Error("Die Tonspur dieser Datei kann der Browser nicht lesen. Am sichersten ist eine MP4-Datei mit normalem Ton (AAC).")}finally{try{ctx.close()}catch(e){}}
+ const n=ab.length,ch=ab.numberOfChannels,out=new Float32Array(n);
+ for(let c=0;c<ch;c++){const d=ab.getChannelData(c);for(let i=0;i<n;i++)out[i]+=d[i]/ch}
+ return out}
+function cfCuts(a,pieceS){const sr=16000,cuts=[0],w=6400;let t=pieceS*sr;
+ while(t<a.length-40*sr){let best=t,bv=1e9;for(let c=t-6*sr;c<=t+6*sr;c+=3200){let s=0;for(let i=0;i<w;i+=16)s+=a[c+i]*a[c+i];if(s<bv){bv=s;best=c+w/2}}cuts.push(Math.round(best));t=best+pieceS*sr}
+ cuts.push(a.length);return cuts}
+const CF_BAD=/(untertitel|amara\.org|vielen dank f[üu]r|danke f[üu]rs zuschauen|abonniert|copyright|www\.)/i;
+function cfClean(segs){const out=[];for(const s of segs){const t=s.t.replace(/\s+/g," ").trim();if(t.length<2)continue;
+  const n=out.length;if(n>=2&&out[n-1].t===t&&out[n-2].t===t)continue;if(CF_BAD.test(t)&&t.length<80)continue;out.push({s:s.s,e:s.e,t})}return out}
+async function cfTranscribe(audio){const cuts=cfCuts(audio,240),all=[];
+ for(let i=0;i<cuts.length-1;i++){const part=audio.slice(cuts[i],cuts[i+1]),off=cuts[i]/16000,id="r"+(++CF.wid);
+  CF.step="Sprache wird erkannt";CF.msg="Teil "+(i+1)+" von "+(cuts.length-1);CF.pct=Math.round(i/(cuts.length-1)*100);cfRender();
+  const r=await cfCall({type:"run",id,audio:part,lang:"german"},id,[part.buffer]);
+  for(const c of r.chunks){const ts=c.timestamp||[0,null],s=ts[0]||0,e=ts[1]==null?s+3:ts[1],t=String(c.text||"").trim();if(t)all.push({s:off+s,e:off+e,t})}}
+ return cfClean(all)}
+function cfNorm(arr,dur){const out=[];
+ for(const c of arr||[]){let s=Number(c.start),e=Number(c.ende!=null?c.ende:c.end);if(!isFinite(s)||!isFinite(e))continue;
+  if(dur){s=Math.max(0,Math.min(s,dur));e=Math.min(e,dur)}
+  let bs=null,be=null;for(const g of CF.segs){if(Math.abs(g.s-s)<=3&&(!bs||Math.abs(g.s-s)<Math.abs(bs.s-s)))bs=g;if(Math.abs(g.e-e)<=3&&(!be||Math.abs(g.e-e)<Math.abs(be.e-e)))be=g}
+  if(bs)s=bs.s;if(be)e=be.e;
+  if(e-s<8)continue;if(e-s>120)e=s+120;
+  out.push({s:Math.round(s*10)/10,e:Math.round(e*10)/10,titel:String(c.titel||"Ohne Titel").slice(0,90),haken:String(c.haken||""),grund:String(c.grund||""),kat:String(c.kategorie||""),bew:Math.max(0,Math.min(10,Number(c.bewertung)||0)),desc:String(c.beschreibung||""),tags:(Array.isArray(c.tags)?c.tags:[]).map(x=>String(x).replace(/^#/,"")).slice(0,6)})}
+ out.sort((a,b)=>b.bew-a.bew||a.s-b.s);const keep=[];
+ for(const c of out){if(!keep.some(k=>Math.min(k.e,c.e)-Math.max(k.s,c.s)>0.3*Math.min(k.e-k.s,c.e-c.s)))keep.push(c)}
+ return keep}
+async function cfAsk(){if(!SY||!SY.url)throw new Error("Für die KI-Auswahl muss der Abgleich eingerichtet sein (Mehr, Daten & Backup, Abgleich zwischen PC und Handy).");
+ const text=CF.segs.map(s=>"["+Math.round(s.s)+"] "+s.t).join("\n");
+ const j=await syPost({action:"clips",text,kategorien:plCfg().list});
+ if(!Array.isArray(j.clips))throw new Error("Dein Abgleich-Skript kennt den Clip-Finder noch nicht. Der neue Skript-Code muss eingefügt und als neue Version bereitgestellt werden.");
+ return j.clips}
+function cfSave(){if(!CF.key)return;db.cf={key:CF.key,dur:CF.dur,segs:CF.segs,clips:CF.clips};save()}
+async function cfStart(){
+ if(CF.busy)return;if(!CF.file){CF.err="Bitte zuerst ein Video wählen.";cfRender();return}
+ CF.busy=true;CF.err="";CF.msg="";CF.pct=0;cfRender();
+ try{
+  if(!CF.segs.length){
+   CF.step="Ton wird aus dem Video gelesen";CF.msg="Das dauert bei langen Videos einen Moment.";cfRender();
+   const audio=await cfAudio(CF.file);
+   if(!(audio.length>16000*20))throw new Error("In dem Video wurde kaum Ton gefunden.");
+   CF.step="Sprachmodell wird geladen";CF.msg="";cfRender();
+   const r=await cfCall({type:"load",id:"load",model:CF.model},"load");CF.gpu=r.gpu;
+   CF.segs=await cfTranscribe(audio);
+   if(CF.segs.length<5)throw new Error("Es wurde kaum Sprache erkannt. Ist das Video auf Deutsch und hat es Ton?");
+   cfSave()}
+  CF.step="Die KI sucht die besten Stellen";CF.msg="Das dauert etwa eine halbe Minute.";CF.pct=100;cfRender();
+  CF.clips=cfNorm(await cfAsk(),CF.dur);CF.sel={};CF.clips.forEach((c,i)=>CF.sel[i]=true);
+  if(!CF.clips.length)throw new Error("Die KI hat keine brauchbaren Stellen gefunden. Bitte nochmal versuchen.");
+  cfSave();CF.step="";CF.msg=""
+ }catch(e){CF.err=String(e&&e.message||e)}
+ CF.busy=false;cfRender()}
+function cfSrt(c){const rows=[];let n=0;
+ for(const g of CF.segs){if(g.e<=c.s||g.s>=c.e)continue;const s=Math.max(g.s,c.s),e=Math.min(g.e,c.e);if(e-s<0.3)continue;
+  const words=g.t.split(/\s+/),parts=[];for(let i=0;i<words.length;i+=5)parts.push(words.slice(i,i+5).join(" "));
+  const tot=parts.reduce((a,p)=>a+p.length,0)||1;let t=s;
+  for(const p of parts){const d=(e-s)*p.length/tot;rows.push([t-c.s,t+d-c.s,p]);t+=d}}
+ const f=x=>{x=Math.max(0,x);const h=Math.floor(x/3600),m=Math.floor(x/60)%60,s=Math.floor(x%60),ms=Math.round((x-Math.floor(x))*1000);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")+","+String(ms%1000).padStart(3,"0")};
+ return rows.map(r=>(++n)+"\n"+f(r[0])+" --> "+f(r[1])+"\n"+r[2]+"\n").join("\n")}
+function cfDownload(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000)}
+async function cfExportOne(i){const c=CF.clips[i],v=CF.vel;if(!v||!CF.url)throw new Error("Bitte das Video erneut auswählen.");
+ const W=1080,H=1920,cv=document.createElement("canvas");cv.width=W;cv.height=H;const g=cv.getContext("2d"),tiny=document.createElement("canvas");tiny.width=108;tiny.height=192;const tg=tiny.getContext("2d");
+ const mime=["video/mp4;codecs=avc1.640028,mp4a.40.2","video/mp4;codecs=avc1,mp4a.40.2","video/webm;codecs=vp9,opus","video/webm"].find(m=>MediaRecorder.isTypeSupported(m));if(!mime)throw new Error("Dieser Browser kann keine Videos aufnehmen. Nutze Chrome oder Edge.");
+ const ext=mime.startsWith("video/mp4")?"mp4":"webm";
+ v.pause();v.muted=false;v.volume=1;v.currentTime=c.s;await new Promise(r=>{const f=()=>{v.removeEventListener("seeked",f);r()};v.addEventListener("seeked",f)});
+ if(!cv.captureStream)throw new Error("Dieser Browser kann das Video nicht aufnehmen. Nutze Chrome oder Edge.");
+ if(!v._cf){const ac=new (window.AudioContext||window.webkitAudioContext)(),src=ac.createMediaElementSource(v);src.connect(ac.destination);v._cf={ac,src,dst:ac.createMediaStreamDestination()}}
+ const X=v._cf;await X.ac.resume();X.src.disconnect();X.src.connect(X.dst);
+ const vs=cv.captureStream(30);X.dst.stream.getAudioTracks().forEach(t=>vs.addTrack(t));
+ const rec=new MediaRecorder(vs,{mimeType:mime,videoBitsPerSecond:8e6,audioBitsPerSecond:160e3}),chunks=[];rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+ const vw=v.videoWidth,vh=v.videoHeight;
+ const draw=()=>{
+    if(CF.mode==="crop"){const sw=vh*9/16,sx=(vw-sw)*(CF.cx/100);g.drawImage(v,sx,0,sw,vh,0,0,W,H)}
+  else{const fw=W,fh=Math.round(W*vh/vw);const bw=vh*9/16,bx=(vw-bw)/2;
+   tg.drawImage(v,bx,0,bw,vh,0,0,108,192);g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";g.drawImage(tiny,0,0,108,192,0,0,W,H);
+   g.fillStyle="rgba(0,0,0,.28)";g.fillRect(0,0,W,H);g.drawImage(v,0,0,vw,vh,0,Math.round((H-fh)/2),fw,fh)}};
+ let stop=false;const loop=()=>{if(stop)return;draw();if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(loop);else requestAnimationFrame(loop)};
+ const done=new Promise(res=>{rec.onstop=()=>res()});
+ rec.start(500);await v.play();loop();
+ await new Promise(res=>{const chk=()=>{CF.exp.pct=Math.min(100,Math.round((v.currentTime-c.s)/(c.e-c.s)*100));cfRender();if(v.currentTime>=c.e-0.05||v.ended||CF.exp.cancel){res();return}setTimeout(chk,400)};chk()});
+ stop=true;v.pause();rec.stop();await done;try{X.src.disconnect();X.src.connect(X.ac.destination)}catch(e){}
+ const base=(CF.file&&CF.file.name||"video").replace(/\.[^.]+$/,"");
+ const nm=base+"-clip"+String(i+1).padStart(2,"0")+"-"+cfSlug(c.titel);
+ cfDownload(new Blob(chunks,{type:mime.split(";")[0]}),nm+"."+ext);
+ const srt=cfSrt(c);if(srt)cfDownload(new Blob([srt],{type:"text/plain"}),nm+".srt")}
+async function cfExportAll(list){if(CF.exp&&CF.exp.busy)return;CF.exp={busy:true,i:-1,pct:0,done:0,total:list.length,err:"",cancel:false};cfRender();
+ try{for(const i of list){CF.exp.i=i;CF.exp.pct=0;cfRender();await cfExportOne(i);CF.exp.done++;if(CF.exp.cancel)break}}catch(e){CF.exp.err=String(e&&e.message||e)}
+ CF.exp.busy=false;CF.exp.i=-1;cfRender()}
+function cfLoadFile(f){if(!f)return;if(CF.url)URL.revokeObjectURL(CF.url);
+ CF.file=f;CF.url=URL.createObjectURL(f);CF.err="";CF.exp=null;CF.prev=-1;
+ const key=f.name+"|"+f.size;
+ if(db.cf&&db.cf.key===key){CF.key=key;CF.segs=db.cf.segs||[];CF.clips=db.cf.clips||[];CF.dur=db.cf.dur||0;CF.sel={};CF.clips.forEach((c,i)=>CF.sel[i]=true)}
+ else{CF.key=key;CF.segs=[];CF.clips=[];CF.sel={};CF.dur=0}
+ const v=document.createElement("video");v.controls=true;v.playsInline=true;v.preload="metadata";v.style.cssText="width:100%;max-height:360px;border-radius:12px;background:#000;margin-top:12px";v.src=CF.url;
+ v.onloadedmetadata=()=>{CF.dur=v.duration||CF.dur;cfRender()};v.onerror=()=>{CF.err="Das Video kann der Browser nicht abspielen. Am sichersten ist eine MP4-Datei (H.264, AAC).";cfRender()};
+ v.ontimeupdate=()=>{const c=CF.clips[CF.prev];if(c&&!v.paused&&v.currentTime>=c.e){v.currentTime=c.s}};
+ CF.vel=v;paint()}
+function cfRender(){
+ const run=document.getElementById("cf-run"),list=document.getElementById("cf-list"),exp=document.getElementById("cf-exp"),vid=document.getElementById("cf-vid");if(!run)return;
+ if(vid&&CF.vel&&CF.vel.parentNode!==vid){vid.innerHTML="";vid.appendChild(CF.vel)}
+ const has=!!CF.file,restored=!has&&CF.segs.length;
+ const info=has?`<div class="mf" style="margin-top:8px"><b style="color:#fff">${esc(CF.file.name)}</b> · ${cfSize(CF.file.size)}${CF.dur?" · "+cfT(CF.dur):""}</div>`:"";
+ const pick=document.getElementById("cf-info");if(pick)pick.innerHTML=info;
+ const gpuNote=(navigator.gpu?"":`<p class="notice" style="margin:0 0 10px;color:#ff9a9a">Dein Browser hat keine Grafikkarten-Beschleunigung für diese Funktion. Die Spracherkennung wäre sehr langsam. Nimm bitte Chrome oder Edge am PC.</p>`);
+ const models=CF_MODELS.map(m=>`<span class="chip ${CF.model===m[0]?"on":""}" onclick="A.cfModel('${m[0]}')">${m[1]} <span class="muted" style="font-size:11px">(${m[2]})</span></span>`).join("");
+ let r=gpuNote;
+ if(CF.busy){r+=`<div class="mf" style="color:#fff;font-weight:700">${esc(CF.step)}</div><div class="bar" style="margin:8px 0"><i style="width:${CF.pct}%"></i></div><div class="mf">${esc(CF.msg)}</div><p class="notice" style="margin-top:10px">Dieses Fenster bitte offen lassen. Das Video verlässt deinen Computer nicht, nur der erkannte Text geht zur KI-Auswahl.</p>`}
+ else{
+  r+=`<div class="chips" style="margin:0 0 10px"><span class="muted" style="font-size:12px">Spracherkennung</span>${models}</div>`;
+  r+=`<p class="notice" style="margin:0 0 10px">${CF.segs.length?`Der Text von diesem Video ist schon gespeichert (${nf(CF.segs.length)} Abschnitte). Du kannst die KI-Auswahl neu starten, ohne alles nochmal zu erkennen.`:"Beim ersten Mal wird das Sprachmodell geladen (bei „Genau“ etwa 450 MB, danach bleibt es gespeichert). Für 30 Minuten Video rechne mit etwa 3 bis 8 Minuten."}</p>`;
+  r+=`<button class="btn" onclick="A.cfStart()" ${has?"":"disabled style='opacity:.5'"}>${CF.segs.length?"Beste Stellen neu suchen":"Analyse starten"}</button>`;
+  if(CF.segs.length&&has)r+=` <button class="btn gh sm" onclick="A.cfAgain()">Text neu erkennen</button>`;
+  if(!has&&restored)r+=`<p class="notice" style="margin-top:10px">Für Vorschau und Export wähle bitte dasselbe Video nochmal aus. Text und Vorschläge sind gespeichert.</p>`;
+  if(CF.segs.length)r+=`<p style="margin-top:12px"><button class="btn gh sm" onclick="A.cfPasteOpen()">Auswahl von Hand einfügen</button></p>${CF.pasteOpen?`<div style="margin-top:8px"><button class="btn gh sm" onclick="A.cfCopyText()">Text und Anweisung kopieren</button><p class="notice" style="margin:8px 0">Falls die automatische KI-Auswahl nicht läuft: Text kopieren, in den Chat mit Claude einfügen und die Antwort (JSON) hier einfügen.</p><textarea class="in" id="cf-paste" rows="5" placeholder='{"clips":[…]}'></textarea><p style="margin-top:8px"><button class="btn sm" onclick="A.cfPasteApply()">Übernehmen</button></p></div>`:""}`}
+ if(CF.err)r+=`<p class="err" style="margin-top:12px">${esc(CF.err)}</p>`;
+ run.innerHTML=r;
+ if(list){list.innerHTML=!CF.clips.length?emptyBox("Noch keine Vorschläge. Starte oben die Analyse."):
+  `<p class="notice" style="margin:0 0 10px">${nf(CF.clips.length)} Vorschläge, beste zuerst. Haken setzen, ansehen, Anfang und Ende bei Bedarf mit den Pfeilen feinjustieren.</p>`+CF.clips.map((c,i)=>`<div class="row" style="align-items:flex-start;flex-wrap:wrap;gap:10px;${CF.prev===i?"border-color:var(--acc);":""}">
+   <label style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:230px;cursor:pointer"><input type="checkbox" ${CF.sel[i]?"checked":""} onchange="A.cfSel(${i},this.checked)" style="margin-top:4px;accent-color:#ffc400"><span><b style="color:#fff">${esc(c.titel)}</b>${c.bew?` <span class="pill" style="font-size:11px">${c.bew} / 10</span>`:""}${c.kat?` <span class="pill" style="font-size:11px">${esc(c.kat)}</span>`:""}
+   <div class="mf">${cfT(c.s)} bis ${cfT(c.e)} · ${Math.round(c.e-c.s)} Sekunden</div>${c.haken?`<div class="mf">„${esc(c.haken)}“</div>`:""}${c.grund?`<div class="mf">${esc(c.grund)}</div>`:""}${c.desc?`<div class="mf" style="margin-top:4px">${esc(c.desc)}${c.tags.length?" "+c.tags.map(t=>"#"+esc(t)).join(" "):""}</div>`:""}</span></label>
+   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn gh sm" onclick="A.cfPrev(${i})" ${has?"":"disabled"}>${CF.prev===i?"Läuft":"Ansehen"}</button>
+   <span class="mf">Start</span><button class="btn gh sm" onclick="A.cfNudge(${i},'s',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'s',1)">+</button>
+   <span class="mf">Ende</span><button class="btn gh sm" onclick="A.cfNudge(${i},'e',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'e',1)">+</button></div></div>`).join("")}
+ if(exp){const n=Object.keys(CF.sel).filter(k=>CF.sel[k]&&CF.clips[k]).length,E=CF.exp;
+  exp.innerHTML=!CF.clips.length?emptyBox("Erst Vorschläge erzeugen."):`<div class="chips" style="margin:0 0 10px"><span class="muted" style="font-size:12px">Bildformat 9:16</span>
+   <span class="chip ${CF.mode==="blur"?"on":""}" onclick="A.cfMode('blur')">Ganzes Bild, Hintergrund unscharf</span><span class="chip ${CF.mode==="crop"?"on":""}" onclick="A.cfMode('crop')">Mitte zuschneiden</span></div>
+   ${CF.mode==="crop"?`<div class="qf"><label class="mf">Bildausschnitt von links nach rechts: ${CF.cx} %</label><input type="range" min="0" max="100" value="${CF.cx}" oninput="A.cfCx(this.value)" style="width:100%"></div>`:""}
+   <p class="notice" style="margin:0 0 10px">Exportiert wird in Echtzeit, ein Clip von 45 Sekunden dauert also etwa 45 Sekunden. Das Fenster muss dabei offen und sichtbar bleiben. Jeder Clip kommt als Videodatei (${(window.MediaRecorder&&MediaRecorder.isTypeSupported("video/mp4;codecs=avc1"))?"MP4":"WebM"}) mit einer passenden Untertitel-Datei (.srt) für CapCut. Beim ersten Mal fragt Chrome, ob mehrere Dateien geladen werden dürfen: bitte erlauben.</p>
+   ${E&&E.busy?`<div class="mf" style="color:#fff;font-weight:700">Clip ${E.done+1} von ${E.total}: ${esc(CF.clips[E.i]?CF.clips[E.i].titel:"")}</div><div class="bar" style="margin:8px 0"><i style="width:${E.pct}%"></i></div><p><button class="btn gh sm" onclick="A.cfCancel()">Abbrechen</button></p>`
+   :`<button class="btn" onclick="A.cfExport()" ${has&&n?"":"disabled style='opacity:.5'"}>${n} ausgewählte Clips exportieren</button> <button class="btn gh sm" onclick="A.cfCopyTimes()">Nur die Zeiten kopieren</button>${has?"":`<p class="notice" style="margin-top:10px">Zum Exportieren das Video oben auswählen.</p>`}`}
+   ${E&&!E.busy&&E.done?`<p class="notice" style="margin-top:10px;color:#9be39b">✓ ${E.done} Clips exportiert. Du findest sie im Download-Ordner.</p>`:""}${E&&E.err?`<p class="err" style="margin-top:10px">${esc(E.err)}</p>`:""}`}}
+function pClipfinder(){
+ return head("Creator-Tool","Clip-Finder","Zieh ein langes Video hinein. Der Hub findet die besten Stellen und macht daraus fertige Shorts.")+`<p><a onclick="A.go('tools')">← Alle Tools</a></p>
+ <section class="panel" style="margin-top:14px"><h2>1. Video wählen</h2>
+  <label class="btn gh" style="cursor:pointer;display:inline-block">Video auswählen<input type="file" id="cf-file" accept="video/*,audio/*" hidden></label>
+  <div id="cf-drop" style="margin-top:10px;border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--muted)">… oder das Video hier hineinziehen</div>
+  <div id="cf-info"></div><div id="cf-vid"></div></section>
+ <section class="panel" style="margin-top:14px"><h2>2. Analyse</h2><div id="cf-run"></div></section>
+ <section class="panel" style="margin-top:14px"><h2>3. Vorschläge</h2><div id="cf-list"></div></section>
+ <section class="panel" style="margin-top:14px"><h2>4. Exportieren</h2><div id="cf-exp"></div></section>`}
+function cfInit(){const f=document.getElementById("cf-file"),d=document.getElementById("cf-drop");
+ if(f)f.onchange=()=>{if(f.files[0])cfLoadFile(f.files[0])};
+ if(d){["dragenter","dragover"].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.style.borderColor="var(--acc)"}));
+  ["dragleave","drop"].forEach(ev=>d.addEventListener(ev,e=>{e.preventDefault();d.style.borderColor=""}));
+  d.addEventListener("drop",e=>{const x=e.dataTransfer&&e.dataTransfer.files[0];if(x)cfLoadFile(x)})}
+ if(!CF.segs.length&&db.cf&&!CF.file){CF.key=db.cf.key;CF.segs=db.cf.segs||[];CF.clips=db.cf.clips||[];CF.dur=db.cf.dur||0;CF.sel={};CF.clips.forEach((c,i)=>CF.sel[i]=true)}
+ cfRender()}
+function cfLock(){return CF.busy||!!(CF.exp&&CF.exp.busy)}
 
 /* ============ G-Tasty live-Status (Twitch) ============ */
 let TWBUSY=false,TWNEXT=0,TWDRAW=0,TWERR="";
@@ -1727,9 +1952,28 @@ const A={
  ytOff:()=>{if(confirm("Verbindung trennen? Bereits geladene Daten bleiben erhalten.")){db.yt=null;save();paint()}},
  wipe:()=>{if(confirm("WIRKLICH alle Daten unwiderruflich löschen? Lade vorher ein Backup herunter.")){db=blank();save();MSG="✓ Alle Daten gelöscht.";paint()}}
 };
-function paint(){side();const m=document.getElementById("main");
- const P={dashboard:pDash,submit:pSubmit,clips:pClips,clip:pClip,follower:pFollower,radar:pRadar,planer:pPlaner,zeit:pZeit,hash:pHash,gtasty:pG,stats:pStats,tools:pTools,pb:pPB,daten:pDaten};
- let v=V;if(OPEN)v="clip";m.innerHTML=`<div class="mhead"><div class="mb"><span class="mark">${BOLT}</span><b>CREATOR HUB</b></div><div id="tw-pill">${twPill()}</div></div>`+(P[v]||pDash)();if(v==="pb")pbInit();twDraw();
+Object.assign(A,{
+ cfModel:m=>{if(CF.busy)return;CF.model=m;cfRender()},
+ cfStart:()=>cfStart(),
+ cfAgain:()=>{if(CF.busy)return;if(!confirm("Den Text von diesem Video wirklich neu erkennen? Das dauert wieder einige Minuten."))return;CF.segs=[];CF.clips=[];CF.sel={};cfStart()},
+ cfPasteOpen:()=>{CF.pasteOpen=!CF.pasteOpen;cfRender()},
+ cfCopyText:()=>{const t="Du bist Editor für YouTube Shorts, TikTok und Instagram Reels. Unten steht das Transkript eines langen Videos, jede Zeile beginnt mit der Sekunde in eckigen Klammern. Wähle 6 bis 12 Stellen von 20 bis 75 Sekunden, die als eigenständiger Short funktionieren (starker Einstieg, klare Aussage oder Pointe). Antworte NUR mit JSON in dieser Form: {\"clips\":[{\"start\":Sekunde,\"ende\":Sekunde,\"titel\":\"\",\"haken\":\"\",\"grund\":\"\",\"kategorie\":\"\",\"bewertung\":1-10,\"beschreibung\":\"\",\"tags\":[]}]}\n\nTranskript:\n"+CF.segs.map(s=>"["+Math.round(s.s)+"] "+s.t).join("\n");
+  const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand("copy")}catch(e){}ta.remove();
+  try{navigator.clipboard.writeText(t).then(()=>{CF.msg="✓ Kopiert"},()=>{})}catch(e){}CF.err=ok?"":"";alert("Text und Anweisung sind kopiert. Jetzt in den Chat mit Claude einfügen.")},
+ cfPasteApply:()=>{const v=(document.getElementById("cf-paste")||{}).value||"";try{const m=v.match(/\{[\s\S]*\}/);const j=JSON.parse(m?m[0]:v);CF.clips=cfNorm(j.clips||j,CF.dur);CF.sel={};CF.clips.forEach((c,i)=>CF.sel[i]=true);if(!CF.clips.length)throw 0;CF.err="";CF.pasteOpen=false;cfSave()}catch(e){CF.err="Die Antwort konnte nicht gelesen werden. Sie muss im JSON-Format sein."}cfRender()},
+ cfSel:(i,on)=>{CF.sel[i]=on;cfRender()},
+ cfPrev:i=>{const v=CF.vel,c=CF.clips[i];if(!v||!c)return;if(CF.prev===i&&!v.paused){v.pause();CF.prev=-1}else{CF.prev=i;v.currentTime=c.s;v.play().catch(()=>{})}cfRender()},
+ cfNudge:(i,w,d)=>{const c=CF.clips[i];if(!c)return;c[w]=Math.max(0,Math.round((c[w]+d)*10)/10);if(CF.dur)c[w]=Math.min(CF.dur,c[w]);if(c.e-c.s<5){c[w==="s"?"s":"e"]=w==="s"?c.e-5:c.s+5}cfSave();if(CF.vel&&CF.prev===i)CF.vel.currentTime=w==="s"?c.s:Math.max(c.s,c.e-3);cfRender()},
+ cfMode:m=>{CF.mode=m;cfRender()},
+ cfCx:v=>{CF.cx=Number(v);const l=document.querySelector("#cf-exp label.mf");if(l)l.textContent="Bildausschnitt von links nach rechts: "+CF.cx+" %"},
+ cfExport:()=>{const l=Object.keys(CF.sel).filter(k=>CF.sel[k]&&CF.clips[k]).map(Number).sort((a,b)=>a-b);if(l.length){CF.prev=-1;if(CF.vel)CF.vel.pause();cfExportAll(l)}},
+ cfCancel:()=>{if(CF.exp)CF.exp.cancel=true},
+ cfCopyTimes:()=>{const t=Object.keys(CF.sel).filter(k=>CF.sel[k]&&CF.clips[k]).map(Number).sort((a,b)=>a-b).map(i=>{const c=CF.clips[i];return (i+1)+". "+c.titel+": "+cfT(c.s)+" bis "+cfT(c.e)+" ("+Math.round(c.e-c.s)+" s)"}).join("\n");
+  const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}ta.remove();try{navigator.clipboard.writeText(t)}catch(e){}alert("Zeiten kopiert:\n\n"+t)}
+});
+function paint(){if(V==="clipfinder"&&!OPEN&&cfLock()&&document.getElementById("cf-run")){cfRender();return}side();const m=document.getElementById("main");
+ const P={dashboard:pDash,submit:pSubmit,clips:pClips,clip:pClip,follower:pFollower,radar:pRadar,planer:pPlaner,zeit:pZeit,hash:pHash,gtasty:pG,stats:pStats,tools:pTools,pb:pPB,clipfinder:pClipfinder,daten:pDaten};
+ let v=V;if(OPEN)v="clip";m.innerHTML=`<div class="mhead"><div class="mb"><span class="mark">${BOLT}</span><b>CREATOR HUB</b></div><div id="tw-pill">${twPill()}</div></div>`+(P[v]||pDash)();if(v==="pb")pbInit();if(v==="clipfinder")cfInit();twDraw();
 }
 (function(){const tip=document.createElement("div");tip.className="tip";document.body.appendChild(tip);let cur=null;
  const hide=()=>{cur=null;tip.classList.remove("on")};
