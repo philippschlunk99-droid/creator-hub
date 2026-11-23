@@ -1386,13 +1386,16 @@ function pTools(){const T=[["clipfinder","✂","Clip-Finder","Langes Video hinei
 const CF={file:null,vel:null,url:"",key:"",dur:0,busy:false,step:"",pct:0,msg:"",err:"",model:"onnx-community/whisper-small",segs:[],clips:[],sel:{},mode:"blur",cx:50,prev:-1,exp:null,paste:"",pasteOpen:false,gpu:null,worker:null,wid:0,waits:{}};
 const CF_MODELS=[["onnx-community/whisper-tiny","Schnell","ungenauer"],["onnx-community/whisper-base","Normal","mittel"],["onnx-community/whisper-small","Genau","empfohlen für Deutsch"]];
 const CF_WK=`import {pipeline} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
-let asr=null,cur="";
+let asr=null,cur="",usedGpu=false,usedModel="";
 self.onmessage=async e=>{const m=e.data;
  try{
   if(m.type==="load"){
-   if(cur!==m.model){asr=null;const gpu=!!(self.navigator&&self.navigator.gpu);const cb=p=>self.postMessage({t:"dl",f:p.file||"",p:p.progress||0,s:p.status});
-    asr=await pipeline("automatic-speech-recognition",m.model,gpu?{device:"webgpu",dtype:{encoder_model:"fp32",decoder_model_merged:"q4"},progress_callback:cb}:{dtype:"q8",progress_callback:cb});cur=m.model}
-   self.postMessage({t:"ready",gpu:!!(self.navigator&&self.navigator.gpu)})}
+   if(cur!==m.model){asr=null;let gpu=false;const cb=p=>self.postMessage({t:"dl",f:p.file||"",p:p.progress||0,s:p.status});
+    try{if(self.navigator&&self.navigator.gpu&&await self.navigator.gpu.requestAdapter()){asr=await pipeline("automatic-speech-recognition",m.model,{device:"webgpu",dtype:{encoder_model:"fp32",decoder_model_merged:"q4"},progress_callback:cb});gpu=true}}catch(e){asr=null;gpu=false}
+    let mod=m.model;
+    if(!gpu){if(/whisper-small$/.test(mod))mod=mod.replace("whisper-small","whisper-base");asr=await pipeline("automatic-speech-recognition",mod,{device:"wasm",dtype:"q8",progress_callback:cb})}
+    cur=m.model;usedGpu=gpu;usedModel=mod}
+   self.postMessage({t:"ready",gpu:usedGpu,model:usedModel})}
   else if(m.type==="run"){
    const o=await asr(m.audio,{language:m.lang,task:"transcribe",return_timestamps:true,chunk_length_s:30,stride_length_s:5});
    self.postMessage({t:"done",id:m.id,chunks:o.chunks||[]})}
@@ -1453,6 +1456,7 @@ async function cfStart(){
    if(!(audio.length>16000*20))throw new Error("In dem Video wurde kaum Ton gefunden.");
    CF.step="Sprachmodell wird geladen";CF.msg="";cfRender();
    const r=await cfCall({type:"load",id:"load",model:CF.model},"load");CF.gpu=r.gpu;
+   if(!r.gpu){CF.step="Texterkennung läuft (ohne Grafikkarte, deshalb langsamer)";CF.msg=(/small/.test(CF.model)&&/base/.test(r.model||"")?"Dein Browser hat keine Grafikkarten-Beschleunigung. Ich nehme darum das schnellere Modell „Normal“. ":"")+"Bei einem 12-Minuten-Video kann das etwa 5 bis 15 Minuten dauern. Fenster offen lassen.";cfRender()}
    CF.segs=await cfTranscribe(audio);
    if(CF.segs.length<5)throw new Error("Es wurde kaum Sprache erkannt. Ist das Video auf Deutsch und hat es Ton?");
    cfSave()}
@@ -1513,7 +1517,7 @@ function cfRender(){
  const has=!!CF.file,restored=!has&&CF.segs.length;
  const info=has?`<div class="mf" style="margin-top:8px"><b style="color:#fff">${esc(CF.file.name)}</b> · ${cfSize(CF.file.size)}${CF.dur?" · "+cfT(CF.dur):""}</div>`:"";
  const pick=document.getElementById("cf-info");if(pick)pick.innerHTML=info;
- const gpuNote=(navigator.gpu?"":`<p class="notice" style="margin:0 0 10px;color:#ff9a9a">Dein Browser hat keine Grafikkarten-Beschleunigung für diese Funktion. Die Spracherkennung wäre sehr langsam. Nimm bitte Chrome oder Edge am PC.</p>`);
+ const gpuNote=(CF.gpu===false?`<p class="notice" style="margin:0 0 10px">Dein PC stellt keine Grafikkarten-Beschleunigung für den Browser bereit. Die Erkennung läuft deshalb über den Prozessor und dauert länger, funktioniert aber.</p>`:"");
  const models=CF_MODELS.map(m=>`<span class="chip ${CF.model===m[0]?"on":""}" onclick="A.cfModel('${m[0]}')">${m[1]} <span class="muted" style="font-size:11px">(${m[2]})</span></span>`).join("");
  let r=gpuNote;
  if(CF.busy){r+=`<div class="mf" style="color:#fff;font-weight:700">${esc(CF.step)}</div><div class="bar" style="margin:8px 0"><i style="width:${CF.pct}%"></i></div><div class="mf">${esc(CF.msg)}</div><p class="notice" style="margin-top:10px">Dieses Fenster bitte offen lassen. Das Video verlässt deinen Computer nicht, nur der erkannte Text geht zur KI-Auswahl.</p>`}
