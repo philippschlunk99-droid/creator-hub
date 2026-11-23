@@ -791,28 +791,38 @@ function clipsAnalyse(req) {
   var started = new Date().getTime();
   var code = 0;
   var j = {};
-  for (var mi = 0; mi < models.length; mi++) {
-    if (mi > 0 && new Date().getTime() - started > 170000) break;
-    var cfgs = [
-      {responseMimeType: "application/json", temperature: 0.4, thinkingConfig: {thinkingLevel: "minimal"}},
-      {responseMimeType: "application/json", temperature: 0.4}
-    ];
-    for (var ci = 0; ci < cfgs.length; ci++) {
-      var body = {contents: [{role: "user", parts: [{text: prompt}]}], generationConfig: cfgs[ci]};
-      var r = UrlFetchApp.fetch("https://generativelanguage.googleapis.com/v1beta/models/" + models[mi] + ":generateContent", {
-        method: "post", contentType: "application/json", headers: {"x-goog-api-key": key}, payload: JSON.stringify(body), muteHttpExceptions: true
-      });
-      code = r.getResponseCode();
-      j = {};
-      try { j = JSON.parse(r.getContentText()); } catch (e) {}
-      if (code !== 400) break;
-      if (/API key/i.test((j.error && j.error.message) || "")) break;
+  var tried = [];
+  var fertig = false;
+  for (var round = 0; round < 3 && !fertig; round++) {
+    if (round > 0) {
+      if (new Date().getTime() - started > 200000) break;
+      Utilities.sleep(8000);
     }
-    if (code === 200 || code === 401 || code === 403) break;
-    if (code === 400 && /API key/i.test((j.error && j.error.message) || "")) break;
+    for (var mi = 0; mi < models.length && !fertig; mi++) {
+      if (tried.length > 0 && new Date().getTime() - started > 240000) { fertig = true; break; }
+      var cfgs = [
+        {responseMimeType: "application/json", temperature: 0.4, thinkingConfig: {thinkingLevel: "minimal"}},
+        {responseMimeType: "application/json", temperature: 0.4}
+      ];
+      for (var ci = 0; ci < cfgs.length; ci++) {
+        var body = {contents: [{role: "user", parts: [{text: prompt}]}], generationConfig: cfgs[ci]};
+        var r = UrlFetchApp.fetch("https://generativelanguage.googleapis.com/v1beta/models/" + models[mi] + ":generateContent", {
+          method: "post", contentType: "application/json", headers: {"x-goog-api-key": key}, payload: JSON.stringify(body), muteHttpExceptions: true
+        });
+        code = r.getResponseCode();
+        j = {};
+        try { j = JSON.parse(r.getContentText()); } catch (e) {}
+        tried.push(code);
+        if (code !== 400) break;
+        if (/API key/i.test((j.error && j.error.message) || "")) break;
+      }
+      if (code === 200 || code === 401 || code === 403) fertig = true;
+      if (code === 400 && /API key/i.test((j.error && j.error.message) || "")) fertig = true;
+    }
   }
-  if (code === 429) return {ok: false, error: "Das kostenlose Limit von Gemini ist gerade erreicht. Bitte in ein bis zwei Minuten nochmal versuchen."};
-  if (code === 500 || code === 502 || code === 503 || code === 504 || code === 0) return {ok: false, error: "Gemini ist gerade ueberlastet (das liegt bei Google). Bitte in ein paar Minuten nochmal auf Neu analysieren tippen."};
+  var hinweis = " (Antworten von Google: " + tried.join(", ") + ")";
+  if (code === 429) return {ok: false, error: "Das kostenlose Limit von Gemini ist gerade erreicht. Bitte in ein bis zwei Minuten nochmal versuchen." + hinweis};
+  if (code === 500 || code === 502 || code === 503 || code === 504 || code === 0) return {ok: false, error: "Gemini ist gerade ueberlastet (das liegt bei Google). Bitte in ein paar Minuten nochmal auf Beste Stellen neu suchen tippen." + hinweis};
   if (code === 400 || code === 401 || code === 403) return {ok: false, error: "Gemini hat die Anfrage nicht akzeptiert (" + code + "): " + ((j.error && j.error.message) || "")};
   if (code !== 200) return {ok: false, error: "Gemini-Fehler " + code + ((j.error && j.error.message) ? ": " + j.error.message : "")};
   var t = "";
