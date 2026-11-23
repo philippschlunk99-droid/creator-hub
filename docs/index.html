@@ -1025,8 +1025,9 @@ function ytVals(){const n=Date.now(),left=Math.max(0,YTNEXT-n),m=Math.floor(left
 function syncBox(){if(!db.yt||!ytUrlOk(db.yt.url))return`<div class="syb"><div class="syl"><span>YouTube-Daten</span></div><div class="sym">Nicht verbunden. Verbinde deine Google-Tabelle, dann aktualisiert sich alles von selbst.</div><button class="btn gh sm" onclick="A.go('daten')">Verbinden</button></div>`;
  const v=ytVals(),fl=YTFLASH;YTFLASH=false;
  return`<div class="syb ${fl?"flash":""}" id="sy-box"><div class="syl"><span>Nächste Aktualisierung</span><span class="dot ${v.bad?"bad":""}" id="sy-dot"></span></div><div class="syc" id="sy-cd">${v.cd}</div><div class="sybar"><i id="sy-bar" style="width:${v.pct}%"></i></div><div class="sym" id="sy-last">${v.bad?"Letzter Versuch fehlgeschlagen, neuer Versuch folgt.":v.last}</div><button class="btn gh sm" onclick="A.ytNow()">Jetzt aktualisieren</button></div>`}
-function ytTick(){if(SY&&SY.url&&Date.now()>=SYNEXT&&!document.hidden&&!SYBUSY&&!pbBusy)syCycle();if(!db.yt||!ytUrlOk(db.yt.url))return;if(Date.now()>=YTNEXT&&!document.hidden&&!YTBUSY&&!pbBusy)ytSync();
- if(Date.now()>=TWNEXT&&!document.hidden&&!TWBUSY&&!pbBusy)twSync();if(Date.now()-TWDRAW>30000)twDraw();
+const cfHeavy=()=>!!(typeof CF!=="undefined"&&(CF.busy||(CF.exp&&CF.exp.busy)));
+function ytTick(){if(SY&&SY.url&&Date.now()>=SYNEXT&&!document.hidden&&!SYBUSY&&!pbBusy&&!cfHeavy())syCycle();if(!db.yt||!ytUrlOk(db.yt.url))return;if(Date.now()>=YTNEXT&&!document.hidden&&!YTBUSY&&!pbBusy&&!cfHeavy())ytSync();
+ if(Date.now()>=TWNEXT&&!document.hidden&&!TWBUSY&&!pbBusy&&!cfHeavy())twSync();if(Date.now()-TWDRAW>30000)twDraw();
  const cd=document.getElementById("sy-cd");if(!cd)return;const v=ytVals();cd.textContent=v.cd;document.getElementById("sy-bar").style.width=v.pct+"%";document.getElementById("sy-last").textContent=v.bad?"Letzter Versuch fehlgeschlagen, neuer Versuch folgt.":v.last;{const ml=document.getElementById("sy-mlast");if(ml)ml.textContent=v.bad?"Letzter Versuch fehlgeschlagen":YTBUSY?"Lädt …":v.last}document.getElementById("sy-dot").className="dot "+(v.bad?"bad":"")}
 
 let QP="tiktok";
@@ -1417,6 +1418,7 @@ self.onmessage=async e=>{const m=e.data;
 const cfT=s=>{s=Math.max(0,s||0);const h=Math.floor(s/3600),m=Math.floor(s/60)%60,x=Math.floor(s%60);return(h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0")};
 const cfSize=b=>b>=1e9?(b/1e9).toFixed(1).replace(".",",")+" GB":b>=1e6?Math.round(b/1e6)+" MB":Math.max(1,Math.round(b/1e3))+" KB";
 const cfSlug=t=>String(t||"clip").toLowerCase().replace(/[äöüß]/g,c=>({ä:"ae",ö:"oe",ü:"ue",ß:"ss"}[c])).replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)||"clip";
+function cfStopWorker(){if(CF.worker){try{CF.worker.terminate()}catch(e){}CF.worker=null}}
 function cfWorker(){if(CF.worker)return CF.worker;const w=new Worker(URL.createObjectURL(new Blob([CF_WK],{type:"text/javascript"})),{type:"module"});
  w.onmessage=e=>{const m=e.data;
   if(m.t==="dl"){if(m.s==="progress"&&/\.onnx/.test(m.f)){CF.msg="Sprachmodell wird geladen (nur beim ersten Mal): "+Math.round(m.p)+" %";cfRender()}}
@@ -1487,7 +1489,7 @@ async function cfStart(){
    CF.step="Sprachmodell wird geladen";CF.msg="";cfRender();
    const r=await cfCall({type:"load",id:"load",model:CF.model},"load");CF.gpu=r.gpu;
    if(!r.gpu){CF.step="Texterkennung läuft (ohne Grafikkarte, deshalb langsamer)";CF.msg=(/small/.test(CF.model)&&/base/.test(r.model||"")?"Dein Browser hat keine Grafikkarten-Beschleunigung. Ich nehme darum das schnellere Modell „Normal“. ":"")+"Bei einem 12-Minuten-Video kann das etwa 5 bis 15 Minuten dauern. Fenster offen lassen.";cfRender()}
-   CF.segs=await cfTranscribe(audio);
+   try{CF.segs=await cfTranscribe(audio)}finally{cfStopWorker()}
    if(CF.segs.length<5)throw new Error("Es wurde kaum Sprache erkannt. Ist das Video auf Deutsch und hat es Ton?");
    cfSave()}
   CF.step="Die KI sucht die besten Stellen";CF.msg="Das dauert meist unter einer Minute, bei Überlastung bei Google auch länger.";CF.pct=100;cfRender();
@@ -1608,7 +1610,8 @@ function cfRender(){
   if(CF.segs.length)r+=`<p style="margin-top:12px"><button class="btn gh sm" onclick="A.cfPasteOpen()">Auswahl von Hand einfügen</button></p>${CF.pasteOpen?`<div style="margin-top:8px"><button class="btn gh sm" onclick="A.cfCopyText()">Text und Anweisung kopieren</button><p class="notice" style="margin:8px 0">Falls die automatische KI-Auswahl nicht läuft: Text kopieren, in den Chat mit Claude einfügen und die Antwort (JSON) hier einfügen.</p><textarea class="in" id="cf-paste" rows="5" placeholder='{"clips":[…]}'></textarea><p style="margin-top:8px"><button class="btn sm" onclick="A.cfPasteApply()">Übernehmen</button></p></div>`:""}`}
  if(CF.err)r+=`<p class="err" style="margin-top:12px">${esc(CF.err)}</p>`;
  run.innerHTML=r;
- if(list){list.innerHTML=!CF.clips.length?emptyBox("Noch keine Vorschläge. Starte oben die Analyse."):
+ const lsig=has+"|"+CF.prev+"|"+JSON.stringify(CF.sel)+"|"+CF.clips.map(c=>c.s+","+c.e+","+c.titel).join(";");
+ if(list&&list._sig!==lsig){list._sig=lsig;list.innerHTML=!CF.clips.length?emptyBox("Noch keine Vorschläge. Starte oben die Analyse."):
   `<p class="notice" style="margin:0 0 10px">${nf(CF.clips.length)} Vorschläge, beste zuerst. Haken setzen, ansehen, Anfang und Ende bei Bedarf mit den Pfeilen feinjustieren.</p>`+CF.clips.map((c,i)=>`<div class="row" style="align-items:flex-start;flex-wrap:wrap;gap:10px;${CF.prev===i?"border-color:var(--acc);":""}">
    <label style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:230px;cursor:pointer"><input type="checkbox" ${CF.sel[i]?"checked":""} onchange="A.cfSel(${i},this.checked)" style="margin-top:4px;accent-color:#ffc400"><span><b style="color:#fff" title="Titelvorschlag">${esc(c.titel)}</b>${c.bew?` <span class="pill" style="font-size:11px">${c.bew} / 10</span>`:""}${c.kat?` <span class="pill" style="font-size:11px">${esc(c.kat)}</span>`:""}
    <div class="mf">${cfT(c.s)} bis ${cfT(c.e)} · ${Math.round(c.e-c.s)} Sekunden</div>${c.haken?`<div class="mf">„${esc(c.haken)}“</div>`:""}${c.grund?`<div class="mf">${esc(c.grund)}</div>`:""}${c.desc?`<div class="mf" style="margin-top:4px">${esc(c.desc)}${c.tags.length?" "+c.tags.map(t=>"#"+esc(t)).join(" "):""}</div>`:""}</span></label>
