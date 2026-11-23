@@ -1393,7 +1393,7 @@ function pTools(){const T=[["clipfinder","✂","Clip-Finder","Langes Video hinei
  return head("Creator-Tools","Deine Tools","Eigene Werkzeuge direkt im Hub.")+`<section class="toolgrid" style="margin-top:20px">${T.map(([k,i,n,d])=>`<a class="tool" onclick="A.go('${k}')" style="text-decoration:none;color:inherit;border-color:var(--line2)"><span style="color:var(--acc)">${i}</span><b>${n}</b><p>${d}</p></a>`).join("")}${["Thumbnail-Generator","Titel-Generator"].map(n=>`<div class="tool" style="opacity:.55"><b>${n}</b><p>Geplant.</p></div>`).join("")}</section>`}
 
 /* ============ Clip-Finder: findet in einem langen Video die besten Stellen für Shorts ============ */
-const CF={file:null,vel:null,url:"",key:"",dur:0,busy:false,step:"",pct:0,msg:"",err:"",model:"onnx-community/whisper-small",segs:[],clips:[],sel:{},mode:"blur",cx:50,prev:-1,head:"all",exp:null,paste:"",pasteOpen:false,gpu:null,worker:null,wid:0,waits:{}};
+const CF={file:null,vel:null,url:"",key:"",dur:0,busy:false,step:"",pct:0,msg:"",err:"",model:"onnx-community/whisper-small",segs:[],clips:[],sel:{},mode:"blur",cx:50,prev:-1,exp:null,paste:"",pasteOpen:false,gpu:null,worker:null,wid:0,waits:{}};
 const CF_MODELS=[["onnx-community/whisper-tiny","Schnell","ungenauer"],["onnx-community/whisper-base","Normal","mittel"],["onnx-community/whisper-small","Genau","empfohlen für Deutsch"]];
 const CF_WK=`import {pipeline} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
 let asr=null,cur="",usedGpu=false,usedModel="";
@@ -1516,14 +1516,7 @@ async function cfExportOne(i){const c=CF.clips[i],v=CF.vel;if(!v||!CF.url)throw 
   else{const fw=W,fh=Math.round(W*vh/vw);const bw=vh*9/16,bx=(vw-bw)/2;
    tg.drawImage(v,bx,0,bw,vh,0,0,108,192);g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";g.drawImage(tiny,0,0,108,192,0,0,W,H);
    g.fillStyle="rgba(0,0,0,.28)";g.fillRect(0,0,W,H);g.drawImage(v,0,0,vw,vh,0,Math.round((H-fh)/2),fw,fh)}};
- const headTxt=String(c.titel||"").trim();
- const drawHead=()=>{if(CF.head==="off"||!headTxt)return;const t=v.currentTime-c.s;if(CF.head==="5"&&t>5)return;
-  g.save();g.font="900 78px 'Arial Black',Impact,Arial,sans-serif";g.textAlign="center";g.textBaseline="top";g.lineJoin="round";
-  const words=headTxt.split(/\s+/),lines=[];let cur="";for(const w of words){const test=cur?cur+" "+w:w;if(cur&&g.measureText(test).width>940){lines.push(cur);cur=w}else cur=test}if(cur)lines.push(cur);
-  const L=lines.slice(0,3),lh=92,y0=230;
-  L.forEach((ln,k)=>{const y=y0+k*lh;g.lineWidth=16;g.strokeStyle="#000";g.strokeText(ln,W/2,y);g.fillStyle="#fff";g.fillText(ln,W/2,y)});
-  g.restore()};
- let stop=false;const loop=()=>{if(stop)return;draw();drawHead();if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(loop);else requestAnimationFrame(loop)};
+ let stop=false;const loop=()=>{if(stop)return;draw();if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(loop);else requestAnimationFrame(loop)};
  const done=new Promise(res=>{rec.onstop=()=>res()});
  rec.start(500);await v.play();loop();
  await new Promise(res=>{const chk=()=>{CF.exp.pct=Math.min(100,Math.round((v.currentTime-c.s)/(c.e-c.s)*100));cfRender();if(v.currentTime>=c.e-0.05||v.ended||CF.exp.cancel){res();return}setTimeout(chk,400)};chk()});
@@ -1566,16 +1559,14 @@ function cfRender(){
  run.innerHTML=r;
  if(list){list.innerHTML=!CF.clips.length?emptyBox("Noch keine Vorschläge. Starte oben die Analyse."):
   `<p class="notice" style="margin:0 0 10px">${nf(CF.clips.length)} Vorschläge, beste zuerst. Haken setzen, ansehen, Anfang und Ende bei Bedarf mit den Pfeilen feinjustieren.</p>`+CF.clips.map((c,i)=>`<div class="row" style="align-items:flex-start;flex-wrap:wrap;gap:10px;${CF.prev===i?"border-color:var(--acc);":""}">
-   <label style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:230px;cursor:pointer"><input type="checkbox" ${CF.sel[i]?"checked":""} onchange="A.cfSel(${i},this.checked)" style="margin-top:4px;accent-color:#ffc400"><span><b style="color:#fff">${esc(c.titel)}</b>${c.bew?` <span class="pill" style="font-size:11px">${c.bew} / 10</span>`:""}${c.kat?` <span class="pill" style="font-size:11px">${esc(c.kat)}</span>`:""}
-   <div class="mf">${cfT(c.s)} bis ${cfT(c.e)} · ${Math.round(c.e-c.s)} Sekunden</div>${c.haken?`<div class="mf">„${esc(c.haken)}“</div>`:""}${c.grund?`<div class="mf">${esc(c.grund)}</div>`:""}<div style="margin-top:6px" onclick="event.preventDefault()"><span class="mf">Überschrift im Video</span><input class="in" style="width:100%;margin-top:3px" maxlength="70" value="${esc(c.titel)}" oninput="A.cfTitle(${i},this.value)"></div>${c.desc?`<div class="mf" style="margin-top:4px">${esc(c.desc)}${c.tags.length?" "+c.tags.map(t=>"#"+esc(t)).join(" "):""}</div>`:""}</span></label>
-   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn gh sm" onclick="A.cfPrev(${i})" ${has?"":"disabled"}>${CF.prev===i?"Pause":"Ansehen"}</button><button class="btn gh sm" onclick="A.cfHook(${i})" ${has?"":"disabled"}>Start (3 Sek.)</button>
+   <label style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:230px;cursor:pointer"><input type="checkbox" ${CF.sel[i]?"checked":""} onchange="A.cfSel(${i},this.checked)" style="margin-top:4px;accent-color:#ffc400"><span><b style="color:#fff" title="Titelvorschlag">${esc(c.titel)}</b>${c.bew?` <span class="pill" style="font-size:11px">${c.bew} / 10</span>`:""}${c.kat?` <span class="pill" style="font-size:11px">${esc(c.kat)}</span>`:""}
+   <div class="mf">${cfT(c.s)} bis ${cfT(c.e)} · ${Math.round(c.e-c.s)} Sekunden</div>${c.haken?`<div class="mf">„${esc(c.haken)}“</div>`:""}${c.grund?`<div class="mf">${esc(c.grund)}</div>`:""}${c.desc?`<div class="mf" style="margin-top:4px">${esc(c.desc)}${c.tags.length?" "+c.tags.map(t=>"#"+esc(t)).join(" "):""}</div>`:""}</span></label>
+   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn gh sm" onclick="A.cfPrev(${i})" ${has?"":"disabled"}>${CF.prev===i?"Pause":"Ansehen"}</button><button class="btn gh sm" onclick="A.cfCopyTitle(${i},this)">Titel &amp; Text kopieren</button><button class="btn gh sm" onclick="A.cfHook(${i})" ${has?"":"disabled"}>Start (3 Sek.)</button>
    <span class="mf">Start</span><button class="btn gh sm" onclick="A.cfNudge(${i},'s',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'s',1)">+</button>
    <span class="mf">Ende</span><button class="btn gh sm" onclick="A.cfNudge(${i},'e',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'e',1)">+</button></div></div>`).join("")}
  if(exp){const n=Object.keys(CF.sel).filter(k=>CF.sel[k]&&CF.clips[k]).length,E=CF.exp;
   exp.innerHTML=!CF.clips.length?emptyBox("Erst Vorschläge erzeugen."):`<div class="chips" style="margin:0 0 10px"><span class="muted" style="font-size:12px">Bildformat 9:16</span>
    <span class="chip ${CF.mode==="blur"?"on":""}" onclick="A.cfMode('blur')">Ganzes Bild, Hintergrund unscharf</span><span class="chip ${CF.mode==="crop"?"on":""}" onclick="A.cfMode('crop')">Mitte zuschneiden</span></div>
-   <div class="chips" style="margin:0 0 10px"><span class="muted" style="font-size:12px">Überschrift im Video</span>
-   <span class="chip ${CF.head==="all"?"on":""}" onclick="A.cfHead('all')">Ganzer Clip</span><span class="chip ${CF.head==="5"?"on":""}" onclick="A.cfHead('5')">Nur die ersten 5 Sekunden</span><span class="chip ${CF.head==="off"?"on":""}" onclick="A.cfHead('off')">Keine</span></div>
    ${CF.mode==="crop"?`<div class="qf"><label class="mf">Bildausschnitt von links nach rechts: ${CF.cx} %</label><input type="range" min="0" max="100" value="${CF.cx}" oninput="A.cfCx(this.value)" style="width:100%"></div>`:""}
    <p class="notice" style="margin:0 0 10px">Exportiert wird in Echtzeit, ein Clip von 45 Sekunden dauert also etwa 45 Sekunden. Das Fenster muss dabei offen und sichtbar bleiben. Jeder Clip kommt als Videodatei (${(window.MediaRecorder&&MediaRecorder.isTypeSupported("video/mp4;codecs=avc1"))?"MP4":"WebM"}) mit einer passenden Untertitel-Datei (.srt) für CapCut. Beim ersten Mal fragt Chrome, ob mehrere Dateien geladen werden dürfen: bitte erlauben.</p>
    ${E&&E.busy?`<div class="mf" style="color:#fff;font-weight:700">Clip ${E.done+1} von ${E.total}: ${esc(CF.clips[E.i]?CF.clips[E.i].titel:"")}</div><div class="bar" style="margin:8px 0"><i style="width:${E.pct}%"></i></div><p><button class="btn gh sm" onclick="A.cfCancel()">Abbrechen</button></p>`
@@ -2020,8 +2011,8 @@ Object.assign(A,{
   try{navigator.clipboard.writeText(t).then(()=>{CF.msg="✓ Kopiert"},()=>{})}catch(e){}CF.err=ok?"":"";alert("Text und Anweisung sind kopiert. Jetzt in den Chat mit Claude einfügen.")},
  cfPasteApply:()=>{const v=(document.getElementById("cf-paste")||{}).value||"";try{const m=v.match(/\{[\s\S]*\}/);const j=JSON.parse(m?m[0]:v);CF.clips=cfNorm(j.clips||j,CF.dur);CF.sel={};CF.clips.forEach((c,i)=>CF.sel[i]=true);if(!CF.clips.length)throw 0;CF.err="";CF.pasteOpen=false;cfSave()}catch(e){CF.err="Die Antwort konnte nicht gelesen werden. Sie muss im JSON-Format sein."}cfRender()},
  cfSel:(i,on)=>{CF.sel[i]=on;cfRender()},
- cfTitle:(i,v)=>{const c=CF.clips[i];if(c){c.titel=v;clearTimeout(CF.tt);CF.tt=setTimeout(cfSave,600)}},
- cfHead:v=>{CF.head=v;cfRender()},
+ cfCopyTitle:(i,b)=>{const c=CF.clips[i];if(!c)return;const t=c.titel+(c.desc?"\n\n"+c.desc+(c.tags&&c.tags.length?" "+c.tags.map(x=>"#"+x).join(" "):""):"");const ok=()=>{b.textContent="✓ Kopiert";setTimeout(()=>{b.textContent="Titel & Text kopieren"},1800)};
+  try{navigator.clipboard.writeText(t).then(ok,()=>{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}ta.remove();ok()})}catch(e){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e2){}ta.remove();ok()}},
  cfHook:i=>{const v=CF.vel,c=CF.clips[i];if(!v||!c)return;CF.prev=i;v.currentTime=c.s;v.play().catch(()=>{});clearTimeout(CF.ht);CF.ht=setTimeout(()=>{if(CF.prev===i)v.pause()},3200);cfRender()},
  cfPrev:i=>{const v=CF.vel,c=CF.clips[i];if(!v||!c)return;if(CF.prev===i&&!v.paused){v.pause();CF.prev=-1}else{CF.prev=i;v.currentTime=c.s;v.play().catch(()=>{})}cfRender()},
  cfNudge:(i,w,d)=>{const c=CF.clips[i];if(!c)return;c[w]=Math.max(0,Math.round((c[w]+d)*10)/10);if(CF.dur)c[w]=Math.min(CF.dur,c[w]);if(c.e-c.s<5){c[w==="s"?"s":"e"]=w==="s"?c.e-5:c.s+5}cfSave();if(CF.vel&&CF.prev===i)CF.vel.currentTime=w==="s"?c.s:Math.max(c.s,c.e-3);cfRender()},
