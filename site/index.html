@@ -145,6 +145,7 @@ h1{font-size:25px;margin:6px 0 4px}h1::after{width:70px;height:4px;margin-top:7p
 }
 @media(max-width:540px){.fg{grid-template-columns:1fr}.span2,.span3{grid-column:auto}.toolgrid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media(max-width:820px){.plb{display:none}}
 </style>
 </head>
 <body>
@@ -157,6 +158,13 @@ h1{font-size:25px;margin:6px 0 4px}h1::after{width:70px;height:4px;margin-top:7p
 // Philipp's Creator Hub - YouTube-Abholer
 // Liest nur deine eigenen YouTube-Zahlen und schreibt sie in das Blatt "Verlauf". Aendert nichts bei YouTube.
 var SHEET = "Verlauf";
+
+// Veroeffentlichung als "2026-11-19 18:45" (Berlin). Der Hub braucht die Uhrzeit fuer den Upload-Planer.
+function berlinZeit(wert) {
+  var t = typeof wert === "number" ? wert : Date.parse(wert || "");
+  if (!t || isNaN(t)) return "";
+  return Utilities.formatDate(new Date(t), "Europe/Berlin", "yyyy-MM-dd HH:mm");
+}
 
 function syncYouTube() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -179,7 +187,7 @@ function syncYouTube() {
     var v = YouTube.Videos.list("snippet,statistics", {id: ids.slice(i, i + 50).join(",")});
     v.items.forEach(function (x) {
       var s = x.statistics || {};
-      rows.push([today, x.id, x.snippet.title, (x.snippet.publishedAt || "").slice(0, 10),
+      rows.push([today, x.id, x.snippet.title, berlinZeit(x.snippet.publishedAt),
         Number(s.viewCount || 0), Number(s.likeCount || 0), Number(s.commentCount || 0)]);
     });
   }
@@ -298,7 +306,7 @@ function syncInstagram() {
       var data = res[k];
       if (!data || data.views == null) continue;
       rows.push([heute, String(m.id), String(m.caption || "").replace(/\s+/g, " ").trim() || ("Beitrag " + m.id),
-        Utilities.formatDate(new Date(m.timestamp), tz, "yyyy-MM-dd"), Number(data.views),
+        berlinZeit(m.timestamp), Number(data.views),
         Number(m.like_count || 0), Number(m.comments_count || 0), Number(data.shares || 0), String(m.permalink || "")]);
     }
   }
@@ -436,7 +444,7 @@ function syncTikTok() {
     (d.videos || []).forEach(function (v) {
       if (v.view_count == null) return;
       var titel = String(v.title || v.video_description || "").replace(/\s+/g, " ").trim() || ("Video " + v.id);
-      rows.push([heute, String(v.id), titel, Utilities.formatDate(new Date(Number(v.create_time) * 1000), tz, "yyyy-MM-dd"),
+      rows.push([heute, String(v.id), titel, berlinZeit(Number(v.create_time) * 1000),
         Number(v.view_count), Number(v.like_count || 0), Number(v.comment_count || 0), Number(v.share_count || 0), String(v.share_url || "")]);
     });
     if (!d.has_more) break;
@@ -922,7 +930,7 @@ const head=(e,t,i)=>`<div class="hub">PHILIPP'S CREATOR HUB</div><div class="not
 
 /* ============ Seiten ============ */
 let V="dashboard",F={plat:"",sort:"datum"},OPEN=null,MSG="";
-const NAV=[["dashboard","◧","Dashboard"],["follower","↗","Follower & Statistiken"],["radar","◎","Radar"],["submit","➤","Einreichen"],["gtasty","€","Auszahlungen"],["clips","▤","Clip-Verwaltung"],["tools","✦","Creator-Tools"],["daten","⚙","Daten & Backup"]];
+const NAV=[["dashboard","◧","Dashboard"],["follower","↗","Follower & Statistiken"],["radar","◎","Radar"],["planer","◔","Upload-Planer"],["submit","➤","Einreichen"],["gtasty","€","Auszahlungen"],["clips","▤","Clip-Verwaltung"],["tools","✦","Creator-Tools"],["daten","⚙","Daten & Backup"]];
 const BOLT='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L8.5 22 20 9.5h-6.2z" fill="currentColor"/></svg>';
 let MORE=false;
 const NAVS={dashboard:"Start",follower:"Statistik",gtasty:"Auszahlung",clips:"Clips"},NAVBAR=["dashboard","follower","gtasty","clips"];
@@ -1025,7 +1033,7 @@ function gtDetail(c){const a=db.gtAuto,l=latest(c,"9999-12-31"),rd=gtReady(c),r0
  const ti=c.gtasty?"✓ Bei G-Tasty eingereicht":rd?"★ Zum Einreichen bei G-Tasty bereit":"G-Tasty";
  const hint=c.gtasty?"":rd?`Dieser Clip hat ${nf(a.min)} Aufrufe erreicht${r0?` (erste Messung darüber: ${dde(r0)})`:""}. Kopiere Link und Angaben, reiche ihn bei G-Tasty ein und markiere ihn danach als eingereicht.`:`Noch nicht bereit${a&&a.on?` (nötig: veröffentlicht ab ${dde(a.from)} und ${nf(a.min)} Aufrufe)`:""}. Du kannst ihn trotzdem manuell einreichen.`;
  return `<section class="panel" style="margin-bottom:14px;${rd?"border-color:var(--red)":""}"><h2>${ti}</h2><p class="notice">${hint}</p>
- <div class="row"><span class="muted">Plattform</span><b>${PL[c.platform]}</b></div><div class="row"><span class="muted">Veröffentlicht am</span><b>${dde(c.published)}</b></div><div class="row"><span class="muted">Aufrufe</span><b>${nf(l?.views)}${l?` <span class="muted">(Stand ${dde(l.date)})</span>`:""}</b></div>
+ <div class="row"><span class="muted">Plattform</span><b>${PL[c.platform]}</b></div><div class="row"><span class="muted">Veröffentlicht am</span><b>${dde(c.published)}${c.pdt?" um "+c.pdt.slice(11)+" Uhr":""}</b></div><div class="row"><span class="muted">Kategorie</span>${plSelect(c)}</div><div class="row"><span class="muted">Aufrufe</span><b>${nf(l?.views)}${l?` <span class="muted">(Stand ${dde(l.date)})</span>`:""}</b></div>
  <label class="f" style="margin-top:12px">Video-Link</label>
  ${c.url?`<div class="qr"><input class="in" id="gt-link" readonly value="${esc(c.url)}" onclick="this.select()"><button class="btn" onclick="A.copyId('gt-link',this)">Link kopieren</button></div>`:`<form class="qr" onsubmit="return A.setUrl(event,'${c.id}')"><input class="in" name="url" placeholder="https://… (Link des Videos einfügen)"><button class="btn">Link speichern</button></form><p class="notice">Für diesen Clip ist noch kein Link hinterlegt. Füge ihn hier einmal ein.</p>`}
  <label class="f" style="margin-top:12px">Alle Angaben</label><textarea class="in" id="gt-block" readonly rows="5" onclick="this.select()">${esc(gtBlock(c))}</textarea>
@@ -1147,6 +1155,96 @@ function pRadar(){const T=today(),PFL=PF?[PF]:PLS,pr=PFL.map(p=>radarPlat(p,T)),
  <section class="panel" style="margin-bottom:14px"><h2>Nächste Stufe in Reichweite</h2>
  ${near.length?`<div class="tw"><table><thead><tr><th>Clip</th><th>Plattform</th><th class="num">Aufrufe</th><th class="num">Nächste Stufe</th><th class="num">Noch</th><th class="num">Dann</th><th class="num">Bei aktuellem Tempo</th></tr></thead><tbody>${near.slice(0,15).map(x=>`<tr class="cl"><td><a onclick="A.open('${x.c.id}')"><b>${esc(x.c.title)}</b></a><div class="mf">${dde(x.c.published)} · ${x.c.gtasty?"eingereicht":"noch nicht eingereicht"}</div></td><td>${PL[x.c.platform]}</td><td class="num">${nf(x.v)}</td><td class="num">${nf(x.next)}</td><td class="num"><b>${nf(x.rem)}</b></td><td class="num">${nxt(x)}</td><td class="num">${eta(x)}</td></tr>`).join("")}</tbody></table></div>`:emptyBox("Aktuell steht kein Clip nah genug vor einer Stufe oder keiner würde sie bei aktuellem Tempo innerhalb von 30 Tagen erreichen. Berücksichtigt werden Clips, die ab dem Datum der Einreich-Regel veröffentlicht wurden, bereits eingereichte und von Hand angelegte Clips. Clips mit von dir eingetragenem Betrag fehlen hier.")}
  <p class="notice">„Bei aktuellem Tempo“ ist eine grobe Rechnung: Fehlende Aufrufe geteilt durch die Aufrufe pro Tag der letzten 48 Stunden. Es werden nur Clips gezeigt, die damit in höchstens 30 Tagen ankommen. Das Tempo ändert sich oft schnell, nimm es nur als Anhaltspunkt. Die Beträge sind rechnerisch nach der Staffel, keine Zusage von G-Tasty.</p></section>`}
+/* ============ Upload-Planer ============ */
+const PL_DEF={list:["Rage Bait","Politik","Fragen beantworten","Drama / Streit","Satire / Comedy","Gaming","Sonstiges"],
+ rules:{"Rage Bait":["ragebait","rage","bait","ausgerastet","ausraster","wutanfall"],
+ "Politik":["politik","politiker","afd","cdu","spd","fdp","merz","scholz","trump","wahl","wahlen","bundestag","regierung","habeck","weidel","ukraine","putin","israel","gaza","migration","bürgergeld"],
+ "Fragen beantworten":["frage","fragen","antwort","antworten","qna","q&a","fragerunde"],
+ "Drama / Streit":["cancel","gecancelt","streit","beef","drama","eskaliert","eskalation","beleidigt","beleidigung","überreagiert","fight","schlägerei"],
+ "Satire / Comedy":["satire","satiere","satirefiktiv","fiktiv","lustig","comedy","tiktokcomedy","parodie","funny","meme","witz","skizze","😂"],
+ "Gaming":["minecraft","gta","gta5","gta6","rp","roleplay","roleplaychaos","rollenspiel","fitnacraft","valorant","fortnite","cs2","csgo","headshot","zocken","gaming","warzone","fifa"],
+ "Sonstiges":[]},thr:3};
+const plCfg=()=>{const d=db.cats;return d&&Array.isArray(d.list)?d:PL_DEF};
+function plEdit(fn){if(!db.cats||!Array.isArray(db.cats.list))db.cats=JSON.parse(JSON.stringify(PL_DEF));if(!db.cats.rules)db.cats.rules={};fn(db.cats);save();paint()}
+const plTok=t=>String(t||"").toLowerCase().replace(/[^\p{L}\p{N}&]+/gu," ").trim().split(" ").filter(Boolean);
+function plAuto(c,cf){const t=String(c.title||"").toLowerCase(),tk=new Set(plTok(t));
+ for(const n of cf.list)for(const k of (cf.rules&&cf.rules[n])||[]){if(!k)continue;
+  if(/[\p{L}\p{N}]/u.test(k)){if(k.endsWith("*")?[...tk].some(x=>x.startsWith(k.slice(0,-1))):tk.has(k))return n}else if(t.includes(k))return n}
+ return ""}
+const plCat=c=>{const cf=plCfg();return c.cat&&cf.list.includes(c.cat)?c.cat:plAuto(c,cf)};
+const plSelect=c=>{const cf=plCfg(),cur=plCat(c),man=c.cat&&cf.list.includes(c.cat);
+ return `<select class="in" style="max-width:240px" onchange="A.plSet('${c.id}',this.value)"><option value="">${cur&&!man?esc(cur)+" (automatisch)":"Keine Kategorie"}</option>${cf.list.map(n=>`<option value="${esc(n)}" ${man&&c.cat===n?"selected":""}>${esc(n)}</option>`).join("")}</select>`};
+let PLN=15;const PL_MIN=50000;
+const PL_DOW=["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"],PL_WIN=[["Nacht","22–6 Uhr"],["Morgen","6–11 Uhr"],["Mittag","11–15 Uhr"],["Nachmittag","15–19 Uhr"],["Abend","19–22 Uhr"]];
+const plWin=h=>h>=22||h<6?0:h<11?1:h<15?2:h<19?3:4;
+const plDn=s=>Math.floor(Date.parse(s+"T00:00:00Z")/864e5);
+const plMed=a=>{const s=[...a].sort((x,y)=>x-y),n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):0};
+const plPct=x=>dfmt(x*100,0)+" %",plFac=x=>dfmt(x,1)+"×";
+function plData(){const lim=addDays(today(),-7),by={};
+ for(const c of db.clips){const l=latest(c,"9999-12-31"),d=c.pdt?c.pdt.slice(0,10):c.published;if(!l||!d||!(l.views>0)||d>lim)continue;(by[c.platform]=by[c.platform]||[]).push({c,p:c.platform,v:l.views,d,n:plDn(d)})}
+ const out=[];
+ for(const p of Object.keys(by)){const a=by[p].sort((x,y)=>x.n-y.n),all=plMed(a.map(x=>x.v));
+  for(const x of a){const w=a.filter(y=>Math.abs(y.n-x.n)<=45),m=w.length>=15?plMed(w.map(y=>y.v)):all;x.ratio=m>0?x.v/m:0;
+   x.dow=(new Date(x.d+"T12:00:00").getDay()+6)%7;x.hour=x.c.pdt?Number(x.c.pdt.slice(11,13)):null;x.win=x.hour==null?null:plWin(x.hour);x.cat=plCat(x.c);out.push(x)}}
+ return out}
+function plSt(a,thr,p0){const n=a.length,vir=a.filter(x=>x.ratio>=thr).length,K=5;return{n,vir,rate:n?vir/n:0,med:n?plMed(a.map(x=>x.ratio)):0,sh:(vir+p0*K)/(n+K)}}
+const plBest=(arr,min)=>arr.filter(x=>x.st.n>=min).sort((x,y)=>y.st.sh-x.st.sh||y.st.n-x.st.n)[0]||null;
+function plAn(p,D,thr){const it=D.filter(x=>x.p===p),n=it.length,vir=it.filter(x=>x.ratio>=thr).length,p0=n?vir/n:0,tw=it.filter(x=>x.win!=null),useT=tw.length>=15,
+ cell=(a,f,k)=>Array.from({length:k},(_,i)=>({i,st:plSt(a.filter(x=>f(x)===i),thr,p0)})),
+ wd=cell(it,x=>x.dow,7),win=cell(tw,x=>x.win,5),
+ cats=[...new Set(it.map(x=>x.cat))].map(nm=>{const a=it.filter(x=>x.cat===nm),tt=a.filter(x=>x.win!=null);return{name:nm,st:plSt(a,thr,p0),a,bd:plBest(cell(a,x=>x.dow,7),4),bw:useT?plBest(cell(tt,x=>x.win,5),4):null}})
+  .sort((x,y)=>(x.name===""?1:0)-(y.name===""?1:0)||y.st.sh-x.st.sh),
+ combos=[];
+ for(const c of cats){if(!c.name)continue;
+  for(let i=0;i<7;i++){const a=c.a.filter(x=>x.dow===i);if(a.length>=4){const s=plSt(a,thr,p0);if(s.vir>0)combos.push({l:c.name+" · "+PL_DOW[i],st:s})}}
+  if(useT)for(let i=0;i<5;i++){const a=c.a.filter(x=>x.win===i);if(a.length>=4){const s=plSt(a,thr,p0);if(s.vir>0)combos.push({l:c.name+" · "+PL_WIN[i][0]+" ("+PL_WIN[i][1]+")",st:s})}}}
+ combos.sort((x,y)=>y.st.sh-x.st.sh||y.st.n-x.st.n);
+ const named=cats.filter(c=>c.name);
+ return{p,it,n,vir,p0,wd,win,hasT:tw.length,useT,cats,combos:combos.slice(0,6),bestWd:plBest(wd,6),bestWin:useT?plBest(win,6):null,bestCat:plBest(named,6),med:plMed(it.map(x=>x.v))}}
+const plBar=(st,mx)=>`<div class="bar" style="width:84px;display:inline-block;vertical-align:middle"><i style="width:${mx>0?Math.min(100,st.sh/mx*100):0}%"></i></div>`;
+function plTable(head1,rows,an,bestIdx){const mx=Math.max(0,...rows.map(r=>r.st.sh));
+ return `<div class="tw"><table><thead><tr><th>${head1}</th><th class="num">Clips</th><th class="num">Faktor</th><th class="num">Viral-Quote</th><th class="plb"></th></tr></thead><tbody>${rows.map((r,i)=>`<tr style="${r.st.n<6?"opacity:.55":""}"><td><b>${r.label}</b>${r.sub?`<div class="mf">${r.sub}</div>`:""}${bestIdx===i?` <span class="pill" style="font-size:11px">stärkste</span>`:""}${r.st.n<6?`<div class="mf">wenig Daten</div>`:""}</td><td class="num">${nf(r.st.n)}</td><td class="num">${r.st.n?plFac(r.st.med):"—"}</td><td class="num"><b>${r.st.n?plPct(r.st.rate):"—"}</b><div class="mf">${r.st.vir} von ${r.st.n}</div></td><td class="plb">${plBar(r.st,mx)}</td></tr>`).join("")}</tbody></table></div>`}
+function plToday(an){const dw=(new Date().getDay()+6)%7,w=an.wd[dw].st,L=[];
+ L.push(`Heute ist ${PL_DOW[dw]}.`);
+ if(w.n>=6)L.push(`An diesem Wochentag lagen deine ${PL[an.p]}-Clips bisher beim ${plFac(w.med)} des Normalwerts, ${plPct(w.rate)} wurden viral (${w.vir} von ${w.n}). Über alle Tage sind es ${plPct(an.p0)}.`);
+ else L.push(`Für diesen Wochentag gibt es erst ${w.n} Clips. Das reicht noch nicht für eine Aussage.`);
+ if(an.bestWin)L.push(`Beste Tageszeit bisher: ${PL_WIN[an.bestWin.i][0]} (${PL_WIN[an.bestWin.i][1]}), ${plPct(an.bestWin.st.rate)} viral bei ${an.bestWin.st.n} Clips.`);
+ else if(!an.useT)L.push("Zur Uhrzeit kann ich noch nichts sagen, sie wird erst erfasst (siehe unten).");
+ if(an.bestCat)L.push(`Stärkste Kategorie bisher: ${esc(an.bestCat.name)} (${plPct(an.bestCat.st.rate)} viral bei ${an.bestCat.st.n} Clips).`);
+ return L}
+function pPlaner(){const cf=plCfg(),thr=cf.thr||3,D=plData(),PFL=PF?[PF]:PLS,A_=PFL.map(p=>plAn(p,D,thr)),tot=D.length,
+ ohne=db.clips.filter(c=>(!PF||c.platform===PF)&&plCat(c)===""&&(latest(c,"9999-12-31")||{}).views>=PL_MIN).sort((a,b)=>(latest(b,"9999-12-31").views||0)-(latest(a,"9999-12-31").views||0)),
+ allT=D.filter(x=>x.hour!=null).length;
+ const tNote=`<section class="panel" style="margin:14px 0"><h2>Uhrzeit wird noch nicht erfasst</h2><p class="notice">Bisher speichert dein Skript nur das Datum der Veröffentlichung. Für die Auswertung nach Tageszeit muss es auch die Uhrzeit speichern. <b>Einmal nötig:</b> Gehe auf <a onclick="A.go('daten')">Daten &amp; Backup</a>, kopiere dort den Skript-Code, öffne dein Apps-Script-Projekt, ersetze den gesamten alten Code durch den neuen und klicke auf Speichern. Es ist nichts neu zu bereitstellen und keine Funktion auszuführen. Spätestens nach der nächsten Aktualisierung (15 Minuten) holt sich der Hub die Uhrzeiten aller Clips.</p></section>`;
+ const head0=head("Auswertung","Upload-Planer","Zeigt, an welchen Tagen, zu welchen Zeiten und mit welchen Themen deine Clips bisher viral gingen. Alles wird aus deinen eigenen Clips gerechnet.")+pfSwitch();
+ const thrBar=`<div class="chips" style="margin:14px 0 6px"><span class="muted" style="font-size:12px">Viral ab dem</span>${[2,3,5,10].map(v=>`<span class="chip ${thr===v?"on":""}" onclick="A.plThr(${v})">${v}-fachen</span>`).join("")}<span class="muted" style="font-size:12px">des Normalwerts deiner Plattform</span></div>`;
+ const basis=`<p class="notice" style="margin:0 0 12px">${nf(tot)} Clips ausgewertet (nur Clips, die mindestens 7 Tage alt sind, weil jüngere noch wachsen). „Normalwert“ ist der mittlere Clip derselben Plattform in einem Zeitraum von ±45 Tagen. „Faktor“ heißt, wie viel mehr oder weniger als dieser Normalwert die Clips der Zeile im Mittel hatten (1× = Normalwert).</p>`;
+ if(!tot)return head0+thrBar+emptyBox("Noch keine Clips mit Aufrufen und Veröffentlichungsdatum, die mindestens 7 Tage alt sind.");
+ let body="";
+ if(!PF){
+  body=`<section class="cards c3" style="margin-top:6px">${A_.map(a=>{const l=[];
+   l.push(a.bestWd?`Bester Tag: <b style="color:#fff">${PL_DOW[a.bestWd.i]}</b> (${plPct(a.bestWd.st.rate)}, ${a.bestWd.st.n} Clips)`:"Bester Tag: noch zu wenig Daten");
+   l.push(a.bestWin?`Beste Zeit: <b style="color:#fff">${PL_WIN[a.bestWin.i][0]}</b> ${PL_WIN[a.bestWin.i][1]} (${plPct(a.bestWin.st.rate)}, ${a.bestWin.st.n} Clips)`:a.useT?"Beste Zeit: noch zu wenig Daten":"Beste Zeit: Uhrzeit fehlt noch");
+   l.push(a.bestCat?`Beste Kategorie: <b style="color:#fff">${esc(a.bestCat.name)}</b> (${plPct(a.bestCat.st.rate)}, ${a.bestCat.st.n} Clips)`:"Beste Kategorie: noch zu wenig Daten");
+   return `<div class="card"><div class="ml">${PL[a.p]}</div><div class="mv g">${a.n?plPct(a.p0):"—"}</div><div class="mf" style="margin-bottom:8px">Viral-Quote: ${a.vir} von ${a.n} Clips ab dem ${thr}-fachen Normalwert (Normalwert ca. ${nf(a.med)} Aufrufe)</div>${l.map(x=>`<div class="mf" style="margin-top:4px">${x}</div>`).join("")}</div>`}).join("")}</section>
+   <p class="notice" style="margin-top:10px">Tippe oben auf eine Plattform für die ganze Auswertung mit Wochentagen, Tageszeiten und Kategorien.</p>${allT?"":tNote}`;
+ }else{
+  const a=A_[0];
+  body=`<section class="cards" style="margin-top:6px">${stat("Viral-Quote",a.n?plPct(a.p0):"—",`${a.vir} von ${a.n} Clips ab dem ${thr}-fachen Normalwert`,1)}${stat("Normalwert",nf(a.med),"Aufrufe des mittleren Clips auf "+PL[a.p])}${stat("Mit Uhrzeit",nf(a.hasT),a.hasT?"Clips, bei denen die Tageszeit bekannt ist":"Uhrzeit noch nicht erfasst")}</section>
+  <section class="panel" style="margin:14px 0"><h2>Heute</h2>${plToday(a).map(x=>`<p class="notice" style="margin:4px 0">${x}</p>`).join("")}<p class="notice" style="margin-top:8px">Das ist ein Hinweis aus deinen bisherigen Clips, keine Garantie.</p></section>
+  <section class="panel" style="margin-bottom:14px"><h2>Nach Wochentag</h2>${plTable("Tag",a.wd.map(r=>({label:PL_DOW[r.i],st:r.st})),a,(()=>{const b=plBest(a.wd,6);return b&&b.st.sh>a.p0?b.i:-1})())}</section>
+  ${a.useT?`<section class="panel" style="margin-bottom:14px"><h2>Nach Tageszeit</h2>${plTable("Zeitfenster",a.win.map(r=>({label:PL_WIN[r.i][0],sub:PL_WIN[r.i][1],st:r.st})),a,(()=>{const b=plBest(a.win,6);return b&&b.st.sh>a.p0?b.i:-1})())}<p class="notice" style="margin-top:8px">Auswertung nur mit den ${nf(a.hasT)} Clips, bei denen die Uhrzeit bekannt ist. Zeit nach deutscher Zeit.</p></section>`:(a.hasT?`<section class="panel" style="margin-bottom:14px"><h2>Nach Tageszeit</h2><p class="notice">Bisher ist bei ${nf(a.hasT)} Clips die Uhrzeit bekannt. Ab 15 Clips erscheint hier die Auswertung.</p></section>`:tNote)}
+  <section class="panel" style="margin-bottom:14px"><h2>Nach Kategorie</h2>${plTable("Kategorie",a.cats.map(c=>({label:c.name?esc(c.name):"Ohne Kategorie",sub:c.name&&(c.bd||c.bw)?`${c.bd?"Bester Tag: "+PL_DOW[c.bd.i]+" ("+c.bd.st.n+" Clips)":""}${c.bd&&c.bw?" · ":""}${c.bw?"Beste Zeit: "+PL_WIN[c.bw.i][0]+" ("+c.bw.st.n+" Clips)":""}`:"",st:c.st})),a,(()=>{const b=plBest(a.cats.filter(c=>c.name),6);return b&&b.st.sh>a.p0?a.cats.indexOf(b):-1})())}</section>
+  <section class="panel" style="margin-bottom:14px"><h2>Starke Kombinationen</h2>${a.combos.length?`<div class="tw"><table><thead><tr><th>Kombination</th><th class="num">Clips</th><th class="num">Viral-Quote</th></tr></thead><tbody>${a.combos.map(x=>`<tr><td><b>${x.l}</b></td><td class="num">${x.st.n}</td><td class="num"><b>${plPct(x.st.rate)}</b><div class="mf">${x.st.vir} von ${x.st.n}</div></td></tr>`).join("")}</tbody></table></div><p class="notice" style="margin-top:8px">Gezeigt werden Kombinationen mit mindestens 4 Clips und mindestens einem viralen Clip. Bei so kleinen Zahlen kann der Zufall viel ausmachen, nimm sie als Idee zum Testen.</p>`:emptyBox("Noch keine Kombination mit genug Clips. Sobald mehr Clips eine Kategorie haben, erscheint sie hier.")}</section>`;
+ }
+ const rules=`<section class="panel" style="margin:14px 0"><h2>Kategorien und Regeln</h2><p class="notice" style="margin:0 0 10px">Ein Clip bekommt automatisch die erste Kategorie von oben, bei der ein Wort aus dem Titel zu den Stichwörtern passt (ganze Wörter, Hashtags zählen mit, <b>stern*</b> am Ende gilt für alle Wörter, die so anfangen). Was du von Hand einem Clip zuweist, geht immer vor. Stichwörter trennst du mit Komma.</p>
+  ${cf.list.map((n,i)=>`<div class="row" style="align-items:center;flex-wrap:wrap;gap:8px"><b style="min-width:150px">${i+1}. ${esc(n)}</b><input class="in" style="flex:1;min-width:200px" value="${esc(((cf.rules&&cf.rules[n])||[]).join(", "))}" placeholder="Stichwörter, mit Komma getrennt" onchange="A.plRule(${i},this.value)"><button class="btn gh sm" onclick="A.plDel(${i})">Löschen</button></div>`).join("")}
+  <div class="qr" style="margin-top:12px"><input class="in" id="pl-new" placeholder="Neue Kategorie, zum Beispiel „Story“"><button class="btn" onclick="A.plAdd()">Hinzufügen</button></div>
+  <p style="margin-top:10px"><button class="btn gh sm" onclick="A.plReset()">Auf Standardliste zurücksetzen</button></p></section>`;
+ const open=`<section class="panel" style="margin:14px 0"><h2>Ohne Kategorie (${nf(ohne.length)})</h2>${ohne.length?`<p class="notice" style="margin:0 0 10px">Gezeigt werden nur Clips ab ${nf(PL_MIN)} Aufrufen, die der Hub nicht zuordnen konnte. Sie fließen erst in die Kategorie-Auswertung ein, wenn du eine Kategorie wählst. Wähle eine Kategorie, dann wird sie gespeichert und zwischen Handy und PC abgeglichen. Sortiert nach Aufrufen.</p>${ohne.slice(0,PLN).map(c=>`<div class="row" style="align-items:center;flex-wrap:wrap;gap:8px"><div style="flex:1;min-width:200px"><a onclick="A.open('${c.id}')"><b>${esc(c.title)}</b></a><div class="mf">${PL[c.platform]} · ${dde(c.published)} · ${nf(latest(c,"9999-12-31").views)} Aufrufe</div></div>${plSelect(c)}</div>`).join("")}${ohne.length>PLN?`<p style="margin-top:10px"><button class="btn gh sm" onclick="A.plMore()">Mehr anzeigen (${nf(ohne.length-PLN)} weitere)</button></p>`:""}`:emptyBox("Alle Clips ab "+nf(PL_MIN)+" Aufrufen haben eine Kategorie.")}</section>`;
+ const how=`<p class="notice">So wird gerechnet: Für jeden Clip zählt sein neuester Messwert. Er wird mit dem mittleren Clip derselben Plattform aus den ±45 Tagen um sein Veröffentlichungsdatum verglichen (Faktor), damit das starke Wachstum deines Kontos nicht neuere Clips automatisch besser aussehen lässt. „Viral“ heißt: Faktor mindestens so hoch wie oben eingestellt. Die Viral-Quote ist der Anteil viraler Clips. Zum Ranking („stärkste“) wird die Quote bei wenig Clips zum Gesamtwert hin geglättet, deshalb gewinnt keine Zeile allein durch 2 Treffer bei 3 Clips. Zeilen mit weniger als 6 Clips sind grau und zählen nicht als stärkste. Das zeigt, wo bei dir etwas lief, nicht sicher, dass es an Tag, Zeit oder Thema lag.</p>`;
+ return head0+thrBar+basis+body+open+rules+how}
+
 /* ============ Zeitrechner ============ */
 let ZT={fps:60,m:"0",s:"35",f:"22",sec:"18,18"};
 const ztInt=x=>{const n=Math.floor(Number(String(x).trim().replace(",",".")));return isFinite(n)&&n>=0?n:0};
@@ -1189,7 +1287,7 @@ function pHash(){const st=hashStats(PF),by=HS,srt={avg:(a,b)=>b.avg-a.avg,n:(a,b
  <section class="panel" style="margin-bottom:14px"><h2>Wie viele Hashtags pro Clip?</h2><div class="tw"><table><thead><tr><th>Gruppe</th><th class="num">Clips</th><th class="num">Ø Aufrufe</th></tr></thead><tbody>${bk.map(b=>`<tr><td>${b.l}</td><td class="num">${nf(b.n)}</td><td class="num">${b.avg==null?"—":nf(b.avg)}</td></tr>`).join("")}</tbody></table></div></section>`:`<div class="empty" style="margin-top:16px">${st.cl.length?"In den Titeln deiner Clips stehen keine Hashtags (mit #). Der Hub liest sie aus dem Titel bzw. der Beschreibung, die er von TikTok, Instagram und YouTube bekommt.":"Noch keine Clips mit Messwerten."}</div>`}
  <p class="notice">So wird gerechnet: Für jeden Clip zählt sein neuester Messwert (Aufrufe gesamt seit Veröffentlichung). Pro Hashtag wird der Durchschnitt aller Clips gebildet, die ihn im Titel haben. Ältere Clips hatten mehr Zeit für Aufrufe, und viele Hashtags kommen nur in wenigen Clips vor. Ein hoher Wert zeigt deshalb nur, wo bei dir viele Aufrufe zusammenkamen, nicht sicher, dass der Hashtag der Grund war. Die Tabelle „Wie viele Hashtags pro Clip?“ hilft, das einzuordnen.</p>`}
 function pTools(){const T=[["pb","▰","Progress-Bar-Generator","Animierter Fortschrittsbalken als WebM für CapCut, exakt so lang wie dein Clip."],["zeit","◷","CapCut-Zeitrechner","Rechnet Sekunden:Bilder aus CapCut in echte Sekunden um und zurück."],["hash","#","Hashtag-Analyse","Zeigt, bei welchen Hashtags deine Clips am besten gelaufen sind."]];
- return head("Creator-Tools","Deine Tools","Eigene Werkzeuge direkt im Hub.")+`<section class="toolgrid" style="margin-top:20px">${T.map(([k,i,n,d])=>`<a class="tool" onclick="A.go('${k}')" style="text-decoration:none;color:inherit;border-color:var(--line2)"><span style="color:var(--acc)">${i}</span><b>${n}</b><p>${d}</p></a>`).join("")}${["Thumbnail-Generator","Titel-Generator","Upload-Planer","Video-Analyse"].map(n=>`<div class="tool" style="opacity:.55"><b>${n}</b><p>Geplant.</p></div>`).join("")}</section>`}
+ return head("Creator-Tools","Deine Tools","Eigene Werkzeuge direkt im Hub.")+`<section class="toolgrid" style="margin-top:20px">${T.map(([k,i,n,d])=>`<a class="tool" onclick="A.go('${k}')" style="text-decoration:none;color:inherit;border-color:var(--line2)"><span style="color:var(--acc)">${i}</span><b>${n}</b><p>${d}</p></a>`).join("")}${["Thumbnail-Generator","Titel-Generator","Video-Analyse"].map(n=>`<div class="tool" style="opacity:.55"><b>${n}</b><p>Geplant.</p></div>`).join("")}</section>`}
 
 /* ============ G-Tasty live-Status (Twitch) ============ */
 let TWBUSY=false,TWNEXT=0,TWDRAW=0,TWERR="";
@@ -1235,6 +1333,7 @@ function ytApply(t,plat){plat=plat||"youtube";const ig=plat!=="youtube",PLN=plat
   claimed.add(c.id);
   if(!c.url)c.url=plat==="tiktok"?link.split("?")[0]:ig?link:"https://www.youtube.com/watch?v="+encodeURIComponent(id);
   if(!c.published&&I.p>=0)c.published=impDate(r[I.p]);
+  if(I.p>=0&&!c.pdt){const pm=String(r[I.p]||"").match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);if(pm)c.pdt=pm[1]+" "+pm[2]}
   const m={date:d,views:v,likes:o(r,I.l),comments:o(r,I.c),shares:o(r,I.s)},k=c.metrics.findIndex(x=>x.date===d);
   if(k>=0)c.metrics[k]=m;else c.metrics.push(m);vids.add(id);days.add(d);n++}
  if(!n&&!days.size)throw new Error(ig?"Im Blatt „"+PLN+"“ stehen noch keine Werte.":"In der Tabelle stehen noch keine Werte. Führe in Apps Script einmal „einrichten“ aus.");
@@ -1331,21 +1430,22 @@ const syH=s=>{let h=5381;for(let i=0;i<s.length;i++)h=(h*33^s.charCodeAt(i))>>>0
 const syKey=c=>c.yt?"yt:"+c.yt:c.ig?"ig:"+c.ig:c.tt?"tt:"+c.tt:"c:"+c.id;
 const syN=x=>x==null?null:x;
 function syRec(c){
- if(c.yt||c.ig||c.tt){if(!(c.gtasty||c.euro!=null||c.conf!=null||c.paid!=null))return null;return{g:!!c.gtasty,a:c.gtAt||"",e:syN(c.euro),cf:syN(c.conf),pd:syN(c.paid)}}
- return{id:c.id,platform:c.platform,title:c.title,url:c.url||"",published:c.published||"",gtasty:!!c.gtasty,gtAt:c.gtAt||"",manual:!!c.manual,euro:syN(c.euro),conf:syN(c.conf),paid:syN(c.paid),
+ if(c.yt||c.ig||c.tt){if(!(c.gtasty||c.euro!=null||c.conf!=null||c.paid!=null||c.cat))return null;return{g:!!c.gtasty,a:c.gtAt||"",e:syN(c.euro),cf:syN(c.conf),pd:syN(c.paid),ct:c.cat||null}}
+ return{id:c.id,platform:c.platform,title:c.title,url:c.url||"",published:c.published||"",gtasty:!!c.gtasty,gtAt:c.gtAt||"",manual:!!c.manual,euro:syN(c.euro),conf:syN(c.conf),paid:syN(c.paid),cat:c.cat||"",
   metrics:[...c.metrics].sort((a,b)=>a.date.localeCompare(b.date)).map(m=>[m.date,m.views,m.likes,m.comments,m.shares])}}
-function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[syKey(c)]=r}const g=db.gtAuto;if(g)m["s:gtAuto"]={on:!!g.on,from:g.from,min:g.min};return m}
+function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[syKey(c)]=r}const g=db.gtAuto;if(g)m["s:gtAuto"]={on:!!g.on,from:g.from,min:g.min};const cf=plCfg();m["s:cats"]={list:cf.list,rules:cf.rules,thr:cf.thr||3};return m}
 const syHash=r=>r==null?"":syH(JSON.stringify(r));
 function syApply(k,r,idx){
  if(k==="s:gtAuto"){if(r)db.gtAuto={on:!!r.on,from:r.from,min:r.min,v2:true};return true}
+ if(k==="s:cats"){if(r&&Array.isArray(r.list))db.cats={list:r.list,rules:r.rules||{},thr:r.thr||3};return true}
  if(k.startsWith("c:")){const old=idx.get(k);
   if(r===null){if(old){db.clips=db.clips.filter(c=>c!==old);idx.delete(k)}return true}
   const nc={id:r.id,platform:r.platform,title:r.title,url:r.url||"",published:r.published||"",gtasty:!!r.gtasty,metrics:(r.metrics||[]).map(m=>({date:m[0],views:m[1],likes:m[2],comments:m[3],shares:m[4]}))};
-  if(r.gtAt)nc.gtAt=r.gtAt;if(r.manual)nc.manual=true;if(r.euro!=null)nc.euro=r.euro;if(r.conf!=null)nc.conf=r.conf;if(r.paid!=null)nc.paid=r.paid;
+  if(r.gtAt)nc.gtAt=r.gtAt;if(r.manual)nc.manual=true;if(r.cat)nc.cat=r.cat;if(r.euro!=null)nc.euro=r.euro;if(r.conf!=null)nc.conf=r.conf;if(r.paid!=null)nc.paid=r.paid;
   if(old)db.clips[db.clips.indexOf(old)]=nc;else db.clips.push(nc);idx.set(k,nc);return true}
  const c=idx.get(k);if(!c)return r===null;
- if(r===null){c.gtasty=false;delete c.gtAt;delete c.euro;delete c.conf;delete c.paid;return true}
- c.gtasty=!!r.g;if(r.a)c.gtAt=r.a;else delete c.gtAt;
+ if(r===null){c.gtasty=false;delete c.gtAt;delete c.euro;delete c.conf;delete c.paid;delete c.cat;return true}
+ c.gtasty=!!r.g;if(r.a)c.gtAt=r.a;else delete c.gtAt;if(r.ct)c.cat=r.ct;else delete c.cat;
  for(const [f,g] of [["e","euro"],["cf","conf"],["pd","paid"]]){if(r[f]==null)delete c[g];else c[g]=r[f]}return true}
 async function syPost(o){let r;
  try{r=await fetch(SY.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({code:SY.code},o)),redirect:"follow"})}
@@ -1513,6 +1613,12 @@ const A={
  calDay:v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||v>today())return;if(!CAL.s){CAL.s=v;paint();return}const a=CAL.s<v?CAL.s:v,b=CAL.s<v?v:CAL.s;R={preset:"custom",from:a,to:b};CAL.s=null;PICK=null;paint()},
  pf:v=>{PF=PLS.includes(v)?v:"";if(PF)QP=PF;paint()},
  ytNow:()=>{YTNEXT=0;ytTick()},
+ plThr:v=>plEdit(c=>{c.thr=Number(v)||3}),plSet:(id,v)=>{const c=db.clips.find(x=>x.id===id);if(!c)return;if(v)c.cat=v;else delete c.cat;save();paint()},
+ plRule:(i,v)=>plEdit(c=>{const n=c.list[i];if(n!=null)c.rules[n]=String(v).split(/[,;\n]+/).map(x=>x.trim().toLowerCase()).filter(Boolean)}),
+ plDel:i=>{const n=plCfg().list[i];if(n!=null&&confirm("Kategorie „"+n+"“ löschen? Clips, die du von Hand dieser Kategorie zugeordnet hast, sind danach wieder ohne Kategorie."))plEdit(c=>{c.list.splice(i,1);delete c.rules[n]})},
+ plAdd:()=>{const e=document.getElementById("pl-new"),n=(e&&e.value||"").trim();if(!n)return;plEdit(c=>{if(!c.list.includes(n)){c.list.push(n);c.rules[n]=[]}})},
+ plReset:()=>{if(confirm("Alle Kategorien und Regeln auf die Standardliste zurücksetzen? Deine Zuordnungen pro Clip bleiben erhalten."))plEdit(c=>{const d=JSON.parse(JSON.stringify(PL_DEF));c.list=d.list;c.rules=d.rules;c.thr=c.thr||3})},
+ plMore:()=>{PLN+=25;paint()},
  custom:(f,t)=>{R={preset:"custom",from:f||R.from,to:t||R.to};if(R.from>R.to)[R.from,R.to]=[R.to,R.from];paint()},
  fplat:p=>{F.plat=p;paint()},fsort:s=>{F.sort=s;paint()},open:id=>{OPEN=id;MSG="";V=id?"clip":"clips";if(id&&V==="clip"){}paint()},
  month:v=>{if(!/^\d{4}-\d{2}$/.test(v))return;PICK=null;CAL.s=null;const y=Number(v.slice(0,4)),m=Number(v.slice(5,7)),last=iso(new Date(y,m,0)),t=today();R={preset:"m:"+v,from:v+"-01",to:last>t?t:last};paint()},
@@ -1595,7 +1701,7 @@ const A={
  wipe:()=>{if(confirm("WIRKLICH alle Daten unwiderruflich löschen? Lade vorher ein Backup herunter.")){db=blank();save();MSG="✓ Alle Daten gelöscht.";paint()}}
 };
 function paint(){side();const m=document.getElementById("main");
- const P={dashboard:pDash,submit:pSubmit,clips:pClips,clip:pClip,follower:pFollower,radar:pRadar,zeit:pZeit,hash:pHash,gtasty:pG,stats:pStats,tools:pTools,pb:pPB,daten:pDaten};
+ const P={dashboard:pDash,submit:pSubmit,clips:pClips,clip:pClip,follower:pFollower,radar:pRadar,planer:pPlaner,zeit:pZeit,hash:pHash,gtasty:pG,stats:pStats,tools:pTools,pb:pPB,daten:pDaten};
  let v=V;if(OPEN)v="clip";m.innerHTML=`<div class="mhead"><div class="mb"><span class="mark">${BOLT}</span><b>CREATOR HUB</b></div><div id="tw-pill">${twPill()}</div></div>`+(P[v]||pDash)();if(v==="pb")pbInit();twDraw();
 }
 (function(){const tip=document.createElement("div");tip.className="tip";document.body.appendChild(tip);let cur=null;
