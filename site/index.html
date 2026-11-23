@@ -1400,13 +1400,13 @@ function pTools(){const T=[["clipfinder","✂","Clip-Finder","Langes Video hinei
 /* ============ Clip-Finder: findet in einem langen Video die besten Stellen für Shorts ============ */
 const CF={file:null,vel:null,url:"",key:"",dur:0,busy:false,step:"",pct:0,msg:"",err:"",model:"onnx-community/whisper-small",segs:[],clips:[],sel:{},mode:"blur",cx:50,prev:-1,exp:null,paste:"",pasteOpen:false,gpu:null,worker:null,wid:0,waits:{}};
 const CF_MODELS=[["onnx-community/whisper-tiny","Schnell","ungenauer"],["onnx-community/whisper-base","Normal","mittel"],["onnx-community/whisper-small","Genau","empfohlen für Deutsch"]];
-const CF_WK=`import {pipeline} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
-let asr=null,cur="",usedGpu=false,usedModel="";
+const CF_WK=`import {pipeline,env} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2";
+let asr=null,cur="",usedGpu=false,usedModel="";try{env.backends.onnx.webgpu.powerPreference="high-performance"}catch(e){}
 self.onmessage=async e=>{const m=e.data;
  try{
   if(m.type==="load"){
    if(cur!==m.model){asr=null;let gpu=false;const cb=p=>self.postMessage({t:"dl",f:p.file||"",p:p.progress||0,s:p.status});
-    try{if(self.navigator&&self.navigator.gpu&&await self.navigator.gpu.requestAdapter()){asr=await pipeline("automatic-speech-recognition",m.model,{device:"webgpu",dtype:{encoder_model:"fp32",decoder_model_merged:"q4"},progress_callback:cb});gpu=true}}catch(e){asr=null;gpu=false}
+    try{if(self.navigator&&self.navigator.gpu&&await self.navigator.gpu.requestAdapter({powerPreference:"high-performance"})){asr=await pipeline("automatic-speech-recognition",m.model,{device:"webgpu",dtype:{encoder_model:"fp32",decoder_model_merged:"q4"},progress_callback:cb});gpu=true}}catch(e){asr=null;gpu=false}
     let mod=m.model;
     if(!gpu){if(/whisper-small$/.test(mod))mod=mod.replace("whisper-small","whisper-base");asr=await pipeline("automatic-speech-recognition",mod,{device:"wasm",dtype:"q8",progress_callback:cb})}
     cur=m.model;usedGpu=gpu;usedModel=mod}
@@ -1597,7 +1597,7 @@ function cfRender(){
  const has=!!CF.file,restored=!has&&CF.segs.length;
  const info=has?`<div class="mf" style="margin-top:8px"><b style="color:#fff">${esc(CF.file.name)}</b> · ${cfSize(CF.file.size)}${CF.dur?" · "+cfT(CF.dur):""}</div>`:"";
  const pick=document.getElementById("cf-info");if(pick)pick.innerHTML=info;
- const gpuNote=(CF.gpu===false?`<p class="notice" style="margin:0 0 10px">Dein PC stellt keine Grafikkarten-Beschleunigung für den Browser bereit. Die Erkennung läuft deshalb über den Prozessor und dauert länger, funktioniert aber.</p>`:"");
+ const gpuNote=(CF.gpu===false?`<p class="notice" style="margin:0 0 10px">Dein PC stellt keine Grafikkarten-Beschleunigung für den Browser bereit. Die Erkennung läuft deshalb über den Prozessor und dauert länger, funktioniert aber. Tipp bei Laptops mit Nvidia-Karte: Windows-Einstellungen, System, Bildschirm, Grafik, Edge (oder Chrome) auswählen, Optionen, „Hohe Leistung“. Danach den Browser neu starten.</p>`:"");
  const models=CF_MODELS.map(m=>`<span class="chip ${CF.model===m[0]?"on":""}" onclick="A.cfModel('${m[0]}')">${m[1]} <span class="muted" style="font-size:11px">(${m[2]})</span></span>`).join("");
  let r=gpuNote;
  if(CF.busy){r+=`<div class="mf" style="color:#fff;font-weight:700">${esc(CF.step)}</div><div class="bar" style="margin:8px 0"><i style="width:${CF.pct}%"></i></div><div class="mf">${esc(CF.msg)}</div><p class="notice" style="margin-top:10px">Dieses Fenster bitte offen lassen. Das Video verlässt deinen Computer nicht, nur der erkannte Text geht zur KI-Auswahl.</p>`}
