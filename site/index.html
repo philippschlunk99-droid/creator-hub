@@ -1163,7 +1163,7 @@ const PL_DEF={list:["Rage Bait","Politik","Fragen beantworten","Drama / Streit",
  "Drama / Streit":["cancel","gecancelt","streit","beef","drama","eskaliert","eskalation","beleidigt","beleidigung","überreagiert","fight","schlägerei"],
  "Satire / Comedy":["satire","satiere","satirefiktiv","fiktiv","lustig","comedy","tiktokcomedy","parodie","funny","meme","witz","skizze","😂"],
  "Gaming":["minecraft","gta","gta5","gta6","rp","roleplay","roleplaychaos","rollenspiel","fitnacraft","valorant","fortnite","cs2","csgo","headshot","zocken","gaming","warzone","fifa"],
- "Sonstiges":[]},thr:3};
+ "Sonstiges":[]},thr:50000};
 const plCfg=()=>{const d=db.cats;return d&&Array.isArray(d.list)?d:PL_DEF};
 function plEdit(fn){if(!db.cats||!Array.isArray(db.cats.list))db.cats=JSON.parse(JSON.stringify(PL_DEF));if(!db.cats.rules)db.cats.rules={};fn(db.cats);save();paint()}
 const plTok=t=>String(t||"").toLowerCase().replace(/[^\p{L}\p{N}&]+/gu," ").trim().split(" ").filter(Boolean);
@@ -1174,22 +1174,22 @@ function plAuto(c,cf){const t=String(c.title||"").toLowerCase(),tk=new Set(plTok
 const plCat=c=>{const cf=plCfg();return c.cat&&cf.list.includes(c.cat)?c.cat:plAuto(c,cf)};
 const plSelect=c=>{const cf=plCfg(),cur=plCat(c),man=c.cat&&cf.list.includes(c.cat);
  return `<select class="in" style="max-width:240px" onchange="A.plSet('${c.id}',this.value)"><option value="">${cur&&!man?esc(cur)+" (automatisch)":"Keine Kategorie"}</option>${cf.list.map(n=>`<option value="${esc(n)}" ${man&&c.cat===n?"selected":""}>${esc(n)}</option>`).join("")}</select>`};
-let PLN=15;const PL_MIN=50000;
+let PLN=15;const plThrV=cf=>cf.thr>=1000?cf.thr:50000;
 const PL_DOW=["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"],PL_WIN=[["Nacht","22–6 Uhr"],["Morgen","6–11 Uhr"],["Mittag","11–15 Uhr"],["Nachmittag","15–19 Uhr"],["Abend","19–22 Uhr"]];
 const plWin=h=>h>=22||h<6?0:h<11?1:h<15?2:h<19?3:4;
 const plDn=s=>Math.floor(Date.parse(s+"T00:00:00Z")/864e5);
 const plMed=a=>{const s=[...a].sort((x,y)=>x-y),n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):0};
-const plPct=x=>dfmt(x*100,0)+" %",plFac=x=>dfmt(x,1)+"×";
+const plPct=x=>dfmt(x*100,0)+" %",plFac=x=>nf(Math.round(x));
 function plData(){const lim=addDays(today(),-7),by={};
  for(const c of db.clips){const l=latest(c,"9999-12-31"),d=c.pdt?c.pdt.slice(0,10):c.published;if(!l||!d||!(l.views>0)||d>lim)continue;(by[c.platform]=by[c.platform]||[]).push({c,p:c.platform,v:l.views,d,n:plDn(d)})}
  const out=[];
  for(const p of Object.keys(by)){const a=by[p].sort((x,y)=>x.n-y.n),all=plMed(a.map(x=>x.v));
-  for(const x of a){const w=a.filter(y=>Math.abs(y.n-x.n)<=45),m=w.length>=15?plMed(w.map(y=>y.v)):all;x.ratio=m>0?x.v/m:0;
+  for(const x of a){const w=a.filter(y=>Math.abs(y.n-x.n)<=45),m=w.length>=15?plMed(w.map(y=>y.v)):all;x.ratio=x.v;
    x.dow=(new Date(x.d+"T12:00:00").getDay()+6)%7;x.hour=x.c.pdt?Number(x.c.pdt.slice(11,13)):null;x.win=x.hour==null?null:plWin(x.hour);x.cat=plCat(x.c);out.push(x)}}
  return out}
-function plSt(a,thr,p0){const n=a.length,vir=a.filter(x=>x.ratio>=thr).length,K=5;return{n,vir,rate:n?vir/n:0,med:n?plMed(a.map(x=>x.ratio)):0,sh:(vir+p0*K)/(n+K)}}
+function plSt(a,thr,p0){const n=a.length,vir=a.filter(x=>x.v>=thr).length,K=5;return{n,vir,rate:n?vir/n:0,med:n?plMed(a.map(x=>x.v)):0,sh:(vir+p0*K)/(n+K)}}
 const plBest=(arr,min)=>arr.filter(x=>x.st.n>=min).sort((x,y)=>y.st.sh-x.st.sh||y.st.n-x.st.n)[0]||null;
-function plAn(p,D,thr){const it=D.filter(x=>x.p===p),n=it.length,vir=it.filter(x=>x.ratio>=thr).length,p0=n?vir/n:0,tw=it.filter(x=>x.win!=null),useT=tw.length>=15,
+function plAn(p,D,thr){const it=D.filter(x=>x.p===p),n=it.length,vir=it.filter(x=>x.v>=thr).length,p0=n?vir/n:0,tw=it.filter(x=>x.win!=null),useT=tw.length>=15,
  cell=(a,f,k)=>Array.from({length:k},(_,i)=>({i,st:plSt(a.filter(x=>f(x)===i),thr,p0)})),
  wd=cell(it,x=>x.dow,7),win=cell(tw,x=>x.win,5),
  cats=[...new Set(it.map(x=>x.cat))].map(nm=>{const a=it.filter(x=>x.cat===nm),tt=a.filter(x=>x.win!=null);return{name:nm,st:plSt(a,thr,p0),a,bd:plBest(cell(a,x=>x.dow,7),4),bw:useT?plBest(cell(tt,x=>x.win,5),4):null}})
@@ -1203,22 +1203,22 @@ function plAn(p,D,thr){const it=D.filter(x=>x.p===p),n=it.length,vir=it.filter(x
  return{p,it,n,vir,p0,wd,win,hasT:tw.length,useT,cats,combos:combos.slice(0,6),bestWd:plBest(wd,6),bestWin:useT?plBest(win,6):null,bestCat:plBest(named,6),med:plMed(it.map(x=>x.v))}}
 const plBar=(st,mx)=>`<div class="bar" style="width:84px;display:inline-block;vertical-align:middle"><i style="width:${mx>0?Math.min(100,st.sh/mx*100):0}%"></i></div>`;
 function plTable(head1,rows,an,bestIdx){const mx=Math.max(0,...rows.map(r=>r.st.sh));
- return `<div class="tw"><table><thead><tr><th>${head1}</th><th class="num">Clips</th><th class="num">Faktor</th><th class="num">Viral-Quote</th><th class="plb"></th></tr></thead><tbody>${rows.map((r,i)=>`<tr style="${r.st.n<6?"opacity:.55":""}"><td><b>${r.label}</b>${r.sub?`<div class="mf">${r.sub}</div>`:""}${bestIdx===i?` <span class="pill" style="font-size:11px">stärkste</span>`:""}${r.st.n<6?`<div class="mf">wenig Daten</div>`:""}</td><td class="num">${nf(r.st.n)}</td><td class="num">${r.st.n?plFac(r.st.med):"—"}</td><td class="num"><b>${r.st.n?plPct(r.st.rate):"—"}</b><div class="mf">${r.st.vir} von ${r.st.n}</div></td><td class="plb">${plBar(r.st,mx)}</td></tr>`).join("")}</tbody></table></div>`}
+ return `<div class="tw"><table><thead><tr><th>${head1}</th><th class="num">Clips</th><th class="num">Mittlere Aufrufe</th><th class="num">Viral-Quote</th><th class="plb"></th></tr></thead><tbody>${rows.map((r,i)=>`<tr style="${r.st.n<6?"opacity:.55":""}"><td><b>${r.label}</b>${r.sub?`<div class="mf">${r.sub}</div>`:""}${bestIdx===i?` <span class="pill" style="font-size:11px">stärkste</span>`:""}${r.st.n<6?`<div class="mf">wenig Daten</div>`:""}</td><td class="num">${nf(r.st.n)}</td><td class="num">${r.st.n?plFac(r.st.med):"—"}</td><td class="num"><b>${r.st.n?plPct(r.st.rate):"—"}</b><div class="mf">${r.st.vir} von ${r.st.n}</div></td><td class="plb">${plBar(r.st,mx)}</td></tr>`).join("")}</tbody></table></div>`}
 function plToday(an){const dw=(new Date().getDay()+6)%7,w=an.wd[dw].st,L=[];
  L.push(`Heute ist ${PL_DOW[dw]}.`);
- if(w.n>=6)L.push(`An diesem Wochentag lagen deine ${PL[an.p]}-Clips bisher beim ${plFac(w.med)} des Normalwerts, ${plPct(w.rate)} wurden viral (${w.vir} von ${w.n}). Über alle Tage sind es ${plPct(an.p0)}.`);
+ if(w.n>=6)L.push(`An diesem Wochentag lagen deine ${PL[an.p]}-Clips bisher im Mittel bei ${plFac(w.med)} Aufrufen, ${plPct(w.rate)} wurden viral (${w.vir} von ${w.n}). Über alle Tage sind es ${plPct(an.p0)}.`);
  else L.push(`Für diesen Wochentag gibt es erst ${w.n} Clips. Das reicht noch nicht für eine Aussage.`);
  if(an.bestWin)L.push(`Beste Tageszeit bisher: ${PL_WIN[an.bestWin.i][0]} (${PL_WIN[an.bestWin.i][1]}), ${plPct(an.bestWin.st.rate)} viral bei ${an.bestWin.st.n} Clips.`);
  else if(!an.useT)L.push("Zur Uhrzeit kann ich noch nichts sagen, sie wird erst erfasst (siehe unten).");
  if(an.bestCat)L.push(`Stärkste Kategorie bisher: ${esc(an.bestCat.name)} (${plPct(an.bestCat.st.rate)} viral bei ${an.bestCat.st.n} Clips).`);
  return L}
-function pPlaner(){const cf=plCfg(),thr=cf.thr||3,D=plData(),PFL=PF?[PF]:PLS,A_=PFL.map(p=>plAn(p,D,thr)),tot=D.length,
- ohne=db.clips.filter(c=>(!PF||c.platform===PF)&&plCat(c)===""&&(latest(c,"9999-12-31")||{}).views>=PL_MIN).sort((a,b)=>(latest(b,"9999-12-31").views||0)-(latest(a,"9999-12-31").views||0)),
+function pPlaner(){const cf=plCfg(),thr=plThrV(cf),D=plData(),PFL=PF?[PF]:PLS,A_=PFL.map(p=>plAn(p,D,thr)),tot=D.length,
+ ohne=db.clips.filter(c=>(!PF||c.platform===PF)&&plCat(c)===""&&(latest(c,"9999-12-31")||{}).views>=thr).sort((a,b)=>(latest(b,"9999-12-31").views||0)-(latest(a,"9999-12-31").views||0)),
  allT=D.filter(x=>x.hour!=null).length;
  const tNote=`<section class="panel" style="margin:14px 0"><h2>Uhrzeit wird noch nicht erfasst</h2><p class="notice">Bisher speichert dein Skript nur das Datum der Veröffentlichung. Für die Auswertung nach Tageszeit muss es auch die Uhrzeit speichern. <b>Einmal nötig:</b> Gehe auf <a onclick="A.go('daten')">Daten &amp; Backup</a>, kopiere dort den Skript-Code, öffne dein Apps-Script-Projekt, ersetze den gesamten alten Code durch den neuen und klicke auf Speichern. Es ist nichts neu zu bereitstellen und keine Funktion auszuführen. Spätestens nach der nächsten Aktualisierung (15 Minuten) holt sich der Hub die Uhrzeiten aller Clips.</p></section>`;
  const head0=head("Auswertung","Upload-Planer","Zeigt, an welchen Tagen, zu welchen Zeiten und mit welchen Themen deine Clips bisher viral gingen. Alles wird aus deinen eigenen Clips gerechnet.")+pfSwitch();
- const thrBar=`<div class="chips" style="margin:14px 0 6px"><span class="muted" style="font-size:12px">Viral ab dem</span>${[2,3,5,10].map(v=>`<span class="chip ${thr===v?"on":""}" onclick="A.plThr(${v})">${v}-fachen</span>`).join("")}<span class="muted" style="font-size:12px">des Normalwerts deiner Plattform</span></div>`;
- const basis=`<p class="notice" style="margin:0 0 12px">${nf(tot)} Clips ausgewertet (nur Clips, die mindestens 7 Tage alt sind, weil jüngere noch wachsen). „Normalwert“ ist der mittlere Clip derselben Plattform in einem Zeitraum von ±45 Tagen. „Faktor“ heißt, wie viel mehr oder weniger als dieser Normalwert die Clips der Zeile im Mittel hatten (1× = Normalwert).</p>`;
+ const thrBar=`<div class="chips" style="margin:14px 0 6px"><span class="muted" style="font-size:12px">Viral ab</span>${[10000,25000,50000,100000].map(v=>`<span class="chip ${thr===v?"on":""}" onclick="A.plThr(${v})">${nf(v)} Aufrufen</span>`).join("")}</div>`;
+ const basis=`<p class="notice" style="margin:0 0 12px">${nf(tot)} Clips ausgewertet (nur Clips, die mindestens 7 Tage alt sind, weil jüngere noch wachsen). Als viral zählt ein Clip ab ${nf(thr)} Aufrufen. „Mittlere Aufrufe“ ist der mittlere Clip der Zeile.</p>`;
  if(!tot)return head0+thrBar+emptyBox("Noch keine Clips mit Aufrufen und Veröffentlichungsdatum, die mindestens 7 Tage alt sind.");
  let body="";
  if(!PF){
@@ -1226,11 +1226,11 @@ function pPlaner(){const cf=plCfg(),thr=cf.thr||3,D=plData(),PFL=PF?[PF]:PLS,A_=
    l.push(a.bestWd?`Bester Tag: <b style="color:#fff">${PL_DOW[a.bestWd.i]}</b> (${plPct(a.bestWd.st.rate)}, ${a.bestWd.st.n} Clips)`:"Bester Tag: noch zu wenig Daten");
    l.push(a.bestWin?`Beste Zeit: <b style="color:#fff">${PL_WIN[a.bestWin.i][0]}</b> ${PL_WIN[a.bestWin.i][1]} (${plPct(a.bestWin.st.rate)}, ${a.bestWin.st.n} Clips)`:a.useT?"Beste Zeit: noch zu wenig Daten":"Beste Zeit: Uhrzeit fehlt noch");
    l.push(a.bestCat?`Beste Kategorie: <b style="color:#fff">${esc(a.bestCat.name)}</b> (${plPct(a.bestCat.st.rate)}, ${a.bestCat.st.n} Clips)`:"Beste Kategorie: noch zu wenig Daten");
-   return `<div class="card"><div class="ml">${PL[a.p]}</div><div class="mv g">${a.n?plPct(a.p0):"—"}</div><div class="mf" style="margin-bottom:8px">Viral-Quote: ${a.vir} von ${a.n} Clips ab dem ${thr}-fachen Normalwert (Normalwert ca. ${nf(a.med)} Aufrufe)</div>${l.map(x=>`<div class="mf" style="margin-top:4px">${x}</div>`).join("")}</div>`}).join("")}</section>
+   return `<div class="card"><div class="ml">${PL[a.p]}</div><div class="mv g">${a.n?plPct(a.p0):"—"}</div><div class="mf" style="margin-bottom:8px">Viral-Quote: ${a.vir} von ${a.n} Clips ab ${nf(thr)} Aufrufen (mittlerer Clip ca. ${nf(a.med)} Aufrufe)</div>${l.map(x=>`<div class="mf" style="margin-top:4px">${x}</div>`).join("")}</div>`}).join("")}</section>
    <p class="notice" style="margin-top:10px">Tippe oben auf eine Plattform für die ganze Auswertung mit Wochentagen, Tageszeiten und Kategorien.</p>${allT?"":tNote}`;
  }else{
   const a=A_[0];
-  body=`<section class="cards" style="margin-top:6px">${stat("Viral-Quote",a.n?plPct(a.p0):"—",`${a.vir} von ${a.n} Clips ab dem ${thr}-fachen Normalwert`,1)}${stat("Normalwert",nf(a.med),"Aufrufe des mittleren Clips auf "+PL[a.p])}${stat("Mit Uhrzeit",nf(a.hasT),a.hasT?"Clips, bei denen die Tageszeit bekannt ist":"Uhrzeit noch nicht erfasst")}</section>
+  body=`<section class="cards" style="margin-top:6px">${stat("Viral-Quote",a.n?plPct(a.p0):"—",`${a.vir} von ${a.n} Clips ab ${nf(thr)} Aufrufen`,1)}${stat("Mittlerer Clip",nf(a.med),"Aufrufe des mittleren Clips auf "+PL[a.p])}${stat("Mit Uhrzeit",nf(a.hasT),a.hasT?"Clips, bei denen die Tageszeit bekannt ist":"Uhrzeit noch nicht erfasst")}</section>
   <section class="panel" style="margin:14px 0"><h2>Heute</h2>${plToday(a).map(x=>`<p class="notice" style="margin:4px 0">${x}</p>`).join("")}<p class="notice" style="margin-top:8px">Das ist ein Hinweis aus deinen bisherigen Clips, keine Garantie.</p></section>
   <section class="panel" style="margin-bottom:14px"><h2>Nach Wochentag</h2>${plTable("Tag",a.wd.map(r=>({label:PL_DOW[r.i],st:r.st})),a,(()=>{const b=plBest(a.wd,6);return b&&b.st.sh>a.p0?b.i:-1})())}</section>
   ${a.useT?`<section class="panel" style="margin-bottom:14px"><h2>Nach Tageszeit</h2>${plTable("Zeitfenster",a.win.map(r=>({label:PL_WIN[r.i][0],sub:PL_WIN[r.i][1],st:r.st})),a,(()=>{const b=plBest(a.win,6);return b&&b.st.sh>a.p0?b.i:-1})())}<p class="notice" style="margin-top:8px">Auswertung nur mit den ${nf(a.hasT)} Clips, bei denen die Uhrzeit bekannt ist. Zeit nach deutscher Zeit.</p></section>`:(a.hasT?`<section class="panel" style="margin-bottom:14px"><h2>Nach Tageszeit</h2><p class="notice">Bisher ist bei ${nf(a.hasT)} Clips die Uhrzeit bekannt. Ab 15 Clips erscheint hier die Auswertung.</p></section>`:tNote)}
@@ -1241,8 +1241,8 @@ function pPlaner(){const cf=plCfg(),thr=cf.thr||3,D=plData(),PFL=PF?[PF]:PLS,A_=
   ${cf.list.map((n,i)=>`<div class="row" style="align-items:center;flex-wrap:wrap;gap:8px"><b style="min-width:150px">${i+1}. ${esc(n)}</b><input class="in" style="flex:1;min-width:200px" value="${esc(((cf.rules&&cf.rules[n])||[]).join(", "))}" placeholder="Stichwörter, mit Komma getrennt" onchange="A.plRule(${i},this.value)"><button class="btn gh sm" onclick="A.plDel(${i})">Löschen</button></div>`).join("")}
   <div class="qr" style="margin-top:12px"><input class="in" id="pl-new" placeholder="Neue Kategorie, zum Beispiel „Story“"><button class="btn" onclick="A.plAdd()">Hinzufügen</button></div>
   <p style="margin-top:10px"><button class="btn gh sm" onclick="A.plReset()">Auf Standardliste zurücksetzen</button></p></section>`;
- const open=`<section class="panel" style="margin:14px 0"><h2>Ohne Kategorie (${nf(ohne.length)})</h2>${ohne.length?`<p class="notice" style="margin:0 0 10px">Gezeigt werden nur Clips ab ${nf(PL_MIN)} Aufrufen, die der Hub nicht zuordnen konnte. Sie fließen erst in die Kategorie-Auswertung ein, wenn du eine Kategorie wählst. Wähle eine Kategorie, dann wird sie gespeichert und zwischen Handy und PC abgeglichen. Sortiert nach Aufrufen.</p>${ohne.slice(0,PLN).map(c=>`<div class="row" style="align-items:center;flex-wrap:wrap;gap:8px"><div style="flex:1;min-width:200px"><a onclick="A.open('${c.id}')"><b>${esc(c.title)}</b></a><div class="mf">${PL[c.platform]} · ${dde(c.published)} · ${nf(latest(c,"9999-12-31").views)} Aufrufe</div></div>${plSelect(c)}</div>`).join("")}${ohne.length>PLN?`<p style="margin-top:10px"><button class="btn gh sm" onclick="A.plMore()">Mehr anzeigen (${nf(ohne.length-PLN)} weitere)</button></p>`:""}`:emptyBox("Alle Clips ab "+nf(PL_MIN)+" Aufrufen haben eine Kategorie.")}</section>`;
- const how=`<p class="notice">So wird gerechnet: Für jeden Clip zählt sein neuester Messwert. Er wird mit dem mittleren Clip derselben Plattform aus den ±45 Tagen um sein Veröffentlichungsdatum verglichen (Faktor), damit das starke Wachstum deines Kontos nicht neuere Clips automatisch besser aussehen lässt. „Viral“ heißt: Faktor mindestens so hoch wie oben eingestellt. Die Viral-Quote ist der Anteil viraler Clips. Zum Ranking („stärkste“) wird die Quote bei wenig Clips zum Gesamtwert hin geglättet, deshalb gewinnt keine Zeile allein durch 2 Treffer bei 3 Clips. Zeilen mit weniger als 6 Clips sind grau und zählen nicht als stärkste. Das zeigt, wo bei dir etwas lief, nicht sicher, dass es an Tag, Zeit oder Thema lag.</p>`;
+ const open=`<section class="panel" style="margin:14px 0"><h2>Ohne Kategorie (${nf(ohne.length)})</h2>${ohne.length?`<p class="notice" style="margin:0 0 10px">Gezeigt werden nur Clips ab ${nf(thr)} Aufrufen, die der Hub nicht zuordnen konnte. Sie fließen erst in die Kategorie-Auswertung ein, wenn du eine Kategorie wählst. Wähle eine Kategorie, dann wird sie gespeichert und zwischen Handy und PC abgeglichen. Sortiert nach Aufrufen.</p>${ohne.slice(0,PLN).map(c=>`<div class="row" style="align-items:center;flex-wrap:wrap;gap:8px"><div style="flex:1;min-width:200px"><a onclick="A.open('${c.id}')"><b>${esc(c.title)}</b></a><div class="mf">${PL[c.platform]} · ${dde(c.published)} · ${nf(latest(c,"9999-12-31").views)} Aufrufe</div></div>${plSelect(c)}</div>`).join("")}${ohne.length>PLN?`<p style="margin-top:10px"><button class="btn gh sm" onclick="A.plMore()">Mehr anzeigen (${nf(ohne.length-PLN)} weitere)</button></p>`:""}`:emptyBox("Alle Clips ab "+nf(thr)+" Aufrufen haben eine Kategorie.")}</section>`;
+ const how=`<p class="notice">So wird gerechnet: Für jeden Clip zählt sein neuester Messwert. „Viral“ heißt: mindestens so viele Aufrufe wie oben eingestellt (Standard 50.000). Weil dein Konto stark gewachsen ist, haben neuere Clips es leichter, die Marke zu erreichen. Das solltest du beim Lesen im Hinterkopf behalten. Die Viral-Quote ist der Anteil viraler Clips. Zum Ranking („stärkste“) wird die Quote bei wenig Clips zum Gesamtwert hin geglättet, deshalb gewinnt keine Zeile allein durch 2 Treffer bei 3 Clips. Zeilen mit weniger als 6 Clips sind grau und zählen nicht als stärkste. Das zeigt, wo bei dir etwas lief, nicht sicher, dass es an Tag, Zeit oder Thema lag.</p>`;
  return head0+thrBar+basis+body+open+rules+how}
 
 /* ============ Zeitrechner ============ */
@@ -1433,11 +1433,11 @@ function syRec(c){
  if(c.yt||c.ig||c.tt){if(!(c.gtasty||c.euro!=null||c.conf!=null||c.paid!=null||c.cat))return null;return{g:!!c.gtasty,a:c.gtAt||"",e:syN(c.euro),cf:syN(c.conf),pd:syN(c.paid),ct:c.cat||null}}
  return{id:c.id,platform:c.platform,title:c.title,url:c.url||"",published:c.published||"",gtasty:!!c.gtasty,gtAt:c.gtAt||"",manual:!!c.manual,euro:syN(c.euro),conf:syN(c.conf),paid:syN(c.paid),cat:c.cat||"",
   metrics:[...c.metrics].sort((a,b)=>a.date.localeCompare(b.date)).map(m=>[m.date,m.views,m.likes,m.comments,m.shares])}}
-function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[syKey(c)]=r}const g=db.gtAuto;if(g)m["s:gtAuto"]={on:!!g.on,from:g.from,min:g.min};const cf=plCfg();m["s:cats"]={list:cf.list,rules:cf.rules,thr:cf.thr||3};return m}
+function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[syKey(c)]=r}const g=db.gtAuto;if(g)m["s:gtAuto"]={on:!!g.on,from:g.from,min:g.min};const cf=plCfg();m["s:cats"]={list:cf.list,rules:cf.rules,thr:cf.thr||50000};return m}
 const syHash=r=>r==null?"":syH(JSON.stringify(r));
 function syApply(k,r,idx){
  if(k==="s:gtAuto"){if(r)db.gtAuto={on:!!r.on,from:r.from,min:r.min,v2:true};return true}
- if(k==="s:cats"){if(r&&Array.isArray(r.list))db.cats={list:r.list,rules:r.rules||{},thr:r.thr||3};return true}
+ if(k==="s:cats"){if(r&&Array.isArray(r.list))db.cats={list:r.list,rules:r.rules||{},thr:r.thr||50000};return true}
  if(k.startsWith("c:")){const old=idx.get(k);
   if(r===null){if(old){db.clips=db.clips.filter(c=>c!==old);idx.delete(k)}return true}
   const nc={id:r.id,platform:r.platform,title:r.title,url:r.url||"",published:r.published||"",gtasty:!!r.gtasty,metrics:(r.metrics||[]).map(m=>({date:m[0],views:m[1],likes:m[2],comments:m[3],shares:m[4]}))};
@@ -1613,11 +1613,11 @@ const A={
  calDay:v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||v>today())return;if(!CAL.s){CAL.s=v;paint();return}const a=CAL.s<v?CAL.s:v,b=CAL.s<v?v:CAL.s;R={preset:"custom",from:a,to:b};CAL.s=null;PICK=null;paint()},
  pf:v=>{PF=PLS.includes(v)?v:"";if(PF)QP=PF;paint()},
  ytNow:()=>{YTNEXT=0;ytTick()},
- plThr:v=>plEdit(c=>{c.thr=Number(v)||3}),plSet:(id,v)=>{const c=db.clips.find(x=>x.id===id);if(!c)return;if(v)c.cat=v;else delete c.cat;save();paint()},
+ plThr:v=>plEdit(c=>{c.thr=Number(v)||50000}),plSet:(id,v)=>{const c=db.clips.find(x=>x.id===id);if(!c)return;if(v)c.cat=v;else delete c.cat;save();paint()},
  plRule:(i,v)=>plEdit(c=>{const n=c.list[i];if(n!=null)c.rules[n]=String(v).split(/[,;\n]+/).map(x=>x.trim().toLowerCase()).filter(Boolean)}),
  plDel:i=>{const n=plCfg().list[i];if(n!=null&&confirm("Kategorie „"+n+"“ löschen? Clips, die du von Hand dieser Kategorie zugeordnet hast, sind danach wieder ohne Kategorie."))plEdit(c=>{c.list.splice(i,1);delete c.rules[n]})},
  plAdd:()=>{const e=document.getElementById("pl-new"),n=(e&&e.value||"").trim();if(!n)return;plEdit(c=>{if(!c.list.includes(n)){c.list.push(n);c.rules[n]=[]}})},
- plReset:()=>{if(confirm("Alle Kategorien und Regeln auf die Standardliste zurücksetzen? Deine Zuordnungen pro Clip bleiben erhalten."))plEdit(c=>{const d=JSON.parse(JSON.stringify(PL_DEF));c.list=d.list;c.rules=d.rules;c.thr=c.thr||3})},
+ plReset:()=>{if(confirm("Alle Kategorien und Regeln auf die Standardliste zurücksetzen? Deine Zuordnungen pro Clip bleiben erhalten."))plEdit(c=>{const d=JSON.parse(JSON.stringify(PL_DEF));c.list=d.list;c.rules=d.rules;c.thr=c.thr||50000})},
  plMore:()=>{PLN+=25;paint()},
  custom:(f,t)=>{R={preset:"custom",from:f||R.from,to:t||R.to};if(R.from>R.to)[R.from,R.to]=[R.to,R.from];paint()},
  fplat:p=>{F.plat=p;paint()},fsort:s=>{F.sort=s;paint()},open:id=>{OPEN=id;MSG="";V=id?"clip":"clips";if(id&&V==="clip"){}paint()},
