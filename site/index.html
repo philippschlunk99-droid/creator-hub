@@ -1506,54 +1506,60 @@ function cfSrt(c){const rows=[];let n=0;
 function cfDownload(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),120000)}
 let CF_MUX=null;
 async function cfMux(){if(CF_MUX)return CF_MUX;const el=document.getElementById("cf-mux");CF_MUX=await import(URL.createObjectURL(new Blob([el.textContent],{type:"text/javascript"})));return CF_MUX}
-const CF_AW=`class T extends AudioWorkletProcessor{process(i){const c=i[0];if(c&&c.length&&c[0].length){const n=c[0].length,o=new Float32Array(n*2);o.set(c[0],0);o.set(c[c.length>1?1:0],n);this.port.postMessage(o,[o.buffer])}return true}}registerProcessor("cf-tap",T);`;
+async function cfPcm(){
+ if(CF._pcm&&CF._pcmKey===CF.key)return CF._pcm;
+ const ac=new (window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
+ let buf;try{buf=await ac.decodeAudioData(await CF.file.arrayBuffer())}catch(e){throw new Error("Der Ton des Videos konnte nicht gelesen werden. Am sichersten ist eine MP4-Datei (H.264, AAC).")}
+ try{ac.close()}catch(e){}
+ CF._pcm={sr:buf.sampleRate,L:buf.getChannelData(0),R:buf.getChannelData(buf.numberOfChannels>1?1:0)};CF._pcmKey=CF.key;return CF._pcm}
 async function cfExportOne(i){const c=CF.clips[i],v=CF.vel;if(!v||!CF.url)throw new Error("Bitte das Video erneut auswählen.");
  if(!window.VideoEncoder||!window.AudioEncoder||!window.VideoFrame||!window.AudioData)throw new Error("Dieser Browser kann die Clips nicht schneiden. Bitte Chrome oder Edge am PC (aktuelle Version) nutzen.");
  const {Muxer,ArrayBufferTarget}=await cfMux();
  const vw=v.videoWidth&~1,vh=v.videoHeight&~1;if(!vw||!vh)throw new Error("Das Video ist noch nicht geladen. Bitte kurz warten und nochmal versuchen.");
- const px=vw*vh,mbps=Math.max(6,Math.min(40,Math.round(12*px/(1920*1080))));
+ CF.exp.prep=true;cfRender();const pcm=await cfPcm();CF.exp.prep=false;if(CF.exp.cancel)return;
+ const sr=pcm.sr,px=vw*vh,srcMb=CF.file&&CF.dur?CF.file.size*8/CF.dur/1e6:0;
+ const mbps=Math.round(Math.max(16*px/(1920*1080),Math.min(srcMb*1.5,40*px/(1920*1080)),8));
  const vc=[];if(px<=2088960)vc.push(["avc1.64002A","avc"],["avc1.4D002A","avc"],["avc1.42002A","avc"]);else if(px<=8912896)vc.push(["avc1.640033","avc"],["avc1.64002A","avc"]);
  vc.push(["vp09.00.50.08","vp9"],["vp09.00.40.08","vp9"]);
  let vcfg=null,vcodec="";
- for(const [cd,mc] of vc){const cfg={codec:cd,width:vw,height:vh,bitrate:mbps*1e6,framerate:30,latencyMode:"quality"};if(mc==="avc")cfg.avc={format:"avc"};try{const r=await VideoEncoder.isConfigSupported(cfg);if(r&&r.supported){vcfg=r.config||cfg;vcodec=mc;break}}catch(e){}}
+ for(const [cd,mc] of vc){const cfg={codec:cd,width:vw,height:vh,bitrate:Math.min(mbps,60)*1e6,framerate:30,latencyMode:"quality",bitrateMode:"variable"};if(mc==="avc")cfg.avc={format:"avc"};try{const r=await VideoEncoder.isConfigSupported(cfg);if(r&&r.supported){vcfg=r.config||cfg;vcodec=mc;break}}catch(e){}}
  if(!vcfg)throw new Error("Dein Browser kann dieses Videoformat nicht neu kodieren. Bitte Chrome oder Edge aktualisieren.");
- if(!v._cf){const ac=new (window.AudioContext||window.webkitAudioContext)(),src=ac.createMediaElementSource(v);src.connect(ac.destination);v._cf={ac,src}}
- const X=v._cf;await X.ac.resume();const sr=X.ac.sampleRate;
- let acfg=null,acodec="";for(const [cd,mc] of [["mp4a.40.2","aac"],["opus","opus"]]){const cfg={codec:cd,sampleRate:sr,numberOfChannels:2,bitrate:192000};try{const r=await AudioEncoder.isConfigSupported(cfg);if(r&&r.supported){acfg=r.config||cfg;acodec=mc;break}}catch(e){}}
+ let acfg=null,acodec="";for(const [cd,mc] of [["mp4a.40.2","aac"],["opus","opus"]]){const cfg={codec:cd,sampleRate:sr,numberOfChannels:2,bitrate:256000};try{const r=await AudioEncoder.isConfigSupported(cfg);if(r&&r.supported){acfg=r.config||cfg;acodec=mc;break}}catch(e){}}
  if(!acfg)throw new Error("Dein Browser kann den Ton nicht kodieren. Bitte Chrome oder Edge aktualisieren.");
- if(!X.tap){await X.ac.audioWorklet.addModule("data:text/javascript;charset=utf-8,"+encodeURIComponent(CF_AW));X.tap=new AudioWorkletNode(X.ac,"cf-tap",{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2],channelCount:2,channelCountMode:"explicit"});const mute=X.ac.createGain();mute.gain.value=0;X.tap.connect(mute);mute.connect(X.ac.destination)}
  const muxer=new Muxer({target:new ArrayBufferTarget(),video:{codec:vcodec,width:vw,height:vh},audio:{codec:acodec,numberOfChannels:2,sampleRate:sr},fastStart:"in-memory",firstTimestampBehavior:"offset"});
  let fail="";const venc=new VideoEncoder({output:(ch,m)=>muxer.addVideoChunk(ch,m),error:e=>{fail=String(e&&e.message||e)}}),aenc=new AudioEncoder({output:(ch,m)=>muxer.addAudioChunk(ch,m),error:e=>{fail=String(e&&e.message||e)}});
  venc.configure(vcfg);aenc.configure(acfg);
- v.pause();v.muted=false;v.volume=1;v.playbackRate=1;v.currentTime=c.s;await new Promise(r=>{const f=()=>{v.removeEventListener("seeked",f);r()};v.addEventListener("seeked",f)});
- let nv=0,na=0,aT0=null,finished=false;const aq=[];let aqn=0;
- const flushAudio=(force)=>{while(aqn>=1024||(force&&aqn>0)){const n=Math.min(aqn,2048);const L=new Float32Array(n),R=new Float32Array(n);let k=0;while(k<n){const b=aq[0],take=Math.min(b.L.length-b.o,n-k);L.set(b.L.subarray(b.o,b.o+take),k);R.set(b.R.subarray(b.o,b.o+take),k);k+=take;b.o+=take;if(b.o>=b.L.length)aq.shift()}aqn-=n;
-   const d=new Float32Array(n*2);d.set(L,0);d.set(R,n);const ts=Math.max(0,Math.round((aT0+na/sr)*1e6));try{aenc.encode(new AudioData({format:"f32-planar",sampleRate:sr,numberOfFrames:n,numberOfChannels:2,timestamp:ts,data:d}))}catch(e){fail=String(e&&e.message||e)}na+=n}};
- X.tap.port.onmessage=e=>{if(finished)return;const o=e.data,n=o.length/2;if(aT0===null)aT0=Math.max(0,v.currentTime-c.s);aq.push({L:o.subarray(0,n),R:o.subarray(n),o:0});aqn+=n;flushAudio(false)};
- try{X.src.disconnect()}catch(e){}X.src.connect(X.tap);
- let rid=0;const endP=new Promise(res=>{
+ v.pause();v.muted=true;v.playbackRate=1;v.currentTime=c.s;await new Promise(r=>{const f=()=>{v.removeEventListener("seeked",f);r()};v.addEventListener("seeked",f)});
+ let nv=0,t0=null,tLast=c.s,finished=false,lastPres=-1,rate=1,lastEnc=-1;
+ const endP=new Promise(res=>{
   const onF=(now,md)=>{if(finished)return;const t=md.mediaTime;
-   if(t>=c.e-0.02||v.ended||CF.exp.cancel||fail){finished=true;res();return}
-   if(t>=c.s-0.02){try{const fr=new VideoFrame(v,{timestamp:Math.max(0,Math.round((t-c.s)*1e6))});venc.encode(fr,{keyFrame:nv%120===0});fr.close();nv++}catch(e){fail=String(e&&e.message||e)}}
-   CF.exp.pct=Math.min(100,Math.round((t-c.s)/(c.e-c.s)*100));if(nv%15===0)cfRender();
-   rid=v.requestVideoFrameCallback(onF)};
-  rid=v.requestVideoFrameCallback(onF);
-  const ended=()=>{if(!finished){finished=true;res()}};v.addEventListener("ended",ended,{once:true})});
+   if(t>=c.e-0.001||v.ended||CF.exp.cancel||fail){finished=true;res();return}
+   if(lastPres>=0&&md.presentedFrames-lastPres>1&&rate>0.26){rate=Math.max(0.25,rate*0.7);v.playbackRate=rate}
+   if(venc.encodeQueueSize>8&&rate>0.26){rate=Math.max(0.25,rate*0.7);v.playbackRate=rate}
+   lastPres=md.presentedFrames;
+   if(t>=c.s-0.02&&t>lastEnc){if(t0===null)t0=t;try{const fr=new VideoFrame(v,{timestamp:Math.max(0,Math.round((t-t0)*1e6))});venc.encode(fr,{keyFrame:nv%120===0});fr.close();nv++;lastEnc=t;tLast=t}catch(e){fail=String(e&&e.message||e)}}
+   CF.exp.pct=Math.min(100,Math.round((t-c.s)/(c.e-c.s)*100));if(nv%20===0)cfRender();
+   v.requestVideoFrameCallback(onF)};
+  v.requestVideoFrameCallback(onF);
+  v.addEventListener("ended",()=>{if(!finished){finished=true;res()}},{once:true})});
  v.play().catch(e=>{fail=String(e&&e.message||e)});
- await endP;v.pause();try{X.src.disconnect();X.src.connect(X.ac.destination)}catch(e){}
- finished=true;flushAudio(true);
+ await endP;v.pause();v.playbackRate=1;v.muted=false;finished=true;
  if(CF.exp.cancel){try{venc.close();aenc.close()}catch(e){}return}
+ if(fail||nv<5){try{venc.close();aenc.close()}catch(e){}throw new Error("Der Export hat nicht geklappt"+(fail?": "+fail:" (zu wenige Bilder aufgenommen). Das Fenster muss sichtbar bleiben und das Video geladen sein")+".")}
+ const s0=Math.max(0,Math.round(t0*sr)),s1=Math.min(pcm.L.length,Math.round((tLast+1/30)*sr));
+ for(let k=s0;k<s1&&!fail;k+=2048){const n=Math.min(2048,s1-k),d=new Float32Array(n*2);d.set(pcm.L.subarray(k,k+n),0);d.set(pcm.R.subarray(k,k+n),n);
+  aenc.encode(new AudioData({format:"f32-planar",sampleRate:sr,numberOfFrames:n,numberOfChannels:2,timestamp:Math.round((k-s0)/sr*1e6),data:d}));
+  if(aenc.encodeQueueSize>40)await new Promise(r=>setTimeout(r,5))}
  try{await venc.flush();await aenc.flush()}catch(e){fail=fail||String(e&&e.message||e)}
- if(fail||nv<5)throw new Error("Der Export hat nicht geklappt"+(fail?": "+fail:" (zu wenige Bilder aufgenommen). Das Fenster muss sichtbar bleiben und das Video geladen sein")+".");
+ if(fail){try{venc.close();aenc.close()}catch(e){}throw new Error("Der Export hat nicht geklappt: "+fail+".")}
  muxer.finalize();try{venc.close();aenc.close()}catch(e){}
  const blob=new Blob([muxer.target.buffer],{type:"video/mp4"});
  const base=(CF.file&&CF.file.name||"video").replace(/\.[^.]+$/,"");
  const nm=base+"-clip"+String(i+1).padStart(2,"0")+"-"+cfSlug(c.titel);
- cfDownload(blob,nm+".mp4");
- }
+ cfDownload(blob,nm+".mp4")}
 async function cfExportAll(list){if(CF.exp&&CF.exp.busy)return;CF.exp={busy:true,i:-1,pct:0,done:0,total:list.length,err:"",cancel:false};cfRender();
  try{for(const i of list){CF.exp.i=i;CF.exp.pct=0;cfRender();await cfExportOne(i);CF.exp.done++;if(CF.exp.cancel)break}}catch(e){CF.exp.err=String(e&&e.message||e)}
- CF.exp.busy=false;CF.exp.i=-1;cfRender()}
+ CF.exp.busy=false;CF.exp.i=-1;CF._pcm=null;cfRender()}
 function cfLoadFile(f){if(!f)return;if(CF.url)URL.revokeObjectURL(CF.url);
  CF.file=f;CF.url=URL.createObjectURL(f);CF.err="";CF.exp=null;CF.prev=-1;
  const key=f.name+"|"+f.size;
@@ -1591,8 +1597,8 @@ function cfRender(){
    <span class="mf">Start</span><button class="btn gh sm" onclick="A.cfNudge(${i},'s',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'s',1)">+</button>
    <span class="mf">Ende</span><button class="btn gh sm" onclick="A.cfNudge(${i},'e',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'e',1)">+</button></div></div>`).join("")}
  if(exp){const n=Object.keys(CF.sel).filter(k=>CF.sel[k]&&CF.clips[k]).length,E=CF.exp;
-  exp.innerHTML=!CF.clips.length?emptyBox("Erst Vorschläge erzeugen."):`<p class="notice" style="margin:0 0 10px">Die Clips behalten das Originalbild (kein Zuschnitt, keine Unschärfe, volle Auflösung). Der Export läuft in Echtzeit, ein Clip von 45 Sekunden dauert also etwa 45 Sekunden. Das Fenster muss dabei offen und sichtbar bleiben. Jeder Clip kommt als MP4 ohne Untertitel, die machst du in CapCut. Beim ersten Mal fragt der Browser, ob mehrere Dateien geladen werden dürfen: bitte erlauben. <span style="color:#9be39b">Export-Version 3 (Originalbild)</span></p>
-   ${E&&E.busy?`<div class="mf" style="color:#fff;font-weight:700">Clip ${E.done+1} von ${E.total}: ${esc(CF.clips[E.i]?CF.clips[E.i].titel:"")}</div><div class="bar" style="margin:8px 0"><i style="width:${E.pct}%"></i></div><p><button class="btn gh sm" onclick="A.cfCancel()">Abbrechen</button></p>`
+  exp.innerHTML=!CF.clips.length?emptyBox("Erst Vorschläge erzeugen."):`<p class="notice" style="margin:0 0 10px">Die Clips behalten das Originalbild (kein Zuschnitt, keine Unschärfe, volle Auflösung). Der Export läuft in Echtzeit, ein Clip von 45 Sekunden dauert also etwa 45 Sekunden. Das Fenster muss dabei offen und sichtbar bleiben. Jeder Clip kommt als MP4 ohne Untertitel, die machst du in CapCut. Beim ersten Mal fragt der Browser, ob mehrere Dateien geladen werden dürfen: bitte erlauben. <span style="color:#9be39b">Export-Version 4 (Originalbild)</span></p>
+   ${E&&E.busy?`<div class="mf" style="color:#fff;font-weight:700">Clip ${E.done+1} von ${E.total}: ${esc(CF.clips[E.i]?CF.clips[E.i].titel:"")}</div>${E.prep?`<div class="mf">Ton wird einmalig vorbereitet, das kann bei langen Videos etwas dauern.</div>`:""}<div class="bar" style="margin:8px 0"><i style="width:${E.pct}%"></i></div><p><button class="btn gh sm" onclick="A.cfCancel()">Abbrechen</button></p>`
    :`<button class="btn" onclick="A.cfExport()" ${has&&n?"":"disabled style='opacity:.5'"}>${n} ausgewählte Clips exportieren</button> <button class="btn gh sm" onclick="A.cfCopyTimes()">Nur die Zeiten kopieren</button>${has?"":`<p class="notice" style="margin-top:10px">Zum Exportieren das Video oben auswählen.</p>`}`}
    ${E&&!E.busy&&E.done?`<p class="notice" style="margin-top:10px;color:#9be39b">✓ ${E.done} Clips exportiert. Du findest sie im Download-Ordner.</p>`:""}${E&&E.err?`<p class="err" style="margin-top:10px">${esc(E.err)}</p>`:""}`}}
 function pClipfinder(){
