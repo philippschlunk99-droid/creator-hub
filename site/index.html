@@ -970,8 +970,13 @@ function pSubmit(){const a=db.gtAuto||{on:false,from:"2026-10-28",min:80000},L=g
 function gtDashPanel(pf){const a=db.gtAuto,L=gtList().filter(c=>!pf||c.platform===pf);if(!a||!a.on)return"";
  return `<section class="panel" style="margin-bottom:14px;border-color:${L.length?"var(--red)":"var(--line)"}"><h2>★ Zum Einreichen bei G-Tasty bereit${L.length?` (${L.length})`:""}</h2>
  ${L.length?`<p class="notice">Veröffentlicht ab ${dde(a.from)} und mindestens ${nf(a.min)} Aufrufe. Klicke einen Clip an, dann siehst du Link und Angaben zum Kopieren.</p>`+L.slice(0,8).map(c=>`<div class="row"><span><a onclick="A.open('${c.id}')"><b>${esc(c.title)}</b></a> <span class="muted">· ${PL[c.platform]} · ${dde(c.published)}</span></span><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><b>${nf(gtMax(c))}</b><button class="btn gh sm" onclick="A.gtCopy('${c.id}','link',this)">${c.url?"Link kopieren":"Kein Link"}</button><button class="btn sm" onclick="A.gtDone('${c.id}')">✓ Eingereicht</button></span></div>`).join("")+(L.length>8?`<p class="notice">… und ${L.length-8} weitere. <a onclick="A.go('submit')">Alle auf der Seite „Einreichen“ ansehen →</a></p>`:""):`<p class="notice" style="margin:0">Aktuell kein Clip bereit. Sobald ein Clip (veröffentlicht ab ${dde(a.from)}) ${nf(a.min)} Aufrufe erreicht, erscheint er hier.</p>`}</section>`}
+/* Aufrufe im Zeitraum. Reicht der Zeitraum bis vor die ersten Clips der Plattform zurück (z. B. "Gesamt") und bis heute, gilt mindestens die Summe aller Clip-Aufrufe: Die Tageswerte gibt es nur seit der Einrichtung, die Gesamtzahlen der Clips aber komplett. */
+const pvLife=p=>db.clips.filter(c=>c.platform===p).reduce((a,c)=>a+(latest(c,"9999-12-31")?.views||0),0);
+const pvCovers=(p,r)=>{if(r.to<today())return false;const d=db.clips.filter(c=>c.platform===p&&c.published).map(c=>c.published).sort()[0];return !!d&&r.from<=d};
+const pvX=(p,r)=>{const s=pv(p,r);return pvCovers(p,r)?Math.max(s,pvLife(p)):s};
+const pvT=(plat,r)=>plat?pvX(plat,r):PLS.reduce((a,p)=>a+pvX(p,r),0);
 const pv=(plat,r)=>dailyAll(plat?db.clips.filter(c=>c.platform===plat):db.clips,r,plat||"").reduce((a,x)=>a+x.y,0);
-function dashNote(PFL){const m=[];for(const p of PFL){const f=firstMeasureP(p),acct=p==="youtube"?(db.chan||[])[0]:p==="instagram"?(db.chanIg||[])[0]:null,from=acct&&(!f||acct.date<f)?acct.date:f;if(!from||R.from<from)m.push(PL[p]+" erst ab "+(from?dde(from):"der Einrichtung"))}
+function dashNote(PFL){const m=[];for(const p of PFL){const f=firstMeasureP(p),acct=p==="youtube"?(db.chan||[])[0]:p==="instagram"?(db.chanIg||[])[0]:null,from=acct&&(!f||acct.date<f)?acct.date:f;if((!from||R.from<from)&&!pvCovers(p,R))m.push(PL[p]+" erst ab "+(from?dde(from):"der Einrichtung"))}
  return m.length?`<p class="notice">Hinweis zum Zeitraum: ${m.join(" · ")}. Davor fehlen die Zahlen, die Summe ist dort zu niedrig.</p>`:""}
 function pDash(){
  const clips=PF?db.clips.filter(c=>c.platform===PF):db.clips,PFL=PF?[PF]:PLS,yok=!PF||PF==="youtube",total=clips.reduce((a,c)=>a+(latest(c,"9999-12-31")?.views||0),0),g=clips.reduce((a,c)=>a+gained(c,R),0),pg=clips.reduce((a,c)=>a+gained(c,prevR()),0);
@@ -982,7 +987,7 @@ function pDash(){
  const pub=clips.filter(c=>c.published>=R.from&&c.published<=R.to).length;
  const conf=db.clips.reduce((a,c)=>a+(c.conf||0),0),paid=db.clips.reduce((a,c)=>a+(c.paid||0),0),exp=expectedAll();
  const top=clips.map(c=>({c,v:latest(c,"9999-12-31")?.views||0})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10);
- const dl=dailyAll(clips,R,PF),pvNow=dl.reduce((a,x)=>a+x.y,0),pvPrev=dailyAll(clips,prevR(),PF).reduce((a,x)=>a+x.y,0),pvP=p=>pv(p,R);
+ const dl=dailyAll(clips,R,PF),pvNow=pvT(PF,R),pvPrev=pvT(PF,prevR()),pvP=p=>pvX(p,R);
  return head("Dein persönliches Creator-Dashboard","Volle Geschwindigkeit.",`Zeitraum: ${dde(R.from)} – ${dde(R.to)}. Angezeigt werden nur Werte, die du eingetragen hast.${PF?" Plattform: "+PL[PF]+".":""}`)+pfSwitch()+picker(true)+dashNote(PFL)+
  `<section class="cards">${stat((PF?PL[PF]+"-":"")+"Aufrufe im Zeitraum",dl.length?nf(pvNow):"—",`Vorzeitraum: ${nf(pvPrev)}<br>Alle Clips insgesamt: ${nf(total)}`,1)}${stat("Follower gesamt",nf(folT),hasF?`${fg>=0?"+":""}${nf(fg)} im Zeitraum`:"Zu wenig Messwerte")}${stat("Veröffentlichte Clips",nf(pub),nf(clips.length)+" insgesamt erfasst")}${stat("G-Tasty erwartet",eur(exp),"Eingereicht, ab 100.000 Aufrufe, keine Zusage")}</section>
  <section class="cards">${PFL.map((p,i)=>stat(PL[p]+" im Zeitraum",pvP(p)>0?nf(pvP(p)):"—","Insgesamt: "+nf(byP(p))+"<br>Follower: "+nf(fol[i]))).join("")}${stat("G-Tasty bestätigt / ausgezahlt",eur(conf)+" / "+eur(paid),"Offen: "+eur(Math.max(0,conf-paid)))}</section>
@@ -1077,8 +1082,8 @@ function pG(){
  <p class="notice">Erwartet ist eine Rechnung nach der Staffel, keine Zusage von G-Tasty. Bestätigt und ausgezahlt trägst du selbst ein, sobald G-Tasty es meldet. Leere Felder zählen als 0.</p></section>
  <section class="panel"><h2>So kommt das Geld an</h2><p class="notice">Auszahlung als USDC (Solana) an deine hinterlegte Wallet bei Kraken, dort in Euro tauschen und per SEPA aufs Bankkonto überweisen. Erste Auszahlung laut G-Tasty: 1. Dezember 2026.</p></section>`}
 
-function statsBody(){const pr=prevR(),cl=PF?db.clips.filter(c=>c.platform===PF):db.clips,g=cl.reduce((a,c)=>a+gained(c,R),0),o=cl.reduce((a,c)=>a+gained(c,pr),0),dl=dailyAll(cl,R,PF),pvC=dl.reduce((a,x)=>a+x.y,0),pvO=dailyAll(cl,pr,PF).reduce((a,x)=>a+x.y,0),d=pvO>0?(pvC-pvO)/pvO*100:null,hasM=cl.some(c=>latest(c,R.to)),cs=(!PF||PF==="youtube")?chanSum(R):null;
- const per=PLS.map(p=>({p,v:pv(p,R),o:pv(p,pr)})).filter(x=>x.v>0||x.o>0);
+function statsBody(){const pr=prevR(),cl=PF?db.clips.filter(c=>c.platform===PF):db.clips,g=cl.reduce((a,c)=>a+gained(c,R),0),o=cl.reduce((a,c)=>a+gained(c,pr),0),dl=dailyAll(cl,R,PF),pvC=pvT(PF,R),pvO=pvT(PF,pr),d=pvO>0?(pvC-pvO)/pvO*100:null,hasM=cl.some(c=>latest(c,R.to)),cs=(!PF||PF==="youtube")?chanSum(R):null;
+ const per=PLS.map(p=>({p,v:pvX(p,R),o:pvX(p,pr)})).filter(x=>x.v>0||x.o>0);
  const best=cl.map(c=>({c,v:gained(c,R)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10);
  const bestP=`<div class="panel"><h2>Erfolgreichste Clips im Zeitraum</h2>${hbars(best.map(x=>({label:x.c.title,value:x.v,sub:PL[x.c.platform]})),"Noch keine Zuwächse gemessen.")}</div>`;
  return `<h2 style="margin:30px 0 4px;font-size:22px">Statistiken & Analysen${PF?" · "+PL[PF]:""}</h2><p class="notice" style="margin:0 0 6px">Vergleich mit ${dde(pr.from)} – ${dde(pr.to)}.</p>
