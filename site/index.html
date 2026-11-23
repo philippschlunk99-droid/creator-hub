@@ -1424,11 +1424,18 @@ function cfCuts(a,pieceS){const sr=16000,cuts=[0],w=6400;let t=pieceS*sr;
 const CF_BAD=/(untertitel|amara\.org|vielen dank f[üu]r|danke f[üu]rs zuschauen|abonniert|copyright|www\.)/i;
 function cfClean(segs){const out=[];for(const s of segs){const t=s.t.replace(/\s+/g," ").trim();if(t.length<2)continue;
   const n=out.length;if(n>=2&&out[n-1].t===t&&out[n-2].t===t)continue;if(CF_BAD.test(t)&&t.length<80)continue;out.push({s:s.s,e:s.e,t})}return out}
-async function cfTranscribe(audio){const cuts=cfCuts(audio,240),all=[];
- for(let i=0;i<cuts.length-1;i++){const part=audio.slice(cuts[i],cuts[i+1]),off=cuts[i]/16000,id="r"+(++CF.wid);
-  CF.step="Sprache wird erkannt";CF.msg="Teil "+(i+1)+" von "+(cuts.length-1);CF.pct=Math.round(i/(cuts.length-1)*100);cfRender();
-  const r=await cfCall({type:"run",id,audio:part,lang:"german"},id,[part.buffer]);
-  for(const c of r.chunks){const ts=c.timestamp||[0,null],s=ts[0]||0,e=ts[1]==null?s+3:ts[1],t=String(c.text||"").trim();if(t)all.push({s:off+s,e:off+e,t})}}
+async function cfTranscribe(audio){const cuts=cfCuts(audio,240),all=[],n=cuts.length-1,t0=Date.now(),tot=cuts[n]-cuts[0];let done=0,i=0,tk=null;
+ const hm=ms=>new Date(ms).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});
+ const upd=()=>{const el=(Date.now()-t0)/1000;let m="Teil "+Math.min(i+1,n)+" von "+n+" · vergangen "+cfT(el);
+  if(done>0){const rest=Math.max(0,el/done*(tot-done)-0),fin=Date.now()+rest*1000;m+=" · noch etwa "+(rest<90?"1 Minute":Math.round(rest/60)+" Minuten")+" (fertig gegen "+hm(fin)+" Uhr)"}
+  else m+=" · die Zeitschätzung kommt nach dem ersten Teil";
+  CF.step="Sprache wird erkannt";CF.msg=m;CF.pct=Math.round(done/tot*100);cfRender()};
+ upd();tk=setInterval(upd,1000);
+ try{for(i=0;i<n;i++){const part=audio.slice(cuts[i],cuts[i+1]),off=cuts[i]/16000,id="r"+(++CF.wid),len=part.length;
+  upd();
+  const r=await cfCall({type:"run",id,audio:part,lang:"german"},id,[part.buffer]);done+=len;
+  for(const c of r.chunks){const ts=c.timestamp||[0,null],s=ts[0]||0,e=ts[1]==null?s+3:ts[1],t=String(c.text||"").trim();if(t)all.push({s:off+s,e:off+e,t})}}}
+ finally{clearInterval(tk)}
  return cfClean(all)}
 function cfNorm(arr,dur){const out=[];
  for(const c of arr||[]){let s=Number(c.start),e=Number(c.ende!=null?c.ende:c.end);if(!isFinite(s)||!isFinite(e))continue;
