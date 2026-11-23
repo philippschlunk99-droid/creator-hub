@@ -1212,6 +1212,26 @@ function plToday(an){const dw=(new Date().getDay()+6)%7,w=an.wd[dw].st,L=[];
  else if(!an.useT)L.push("Zur Uhrzeit kann ich noch nichts sagen, sie wird erst erfasst (siehe unten).");
  if(an.bestCat)L.push(`Stärkste Kategorie bisher: ${esc(an.bestCat.name)} (${plPct(an.bestCat.st.rate)} viral bei ${an.bestCat.st.n} Clips).`);
  return L}
+// ---- Wochenplan: aus den echten Clip-Zeiten abgeleitete Upload-Vorschlaege ----
+const PL_DK=["Mo","Di","Mi","Do","Fr","Sa","So"],plPdV=cf=>cf.pd>=1&&cf.pd<=3?cf.pd:1;
+function plSlots(a,thr,pd){if(!a.useT)return null;
+ const tw=a.it.filter(x=>x.hour!=null),K=5,p0=a.p0,hs=Array.from({length:24},(_,h)=>{let n=0,v=0;for(const d of [-1,0,1]){const b=tw.filter(x=>x.hour===(h+d+24)%24);n+=b.length;v+=b.filter(x=>x.v>=thr).length}return{h,n,v,sh:(v+p0*K)/(n+K)}}),
+  cand=hs.filter(x=>x.n>=15).sort((x,y)=>y.sh-x.sh||y.n-x.n),pick=[];
+ for(const c of cand){if(pick.length>=pd)break;if(pick.every(q=>Math.min((q.h-c.h+24)%24,(c.h-q.h+24)%24)>=3))pick.push(c)}
+ return pick.sort((x,y)=>x.h-y.h)}
+function plThema(a,dow,k,thr){const named=a.cats.filter(c=>c.name);let best=null;
+ for(const c of named){const cell=c.a.filter(x=>x.dow===dow);if(cell.length<4)continue;const st=plSt(cell,thr,a.p0);if(st.vir>0&&st.sh>a.p0&&(!best||st.sh>best.st.sh))best={name:c.name,st,fix:true}}
+ if(best)return best;
+ const top=named.filter(c=>c.st.n>=6&&c.st.sh>a.p0).slice(0,3);return top.length?{name:top[(dow+k)%top.length].name,fix:false}:null}
+function plCal(A_,thr,pd){const days=Array.from({length:7},(_,i)=>{const d=addDays(today(),i);return{d,dow:(new Date(d+"T12:00:00").getDay()+6)%7,i,slots:[]}}),miss=[],nowH=new Date().getHours();
+ for(const a of A_){const sl=plSlots(a,thr,pd);if(!sl||!sl.length){miss.push(a);continue}
+  for(const dy of days){const w=a.wd[dy.dow].st,f=w.n>=6&&a.p0>0?w.sh/a.p0:null;
+   sl.forEach((s,k)=>dy.slots.push({p:a.p,h:s.h,th:plThema(a,dy.dow,k,thr),f,past:dy.i===0&&s.h<=nowH}))}}
+ const card=dy=>`<div class="card" style="padding:12px;min-width:0"><div class="ml">${PL_DK[dy.dow]} ${dy.d.slice(8)}.${dy.d.slice(5,7)}.${dy.i===0?` <span class="pill" style="font-size:11px">Heute</span>`:""}</div>${dy.slots.length?dy.slots.sort((x,y)=>x.h-y.h).map(x=>`<div style="margin-top:10px;${x.past?"opacity:.45":""}"><div style="font-size:20px;font-weight:800;color:#fff">${String(x.h).padStart(2,"0")}:00</div><div class="mf"><b style="color:var(--acc)">${PL[x.p]}</b>${x.th?` · ${esc(x.th.name)}`:""}</div>${x.th&&x.th.fix?`<div class="mf">bewährt (${x.th.st.vir} von ${x.th.st.n} viral)</div>`:""}${x.f!=null?`<div class="mf">${x.f>=1.2?"starker Tag":x.f<=0.8?"schwächerer Tag":"normaler Tag"}</div>`:`<div class="mf">wenig Daten für diesen Tag</div>`}${x.past?`<div class="mf">schon vorbei</div>`:""}</div>`).join(""):`<div class="mf" style="margin-top:10px">kein Vorschlag</div>`}</div>`;
+ return `<section class="panel" style="margin:14px 0"><h2>Wochenplan: wann hochladen</h2><div class="chips" style="margin:6px 0 12px"><span class="muted" style="font-size:12px">Clips pro Tag und Plattform</span>${[1,2,3].map(v=>`<span class="chip ${pd===v?"on":""}" onclick="A.plPd(${v})">${v}</span>`).join("")}</div>
+  ${days.some(x=>x.slots.length)?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">${days.map(card).join("")}</div>`:""}
+  ${miss.length?`<p class="notice" style="margin-top:10px">${miss.map(a=>`${PL[a.p]}: noch zu wenig Clips mit bekannter Uhrzeit (${nf(a.hasT)} bekannt, es braucht mindestens 15 und eine Tageszeit mit genug Clips).`).join(" ")}</p>`:""}
+  <p class="notice" style="margin-top:10px">So entsteht der Plan: Der Hub schaut pro Plattform, zu welcher Uhrzeit (jeweils eine Stunde davor und danach mitgezählt, deutsche Zeit) bei dir die meisten Clips ab ${nf(thr)} Aufrufen herauskamen. Mit mehreren Clips pro Tag wählt er weitere Uhrzeiten mit mindestens 3 Stunden Abstand. „Starker Tag“ heißt: An diesem Wochentag wurden bei dir mehr Clips viral als im Schnitt. Das Thema ist die Kategorie, die an diesem Wochentag bei mindestens 4 Clips schon virale Treffer hatte („bewährt“). Gibt es das nicht, wechselt der Plan zwischen deinen besten Kategorien. Das ist ein Vorschlag aus deinen bisherigen Clips, keine Garantie, und bei kleinen Zahlen spielt der Zufall mit. Die Uhrzeiten der Follower selbst liefern TikTok und YouTube nicht; der Plan zeigt, wann deine Clips gut liefen.</p></section>`}
 function pPlaner(){const cf=plCfg(),thr=plThrV(cf),D=plData(),PFL=PF?[PF]:PLS,A_=PFL.map(p=>plAn(p,D,thr)),tot=D.length,
  ohne=db.clips.filter(c=>(!PF||c.platform===PF)&&plCat(c)===""&&(latest(c,"9999-12-31")||{}).views>=thr).sort((a,b)=>(latest(b,"9999-12-31").views||0)-(latest(a,"9999-12-31").views||0)),
  allT=D.filter(x=>x.hour!=null).length;
@@ -1243,7 +1263,7 @@ function pPlaner(){const cf=plCfg(),thr=plThrV(cf),D=plData(),PFL=PF?[PF]:PLS,A_
   <p style="margin-top:10px"><button class="btn gh sm" onclick="A.plReset()">Auf Standardliste zurücksetzen</button></p></section>`;
  const open=`<section class="panel" style="margin:14px 0"><h2>Ohne Kategorie (${nf(ohne.length)})</h2>${ohne.length?`<p class="notice" style="margin:0 0 10px">Gezeigt werden nur Clips ab ${nf(thr)} Aufrufen, die der Hub nicht zuordnen konnte. Sie fließen erst in die Kategorie-Auswertung ein, wenn du eine Kategorie wählst. Wähle eine Kategorie, dann wird sie gespeichert und zwischen Handy und PC abgeglichen. Sortiert nach Aufrufen.</p>${ohne.slice(0,PLN).map(c=>`<div class="row" style="align-items:center;flex-wrap:wrap;gap:8px"><div style="flex:1;min-width:200px"><a onclick="A.open('${c.id}')"><b>${esc(c.title)}</b></a><div class="mf">${PL[c.platform]} · ${dde(c.published)} · ${nf(latest(c,"9999-12-31").views)} Aufrufe</div></div>${plSelect(c)}</div>`).join("")}${ohne.length>PLN?`<p style="margin-top:10px"><button class="btn gh sm" onclick="A.plMore()">Mehr anzeigen (${nf(ohne.length-PLN)} weitere)</button></p>`:""}`:emptyBox("Alle Clips ab "+nf(thr)+" Aufrufen haben eine Kategorie.")}</section>`;
  const how=`<p class="notice">So wird gerechnet: Für jeden Clip zählt sein neuester Messwert. „Viral“ heißt: mindestens so viele Aufrufe wie oben eingestellt (Standard 50.000). Weil dein Konto stark gewachsen ist, haben neuere Clips es leichter, die Marke zu erreichen. Das solltest du beim Lesen im Hinterkopf behalten. Die Viral-Quote ist der Anteil viraler Clips. Zum Ranking („stärkste“) wird die Quote bei wenig Clips zum Gesamtwert hin geglättet, deshalb gewinnt keine Zeile allein durch 2 Treffer bei 3 Clips. Zeilen mit weniger als 6 Clips sind grau und zählen nicht als stärkste. Das zeigt, wo bei dir etwas lief, nicht sicher, dass es an Tag, Zeit oder Thema lag.</p>`;
- return head0+thrBar+basis+body+open+rules+how}
+ return head0+thrBar+plCal(A_,thr,plPdV(cf))+basis+body+open+rules+how}
 
 /* ============ Zeitrechner ============ */
 let ZT={fps:60,m:"0",s:"35",f:"22",sec:"18,18"};
@@ -1433,11 +1453,11 @@ function syRec(c){
  if(c.yt||c.ig||c.tt){if(!(c.gtasty||c.euro!=null||c.conf!=null||c.paid!=null||c.cat))return null;return{g:!!c.gtasty,a:c.gtAt||"",e:syN(c.euro),cf:syN(c.conf),pd:syN(c.paid),ct:c.cat||null}}
  return{id:c.id,platform:c.platform,title:c.title,url:c.url||"",published:c.published||"",gtasty:!!c.gtasty,gtAt:c.gtAt||"",manual:!!c.manual,euro:syN(c.euro),conf:syN(c.conf),paid:syN(c.paid),cat:c.cat||"",
   metrics:[...c.metrics].sort((a,b)=>a.date.localeCompare(b.date)).map(m=>[m.date,m.views,m.likes,m.comments,m.shares])}}
-function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[syKey(c)]=r}const g=db.gtAuto;if(g)m["s:gtAuto"]={on:!!g.on,from:g.from,min:g.min};const cf=plCfg();m["s:cats"]={list:cf.list,rules:cf.rules,thr:cf.thr||50000};return m}
+function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[syKey(c)]=r}const g=db.gtAuto;if(g)m["s:gtAuto"]={on:!!g.on,from:g.from,min:g.min};const cf=plCfg();m["s:cats"]={list:cf.list,rules:cf.rules,thr:cf.thr||50000,pd:cf.pd||1};return m}
 const syHash=r=>r==null?"":syH(JSON.stringify(r));
 function syApply(k,r,idx){
  if(k==="s:gtAuto"){if(r)db.gtAuto={on:!!r.on,from:r.from,min:r.min,v2:true};return true}
- if(k==="s:cats"){if(r&&Array.isArray(r.list))db.cats={list:r.list,rules:r.rules||{},thr:r.thr||50000};return true}
+ if(k==="s:cats"){if(r&&Array.isArray(r.list))db.cats={list:r.list,rules:r.rules||{},thr:r.thr||50000,pd:r.pd||1};return true}
  if(k.startsWith("c:")){const old=idx.get(k);
   if(r===null){if(old){db.clips=db.clips.filter(c=>c!==old);idx.delete(k)}return true}
   const nc={id:r.id,platform:r.platform,title:r.title,url:r.url||"",published:r.published||"",gtasty:!!r.gtasty,metrics:(r.metrics||[]).map(m=>({date:m[0],views:m[1],likes:m[2],comments:m[3],shares:m[4]}))};
@@ -1613,7 +1633,7 @@ const A={
  calDay:v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||v>today())return;if(!CAL.s){CAL.s=v;paint();return}const a=CAL.s<v?CAL.s:v,b=CAL.s<v?v:CAL.s;R={preset:"custom",from:a,to:b};CAL.s=null;PICK=null;paint()},
  pf:v=>{PF=PLS.includes(v)?v:"";if(PF)QP=PF;paint()},
  ytNow:()=>{YTNEXT=0;ytTick()},
- plThr:v=>plEdit(c=>{c.thr=Number(v)||50000}),plSet:(id,v)=>{const c=db.clips.find(x=>x.id===id);if(!c)return;if(v)c.cat=v;else delete c.cat;save();paint()},
+ plThr:v=>plEdit(c=>{c.thr=Number(v)||50000}),plPd:v=>plEdit(c=>{c.pd=Number(v)||1}),plSet:(id,v)=>{const c=db.clips.find(x=>x.id===id);if(!c)return;if(v)c.cat=v;else delete c.cat;save();paint()},
  plRule:(i,v)=>plEdit(c=>{const n=c.list[i];if(n!=null)c.rules[n]=String(v).split(/[,;\n]+/).map(x=>x.trim().toLowerCase()).filter(Boolean)}),
  plDel:i=>{const n=plCfg().list[i];if(n!=null&&confirm("Kategorie „"+n+"“ löschen? Clips, die du von Hand dieser Kategorie zugeordnet hast, sind danach wieder ohne Kategorie."))plEdit(c=>{c.list.splice(i,1);delete c.rules[n]})},
  plAdd:()=>{const e=document.getElementById("pl-new"),n=(e&&e.value||"").trim();if(!n)return;plEdit(c=>{if(!c.list.includes(n)){c.list.push(n);c.rules[n]=[]}})},
