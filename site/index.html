@@ -1595,8 +1595,12 @@ function paint(){side();const m=document.getElementById("main");
  const show=(el,e)=>{if(cur!==el){cur=el;tip.textContent="";const L=el.getAttribute("data-tip").split("\n"),h=document.createElement("b");h.textContent=L[0];tip.appendChild(h);
    for(const l of L.slice(1)){const [n,c,v]=l.split("|"),d=document.createElement("div"),sp=document.createElement("span"),i=document.createElement("i"),vv=document.createElement("b");i.style.background=c;sp.appendChild(i);sp.appendChild(document.createTextNode(n));vv.textContent=v;vv.style.cssText="display:inline;margin:0;color:#fff;font-size:12px";d.appendChild(sp);d.appendChild(vv);tip.appendChild(d)}}
   const r=tip.getBoundingClientRect(),x=Math.max(8,Math.min(e.clientX+16,innerWidth-r.width-8)),y=e.clientY-r.height-12<8?e.clientY+20:e.clientY-r.height-12;tip.style.left=x+"px";tip.style.top=y+"px";tip.classList.add("on")};
- document.addEventListener("pointermove",e=>{const el=e.target.closest&&e.target.closest("[data-tip]");if(el)show(el,e);else hide()});
- document.addEventListener("scroll",hide,true)})();
+ let touch=false,sY=0,tmr=null;
+ document.addEventListener("pointermove",e=>{if(e.pointerType==="touch")return;touch=false;const el=e.target.closest&&e.target.closest("[data-tip]");if(el)show(el,e);else hide()});
+ /* Am Handy gibt es kein Hover: Ein Tipp zeigt die Zahlen an, ein Tipp daneben oder Scrollen blendet sie aus. */
+ document.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse")return;touch=true;clearTimeout(tmr);const el=e.target.closest&&e.target.closest("[data-tip]");
+  if(el){cur=null;show(el,e);sY=window.scrollY;tmr=setTimeout(hide,8000)}else hide()});
+ document.addEventListener("scroll",()=>{if(touch&&cur&&Math.abs(window.scrollY-sY)<8)return;hide()},true)})();
 window.A=A;
 try{if("serviceWorker" in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register("sw.js").catch(()=>{})}catch(e){}
 boot();
