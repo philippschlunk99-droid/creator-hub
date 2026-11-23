@@ -787,15 +787,33 @@ function clipsAnalyse(req) {
     + "Antworte NUR mit JSON in genau dieser Form:\n"
     + "{\"clips\":[{\"start\":123.4,\"ende\":171.0,\"titel\":\"...\",\"haken\":\"der erste Satz der Stelle\",\"grund\":\"ein Satz, warum die Stelle gut ist\",\"kategorie\":\"...\",\"bewertung\":8,\"beschreibung\":\"kurze Beschreibung fuer die Veroeffentlichung, 1 bis 2 Saetze\",\"tags\":[\"stichwort\"]}]}\n\n"
     + "Transkript:\n" + text;
-  var body = {contents: [{role: "user", parts: [{text: prompt}]}], generationConfig: {responseMimeType: "application/json", temperature: 0.4}};
-  var r = UrlFetchApp.fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
-    method: "post", contentType: "application/json", headers: {"x-goog-api-key": key}, payload: JSON.stringify(body), muteHttpExceptions: true
-  });
-  var code = r.getResponseCode();
+  var models = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash"];
+  var started = new Date().getTime();
+  var code = 0;
   var j = {};
-  try { j = JSON.parse(r.getContentText()); } catch (e) {}
+  for (var mi = 0; mi < models.length; mi++) {
+    if (mi > 0 && new Date().getTime() - started > 170000) break;
+    var cfgs = [
+      {responseMimeType: "application/json", temperature: 0.4, thinkingConfig: {thinkingLevel: "minimal"}},
+      {responseMimeType: "application/json", temperature: 0.4}
+    ];
+    for (var ci = 0; ci < cfgs.length; ci++) {
+      var body = {contents: [{role: "user", parts: [{text: prompt}]}], generationConfig: cfgs[ci]};
+      var r = UrlFetchApp.fetch("https://generativelanguage.googleapis.com/v1beta/models/" + models[mi] + ":generateContent", {
+        method: "post", contentType: "application/json", headers: {"x-goog-api-key": key}, payload: JSON.stringify(body), muteHttpExceptions: true
+      });
+      code = r.getResponseCode();
+      j = {};
+      try { j = JSON.parse(r.getContentText()); } catch (e) {}
+      if (code !== 400) break;
+      if (/API key/i.test((j.error && j.error.message) || "")) break;
+    }
+    if (code === 200 || code === 401 || code === 403) break;
+    if (code === 400 && /API key/i.test((j.error && j.error.message) || "")) break;
+  }
   if (code === 429) return {ok: false, error: "Das kostenlose Limit von Gemini ist gerade erreicht. Bitte in ein bis zwei Minuten nochmal versuchen."};
-  if (code === 400 || code === 401 || code === 403) return {ok: false, error: "Gemini hat den Schluessel nicht akzeptiert (" + code + "): " + ((j.error && j.error.message) || "")};
+  if (code === 500 || code === 502 || code === 503 || code === 504 || code === 0) return {ok: false, error: "Gemini ist gerade ueberlastet (das liegt bei Google). Bitte in ein paar Minuten nochmal auf Neu analysieren tippen."};
+  if (code === 400 || code === 401 || code === 403) return {ok: false, error: "Gemini hat die Anfrage nicht akzeptiert (" + code + "): " + ((j.error && j.error.message) || "")};
   if (code !== 200) return {ok: false, error: "Gemini-Fehler " + code + ((j.error && j.error.message) ? ": " + j.error.message : "")};
   var t = "";
   try { t = j.candidates[0].content.parts.map(function (p) { return p.text || ""; }).join(""); } catch (e) {}
@@ -1438,7 +1456,7 @@ async function cfStart(){
    CF.segs=await cfTranscribe(audio);
    if(CF.segs.length<5)throw new Error("Es wurde kaum Sprache erkannt. Ist das Video auf Deutsch und hat es Ton?");
    cfSave()}
-  CF.step="Die KI sucht die besten Stellen";CF.msg="Das dauert etwa eine halbe Minute.";CF.pct=100;cfRender();
+  CF.step="Die KI sucht die besten Stellen";CF.msg="Das dauert meist unter einer Minute, bei Überlastung bei Google auch länger.";CF.pct=100;cfRender();
   CF.clips=cfNorm(await cfAsk(),CF.dur);CF.sel={};CF.clips.forEach((c,i)=>CF.sel[i]=true);
   if(!CF.clips.length)throw new Error("Die KI hat keine brauchbaren Stellen gefunden. Bitte nochmal versuchen.");
   cfSave();CF.step="";CF.msg=""
