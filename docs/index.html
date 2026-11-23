@@ -1478,7 +1478,7 @@ async function cfAsk(){if(!SY||!SY.url)throw new Error("Für die KI-Auswahl muss
  if(!Array.isArray(j.clips))throw new Error("Dein Abgleich-Skript kennt den Clip-Finder noch nicht. Der neue Skript-Code muss eingefügt und als neue Version bereitgestellt werden.");
  return j.clips}
 const cfTagClean=t=>String(t||"").replace(/^#+/,"").replace(/[^0-9A-Za-zÄÖÜäöüß]+/g,"");
-const cfFixTag=()=>{const t=cfTagClean(db.cfTag===undefined?"GTasty":db.cfTag);return t};
+const cfFixTag=()=>{const t=cfTagClean(db.cfTag===undefined||db.cfTag==="GTasty"?"gtasty":db.cfTag);return t};
 function cfTags(c){const out=[],add=t=>{t=cfTagClean(t);if(t&&!out.some(x=>x.toLowerCase()===t.toLowerCase()))out.push(t)};
  add(cfFixTag());
  const k=String(c.kat||"").trim();if(k&&!/^sonstiges$/i.test(k))add(k.split(/[^0-9A-Za-zÄÖÜäöüß]+/).filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join(""));
