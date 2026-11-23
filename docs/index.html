@@ -1550,7 +1550,7 @@ async function cfExportOne(i){const c=CF.clips[i],v=CF.vel;if(!v||!CF.url)throw 
  const base=(CF.file&&CF.file.name||"video").replace(/\.[^.]+$/,"");
  const nm=base+"-clip"+String(i+1).padStart(2,"0")+"-"+cfSlug(c.titel);
  cfDownload(blob,nm+".mp4");
- const srt=cfSrt(c);if(srt)cfDownload(new Blob([srt],{type:"text/plain"}),nm+".srt")}
+ }
 async function cfExportAll(list){if(CF.exp&&CF.exp.busy)return;CF.exp={busy:true,i:-1,pct:0,done:0,total:list.length,err:"",cancel:false};cfRender();
  try{for(const i of list){CF.exp.i=i;CF.exp.pct=0;cfRender();await cfExportOne(i);CF.exp.done++;if(CF.exp.cancel)break}}catch(e){CF.exp.err=String(e&&e.message||e)}
  CF.exp.busy=false;CF.exp.i=-1;cfRender()}
@@ -1591,7 +1591,7 @@ function cfRender(){
    <span class="mf">Start</span><button class="btn gh sm" onclick="A.cfNudge(${i},'s',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'s',1)">+</button>
    <span class="mf">Ende</span><button class="btn gh sm" onclick="A.cfNudge(${i},'e',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'e',1)">+</button></div></div>`).join("")}
  if(exp){const n=Object.keys(CF.sel).filter(k=>CF.sel[k]&&CF.clips[k]).length,E=CF.exp;
-  exp.innerHTML=!CF.clips.length?emptyBox("Erst Vorschläge erzeugen."):`<p class="notice" style="margin:0 0 10px">Die Clips behalten das Originalbild (kein Zuschnitt, keine Unschärfe, volle Auflösung). Der Export läuft in Echtzeit, ein Clip von 45 Sekunden dauert also etwa 45 Sekunden. Das Fenster muss dabei offen und sichtbar bleiben. Jeder Clip kommt als MP4 mit einer passenden Untertitel-Datei (.srt) für CapCut. Beim ersten Mal fragt der Browser, ob mehrere Dateien geladen werden dürfen: bitte erlauben.</p>
+  exp.innerHTML=!CF.clips.length?emptyBox("Erst Vorschläge erzeugen."):`<p class="notice" style="margin:0 0 10px">Die Clips behalten das Originalbild (kein Zuschnitt, keine Unschärfe, volle Auflösung). Der Export läuft in Echtzeit, ein Clip von 45 Sekunden dauert also etwa 45 Sekunden. Das Fenster muss dabei offen und sichtbar bleiben. Jeder Clip kommt als MP4 ohne Untertitel, die machst du in CapCut. Beim ersten Mal fragt der Browser, ob mehrere Dateien geladen werden dürfen: bitte erlauben. <span style="color:#9be39b">Export-Version 3 (Originalbild)</span></p>
    ${E&&E.busy?`<div class="mf" style="color:#fff;font-weight:700">Clip ${E.done+1} von ${E.total}: ${esc(CF.clips[E.i]?CF.clips[E.i].titel:"")}</div><div class="bar" style="margin:8px 0"><i style="width:${E.pct}%"></i></div><p><button class="btn gh sm" onclick="A.cfCancel()">Abbrechen</button></p>`
    :`<button class="btn" onclick="A.cfExport()" ${has&&n?"":"disabled style='opacity:.5'"}>${n} ausgewählte Clips exportieren</button> <button class="btn gh sm" onclick="A.cfCopyTimes()">Nur die Zeiten kopieren</button>${has?"":`<p class="notice" style="margin-top:10px">Zum Exportieren das Video oben auswählen.</p>`}`}
    ${E&&!E.busy&&E.done?`<p class="notice" style="margin-top:10px;color:#9be39b">✓ ${E.done} Clips exportiert. Du findest sie im Download-Ordner.</p>`:""}${E&&E.err?`<p class="err" style="margin-top:10px">${esc(E.err)}</p>`:""}`}}
