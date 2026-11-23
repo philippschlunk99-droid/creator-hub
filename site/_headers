@@ -11,3 +11,7 @@
 
 /sw.js
   Cache-Control: no-cache
+
+/gast/*
+  X-Robots-Tag: noindex, nofollow, noarchive
+  Cache-Control: no-store
