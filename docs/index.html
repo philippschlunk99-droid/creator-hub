@@ -1499,31 +1499,47 @@ function cfSrt(c){const rows=[];let n=0;
   for(const p of parts){const d=(e-s)*p.length/tot;rows.push([t-c.s,t+d-c.s,p]);t+=d}}
  const f=x=>{x=Math.max(0,x);const h=Math.floor(x/3600),m=Math.floor(x/60)%60,s=Math.floor(x%60),ms=Math.round((x-Math.floor(x))*1000);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")+","+String(ms%1000).padStart(3,"0")};
  return rows.map(r=>(++n)+"\n"+f(r[0])+" --> "+f(r[1])+"\n"+r[2]+"\n").join("\n")}
-function cfDownload(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),8000)}
+function cfDownload(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),120000)}
 async function cfExportOne(i){const c=CF.clips[i],v=CF.vel;if(!v||!CF.url)throw new Error("Bitte das Video erneut auswählen.");
+ if(!window.MediaRecorder||!document.createElement("canvas").captureStream)throw new Error("Dieser Browser kann das Video nicht aufnehmen. Nutze Chrome oder Edge.");
  const W=1080,H=1920,cv=document.createElement("canvas");cv.width=W;cv.height=H;const g=cv.getContext("2d"),tiny=document.createElement("canvas");tiny.width=108;tiny.height=192;const tg=tiny.getContext("2d");
- const mime=["video/mp4;codecs=avc1.640028,mp4a.40.2","video/mp4;codecs=avc1,mp4a.40.2","video/webm;codecs=vp9,opus","video/webm"].find(m=>MediaRecorder.isTypeSupported(m));if(!mime)throw new Error("Dieser Browser kann keine Videos aufnehmen. Nutze Chrome oder Edge.");
- const ext=mime.startsWith("video/mp4")?"mp4":"webm";
- v.pause();v.muted=false;v.volume=1;v.currentTime=c.s;await new Promise(r=>{const f=()=>{v.removeEventListener("seeked",f);r()};v.addEventListener("seeked",f)});
- if(!cv.captureStream)throw new Error("Dieser Browser kann das Video nicht aufnehmen. Nutze Chrome oder Edge.");
+ const mimes=["video/mp4;codecs=avc1.640028,mp4a.40.2","video/mp4;codecs=avc1.4d0028,mp4a.40.2","video/mp4;codecs=avc1,mp4a.40.2","video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"].filter(m=>MediaRecorder.isTypeSupported(m));
+ if(!mimes.length)throw new Error("Dieser Browser kann keine Videos aufnehmen. Nutze Chrome oder Edge.");
  if(!v._cf){const ac=new (window.AudioContext||window.webkitAudioContext)(),src=ac.createMediaElementSource(v);src.connect(ac.destination);v._cf={ac,src,dst:ac.createMediaStreamDestination()}}
- const X=v._cf;await X.ac.resume();X.src.disconnect();X.src.connect(X.dst);
- const vs=cv.captureStream(30);X.dst.stream.getAudioTracks().forEach(t=>vs.addTrack(t));
- const rec=new MediaRecorder(vs,{mimeType:mime,videoBitsPerSecond:8e6,audioBitsPerSecond:160e3}),chunks=[];rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
- const vw=v.videoWidth,vh=v.videoHeight;
+ const X=v._cf,vw=v.videoWidth,vh=v.videoHeight;
  const draw=()=>{
-    if(CF.mode==="crop"){const sw=vh*9/16,sx=(vw-sw)*(CF.cx/100);g.drawImage(v,sx,0,sw,vh,0,0,W,H)}
+  if(CF.mode==="crop"){const sw=vh*9/16,sx=(vw-sw)*(CF.cx/100);g.drawImage(v,sx,0,sw,vh,0,0,W,H)}
   else{const fw=W,fh=Math.round(W*vh/vw);const bw=vh*9/16,bx=(vw-bw)/2;
    tg.drawImage(v,bx,0,bw,vh,0,0,108,192);g.imageSmoothingEnabled=true;g.imageSmoothingQuality="high";g.drawImage(tiny,0,0,108,192,0,0,W,H);
    g.fillStyle="rgba(0,0,0,.28)";g.fillRect(0,0,W,H);g.drawImage(v,0,0,vw,vh,0,Math.round((H-fh)/2),fw,fh)}};
- let stop=false;const loop=()=>{if(stop)return;draw();if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(loop);else requestAnimationFrame(loop)};
- const done=new Promise(res=>{rec.onstop=()=>res()});
- rec.start(500);await v.play();loop();
- await new Promise(res=>{const chk=()=>{CF.exp.pct=Math.min(100,Math.round((v.currentTime-c.s)/(c.e-c.s)*100));cfRender();if(v.currentTime>=c.e-0.05||v.ended||CF.exp.cancel){res();return}setTimeout(chk,400)};chk()});
- stop=true;v.pause();rec.stop();await done;try{X.src.disconnect();X.src.connect(X.ac.destination)}catch(e){}
+ async function attempt(mime){
+  v.pause();v.muted=false;v.volume=1;v.currentTime=c.s;await new Promise(r=>{const f=()=>{v.removeEventListener("seeked",f);r()};v.addEventListener("seeked",f)});
+  await X.ac.resume();try{X.src.disconnect()}catch(e){}X.src.connect(X.dst);
+  draw();
+  const vs=cv.captureStream(30);X.dst.stream.getAudioTracks().forEach(t=>vs.addTrack(t));
+  let rec,err="",total=0;const chunks=[];
+  try{rec=new MediaRecorder(vs,{mimeType:mime,videoBitsPerSecond:8e6,audioBitsPerSecond:160e3})}catch(e){return {blob:null,err:String(e&&e.message||e)}}
+  rec.ondataavailable=e=>{if(e.data&&e.data.size){chunks.push(e.data);total+=e.data.size}};
+  rec.onerror=e=>{err=String((e.error&&e.error.message)||e.error||"Aufnahmefehler")};
+  const done=new Promise(res=>{rec.onstop=()=>res()});
+  let stop=false;const loop=()=>{if(stop)return;draw();if(v.requestVideoFrameCallback)v.requestVideoFrameCallback(loop);else requestAnimationFrame(loop)};
+  rec.start(500);await v.play();loop();const t0=Date.now();let dead=false;
+  await new Promise(res=>{const chk=()=>{CF.exp.pct=Math.min(100,Math.round((v.currentTime-c.s)/(c.e-c.s)*100));cfRender();
+   if(Date.now()-t0>5000&&total===0){dead=true;res();return}
+   if(v.currentTime>=c.e-0.05||v.ended||CF.exp.cancel||rec.state==="inactive"){res();return}setTimeout(chk,400)};chk()});
+  stop=true;v.pause();try{if(rec.state!=="inactive"){try{rec.requestData()}catch(e){}rec.stop()}}catch(e){}
+  await Promise.race([done,new Promise(r=>setTimeout(r,4000))]);
+  try{X.src.disconnect();X.src.connect(X.ac.destination)}catch(e){}
+  const blob=new Blob(chunks,{type:mime.split(";")[0]});
+  return {blob:blob.size>2000?blob:null,err:err||(dead?"Der Browser hat keine Daten geliefert.":(blob.size>2000?"":"Die Aufnahme war leer."))}}
+ let res=null,why=[];
+ for(const m of mimes){res=await attempt(m);if(res.blob||CF.exp.cancel)break;why.push(m.split(";")[0]+(m.includes("codecs")?" ("+m.split("codecs=")[1].split(",")[0]+")":"")+": "+res.err)}
+ if(CF.exp.cancel&&(!res||!res.blob))return;
+ if(!res||!res.blob)throw new Error("Der Browser hat nur leere Videodateien erzeugt. Versuche: "+why.join(" | ")+". Bitte Chrome oder Edge aktualisieren und mir diese Meldung schicken.");
+ const ext=res.blob.type==="video/mp4"?"mp4":"webm";
  const base=(CF.file&&CF.file.name||"video").replace(/\.[^.]+$/,"");
  const nm=base+"-clip"+String(i+1).padStart(2,"0")+"-"+cfSlug(c.titel);
- cfDownload(new Blob(chunks,{type:mime.split(";")[0]}),nm+"."+ext);
+ cfDownload(res.blob,nm+"."+ext);
  const srt=cfSrt(c);if(srt)cfDownload(new Blob([srt],{type:"text/plain"}),nm+".srt")}
 async function cfExportAll(list){if(CF.exp&&CF.exp.busy)return;CF.exp={busy:true,i:-1,pct:0,done:0,total:list.length,err:"",cancel:false};cfRender();
  try{for(const i of list){CF.exp.i=i;CF.exp.pct=0;cfRender();await cfExportOne(i);CF.exp.done++;if(CF.exp.cancel)break}}catch(e){CF.exp.err=String(e&&e.message||e)}
