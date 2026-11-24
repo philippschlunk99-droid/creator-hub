@@ -1306,11 +1306,17 @@ function plSlots(a,thr,pd,fill){if(!a.useT)return null;
 const FA_MAXE=14,FA_HINT={tiktok:"TikTok Studio, Analytics, Follower, „Aktivste Zeiten“, Reiter „Stunde“. Dort lässt sich Tag für Tag durchblättern.",instagram:"Instagram, Profil, Insights, Gesamte Follower, „Aktivste Zeiten“.",youtube:"YouTube Studio, Analytics, Zielgruppe, „Wann deine Zuschauer auf YouTube sind“."};
 const faList=p=>db.fa&&Array.isArray(db.fa[p])?db.fa[p]:[];
 // Einmalige Startwerte TikTok (24.11.2026): Die Spitzenstunde steht so in TikTok Studio. „Aktiv von bis“ wurde aus den Bildern abgelesen (Balken ab ca. 75 % der höchsten), kann ca. 1 Stunde daneben liegen. Wird nur eingetragen, wenn noch nichts da ist, und nur einmal.
-const FA_SEED={tiktok:[{d:"2026-11-17",f:12,t:22,k:21,q:1},{d:"2026-11-18",f:12,t:22,k:21,q:1},{d:"2026-11-19",f:13,t:22,k:16,q:1},{d:"2026-11-20",f:10,t:0,k:0,q:1},{d:"2026-11-21",f:10,t:0,k:20,q:1}]};
-function faSeed(){if(db.fa||db.faSeed1)return;db.fa=JSON.parse(JSON.stringify(FA_SEED));db.faSeed1=1;save()}
+const FA_SEED={tiktok:[{d:"2026-11-17",f:12,t:22,k:21,q:1},{d:"2026-11-18",f:12,t:22,k:21,q:1},{d:"2026-11-19",f:13,t:22,k:16,q:1},{d:"2026-11-20",f:10,t:0,k:0,q:1},{d:"2026-11-21",f:10,t:0,k:20,q:1}],
+ instagram:[{d:"2026-11-24",w:[754, 754, 754, 496, 496, 496, 880, 880, 880, 1204, 1204, 1204, 1442, 1442, 1442, 1544, 1544, 1544, 1598, 1598, 1598, 1394, 1394, 1394],q:2}]};
+// Instagram: Mittel der 7 Wochentage aus den Insights (Follower pro 3-Stunden-Block). Die App zeigt die Zeit sehr wahrscheinlich in Pazifikzeit, deshalb um 9 Stunden auf deutsche Zeit verschoben (Annahme, nicht bestätigt).
+function faSeed(){if(db.faSeed1){db.faSeedF=Object.assign({tiktok:1},db.faSeedF||{})}let ch=false;for(const p of Object.keys(FA_SEED)){const F=db.faSeedF=db.faSeedF||{};if(F[p])continue;F[p]=1;ch=true;if(!faList(p).length){if(!db.fa||typeof db.fa!=="object")db.fa={};db.fa[p]=JSON.parse(JSON.stringify(FA_SEED[p]))}}if(ch)save()}
 const faHrs=e=>{const o=[];if(Number.isInteger(e.f)&&Number.isInteger(e.t)){for(let h=e.f,i=0;i<24;i++,h=(h+1)%24){o.push(h);if(h===e.t)break}}return o};
+function faE(e){const w=Array(24).fill(0),c=Array(24).fill(0);
+ if(Array.isArray(e.w)&&e.w.length===24){const mx=Math.max(0,...e.w);if(mx>0)for(let h=0;h<24;h++){w[h]=2*e.w[h]/mx;if(e.w[h]>=.75*mx)c[h]=1}}
+ else{const hs=faHrs(e);for(const h of hs){w[h]+=1;c[h]=1}if(Number.isInteger(e.k)&&e.k>=0&&e.k<24){w[e.k]+=hs.length?1:2;c[e.k]=1}}
+ return{w,c}}
 function faCnt(p){const L=faList(p).slice(-8),c=Array(24).fill(0),w=Array(24).fill(0);
- for(const e of L){const hs=faHrs(e);for(const h of hs){c[h]++;w[h]+=1}if(Number.isInteger(e.k)&&e.k>=0&&e.k<24){if(!hs.includes(e.k))c[e.k]++;w[e.k]+=hs.length?1:2}}
+ for(const e of L){const x=faE(e);for(let h=0;h<24;h++){c[h]+=x.c[h];w[h]+=x.w[h]}}
  return{n:L.length,c,w}}
 function faShare(p){const o=faCnt(p);if(o.n)return{n:o.n,c:o.c,s:o.w.map(x=>x/(2*o.n)),est:false,src:[p]};
  const src=PLS.filter(q=>q!==p&&faCnt(q).n),s=Array(24).fill(0);
@@ -1319,7 +1325,7 @@ function faShare(p){const o=faCnt(p);if(o.n)return{n:o.n,c:o.c,s:o.w.map(x=>x/(2
 function faPick(p){const f=faShare(p),hs=f.s.map((v,h)=>({h,v,nb:f.s[(h+23)%24]+f.s[(h+1)%24]})).filter(x=>x.v>0).sort((x,y)=>y.v-x.v||y.nb-x.nb||x.h-y.h);
  return{hours:hs.map(x=>x.h),est:f.est,n:f.n,src:f.src,c:f.c}}
 function faStable(p){const L=faList(p).slice(-8);if(L.length<4)return false;
- const top=l=>{const w=Array(24).fill(0);l.forEach(e=>{const hs=faHrs(e);hs.forEach(h=>{w[h]++});if(Number.isInteger(e.k))w[e.k]+=hs.length?1:2});return w.map((v,h)=>({h,v})).filter(x=>x.v>0).sort((x,y)=>y.v-x.v||x.h-y.h).slice(0,3).map(x=>x.h)};
+ const top=l=>{const w=Array(24).fill(0);l.forEach(e=>{const x=faE(e);for(let h=0;h<24;h++)w[h]+=x.w[h]});return w.map((v,h)=>({h,v})).filter(x=>x.v>0).sort((x,y)=>y.v-x.v||x.h-y.h).slice(0,3).map(x=>x.h)};
  const a=top(L),b=top(L.slice(0,-1));return a.length>=2&&a.filter(h=>b.includes(h)).length>=Math.min(2,a.length)}
 function plFull(a,t2,pd,D){const all=plSlots(a,t2,pd,true)||[],out=all.filter(x=>x.src==="ok");
  const cd=(x,y)=>Math.min((x-y+24)%24,(y-x+24)%24),add=(h,src,sp,extra)=>{if(out.length<pd&&!out.some(q=>q.h===h)&&out.every(q=>cd(q.h,h)>=sp)){out.push(Object.assign({h,src},extra||{}));return true}return false};
@@ -1357,7 +1363,7 @@ const faLab=h=>{const a=h%12===0?12:h%12;return String(h).padStart(2,"0")+" Uhr 
 const faOpt=(cur,blank)=>`<option value="">${blank}</option>`+Array.from({length:24},(_,h)=>`<option value="${h}" ${cur===String(h)?"selected":""}>${faLab(h)}</option>`).join("");
 function faPanel(){const PFL=PF?[PF]:PLS,dd=x=>x.slice(8)+"."+x.slice(5,7)+".";
  const dates=Array.from({length:8},(_,i)=>addDays(today(),-i));
- const desc=e=>{const a=[];if(Number.isInteger(e.f)&&Number.isInteger(e.t))a.push("aktiv "+String(e.f).padStart(2,"0")+"–"+String(e.t).padStart(2,"0")+" Uhr");if(Number.isInteger(e.k))a.push("Spitze "+String(e.k).padStart(2,"0")+" Uhr");if(e.q)a.push("aus Bild abgelesen");return a.join(" · ")};
+ const desc=e=>{const a=[];if(Number.isInteger(e.f)&&Number.isInteger(e.t))a.push("aktiv "+String(e.f).padStart(2,"0")+"–"+String(e.t).padStart(2,"0")+" Uhr");if(Number.isInteger(e.k))a.push("Spitze "+String(e.k).padStart(2,"0")+" Uhr");if(e.q===1)a.push("aus Bild abgelesen");if(e.q===2)a.push("Mittel aller 7 Wochentage, Pazifikzeit auf deutsche Zeit umgerechnet");if(e.w)a.unshift("3-Stunden-Werte aus den Insights");return a.join(" · ")};
  const card=p=>{const L=faList(p),f=faShare(p),n=L.length,last=n?L[n-1].d:"",ago=last?plDn(today())-plDn(last):null,mx=Math.max(0.0001,...f.s),st=faStable(p),S=FA_SEL[p];
   const msg=!n?(f.est?`Noch keine Eintragung. Der Plan schätzt die Uhrzeiten gerade aus der Follower-Aktivität auf ${f.src.map(q=>PL[q]).join(" und ")}. Das ist nur eine Schätzung.`:"Noch keine Eintragung."):n<4?`${n} von 4 Eintragungen. Trag etwa einmal pro Woche ein. Ab 4 Eintragungen zeigt der Hub, ob das Muster schon stabil ist.`:st?"Muster stabil: Die aktivsten Uhrzeiten ändern sich kaum noch. Es reicht, wenn du alle 4 Wochen einträgst.":"Muster noch in Bewegung: Die aktivsten Uhrzeiten ändern sich noch. Trag weiter etwa einmal pro Woche ein.";
   return `<div class="card" style="min-width:0"><div class="ml">${PL[p]}</div>
@@ -1859,7 +1865,7 @@ function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[s
 const syHash=r=>r==null?"":syH(JSON.stringify(r));
 function syApply(k,r,idx){
  if(k==="s:gtAuto"){if(r)db.gtAuto={on:!!r.on,from:r.from,min:r.min,v2:true};return true}
- if(k==="s:fa"){if(r&&typeof r==="object"){const o={};for(const q of PLS)if(Array.isArray(r[q]))o[q]=r[q].filter(e=>e&&typeof e.d==="string"&&(Number.isInteger(e.k)||(Number.isInteger(e.f)&&Number.isInteger(e.t)))).slice(-FA_MAXE);db.fa=o}return true}
+ if(k==="s:fa"){if(r&&typeof r==="object"){const o={};for(const q of PLS)if(Array.isArray(r[q]))o[q]=r[q].filter(e=>e&&typeof e.d==="string"&&(Number.isInteger(e.k)||(Number.isInteger(e.f)&&Number.isInteger(e.t))||(Array.isArray(e.w)&&e.w.length===24))).slice(-FA_MAXE);db.fa=o}return true}
  if(k==="s:cats"){if(r&&Array.isArray(r.list))db.cats={list:r.list,rules:r.rules||{},thr:r.thr||50000,pd:r.pd||1};return true}
  if(k.startsWith("c:")){const old=idx.get(k);
   if(r===null){if(old){db.clips=db.clips.filter(c=>c!==old);idx.delete(k)}return true}
@@ -1893,7 +1899,7 @@ async function syCycle(){if(!SY||!SY.url||SYBUSY)return;SYBUSY=true;SYMSG="";let
   if(pushed){await syPost({action:"put",items,since:SY.since||0});for(const k of Object.keys(items)){if(changed[k]===null)delete SY.base[k];else SY.base[k]=syHash(changed[k])}}
   SY.since=res.max||SY.since||0;SY.init=true;SY.last=Date.now();SY.err="";SY.stat={applied,pushed};
   if(applied){SYAPPLY=true;try{save()}finally{SYAPPLY=false}}
-  if(!db.fa&&!db.faSeed1&&!(SY.pend&&SY.pend["s:fa"]))faSeed();
+  if(!(SY.pend&&SY.pend["s:fa"]))faSeed();
  }catch(e){SY.err=e.message}
  SYBUSY=false;SYNEXT=Date.now()+(SY.err?60000:120000);sySave();
  const d=document.getElementById("sy-status");if(d)d.innerHTML=syStatus();
