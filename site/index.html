@@ -1619,13 +1619,17 @@ async function cfTranscribe(audio){const cuts=cfCuts(audio,240),all=[],n=cuts.le
   for(const c of r.chunks){const ts=c.timestamp||[0,null],s=ts[0]||0,e=ts[1]==null?s+3:ts[1],t=String(c.text||"").trim();if(t)all.push({s:off+s,e:off+e,t})}}}
  finally{clearInterval(tk)}
  return cfClean(all)}
+function cfMus(m){if(!m||typeof m!=="object")return null;const su=(Array.isArray(m.suche)?m.suche:[]).map(x=>String(x).replace(/[^A-Za-z0-9 \-]/g,"").trim().toLowerCase()).filter(Boolean).slice(0,3),st=String(m.stil||"").slice(0,120),tp=/^(langsam|mittel|schnell)$/.test(m.tempo)?m.tempo:"";
+ return su.length||st?{stil:st,suche:su,tempo:tp}:null}
+const cfMusUrl=m=>"https://pixabay.com/music/search/"+encodeURIComponent((m.suche||[]).join(" "))+"/";
+function cfMusHtml(c){const m=c.mus;if(!m)return"";return `<div class="mf" style="margin-top:4px"><b style="color:#fff">Musik${c.mood?" ("+esc(c.mood)+")":""}:</b> ${esc(m.stil||"")}${m.tempo?", Tempo "+esc(m.tempo):""}${(m.suche||[]).length?` · Suche: <i>${esc(m.suche.join(", "))}</i>`:""}${(m.suche||[]).length?` · <a href="${esc(cfMusUrl(m))}" target="_blank" rel="noopener" style="color:var(--acc)">Bei Pixabay suchen</a>`:""}</div>`}
 function cfNorm(arr,dur){const out=[];
  for(const c of arr||[]){let s=Number(c.start),e=Number(c.ende!=null?c.ende:c.end);if(!isFinite(s)||!isFinite(e))continue;
   if(dur){s=Math.max(0,Math.min(s,dur));e=Math.min(e,dur)}
   let bs=null,be=null;for(const g of CF.segs){if(Math.abs(g.s-s)<=3&&(!bs||Math.abs(g.s-s)<Math.abs(bs.s-s)))bs=g;if(Math.abs(g.e-e)<=3&&(!be||Math.abs(g.e-e)<Math.abs(be.e-e)))be=g}
   if(bs)s=bs.s;if(be)e=be.e;
   if(e-s<8)continue;if(e-s>120)e=s+120;
-  out.push({s:Math.round(s*10)/10,e:Math.round(e*10)/10,titel:String(c.titel||"Ohne Titel").slice(0,90),haken:String(c.haken||""),grund:String(c.grund||""),kat:String(c.kategorie||""),bew:Math.max(0,Math.min(10,Number(c.bewertung)||0)),desc:String(c.beschreibung||""),tags:(Array.isArray(c.tags)?c.tags:[]).map(x=>String(x).replace(/^#/,"")).slice(0,6)})}
+  out.push({s:Math.round(s*10)/10,e:Math.round(e*10)/10,titel:String(c.titel||"Ohne Titel").slice(0,90),haken:String(c.haken||""),grund:String(c.grund||""),kat:String(c.kategorie||""),bew:Math.max(0,Math.min(10,Number(c.bewertung)||0)),desc:String(c.beschreibung||""),tags:(Array.isArray(c.tags)?c.tags:[]).map(x=>String(x).replace(/^#/,"")).slice(0,6),mood:String(c.stimmung||"").slice(0,20),mus:cfMus(c.musik)})}
  out.sort((a,b)=>b.bew-a.bew||a.s-b.s);const keep=[];
  for(const c of out){if(!keep.some(k=>Math.min(k.e,c.e)-Math.max(k.s,c.s)>0.3*Math.min(k.e-k.s,c.e-c.s)))keep.push(c)}
  return keep}
@@ -1636,6 +1640,7 @@ const CF_HINT=`ZUSAETZLICHE AUSWAHLKRITERIEN (haben Vorrang vor allem anderen, a
 4. Das Feld "haken" ist der erste gesprochene Satz des Clips und muss ein starker Einstieg sein.
 5. In "grund" kurz benennen, warum die ersten 3 Sekunden stoppen lassen und ob die Stelle eher Zustimmung oder Widerspruch ausloest.
 6. Sortiere die Clips: bester zuerst.
+7. MUSIK: Schreibe in JEDES Clip-Objekt zusaetzlich zwei Felder. "stimmung": genau ein Wort aus: ernst, lustig, spannend, emotional, wuetend, motivierend, entspannt, neutral. "musik": {"stil":"kurze deutsche Beschreibung des passenden Hintergrundmusik-Stils, zum Beispiel ruhiger Lo-Fi-Beat mit Klavier","suche":["zwei bis drei englische Suchbegriffe fuer eine Musikbibliothek, zum Beispiel calm","lofi","piano"],"tempo":"langsam" oder "mittel" oder "schnell"}. Die Musik muss zur Stimmung passen: ernste Gespraeche und Real Talk bekommen ruhige, tiefe Musik (Lo-Fi, Ambient, Klavier), Lustiges verspielte Musik (Ukulele, Pizzicato, Funk), Spannendes treibende Musik, Wut und Streit harte Beats. Nenne NIE einen Songtitel, Kuenstler oder ein bekanntes Lied, nur den Stil und Suchbegriffe.
 
 `;
 async function cfAsk(){if(!SY||!SY.url)throw new Error("Für die KI-Auswahl muss der Abgleich eingerichtet sein (Mehr, Daten & Backup, Abgleich zwischen PC und Handy).");
@@ -1755,7 +1760,7 @@ async function cfFolder(){
 async function cfInfoFile(E,list){if(!E.sub)return;
  const L=["Clips aus: "+((CF.file&&CF.file.name)||"Video"),"Exportiert am "+cfDay(),""];
  list.forEach(i=>{const c=CF.clips[i];if(!c||!E.files[i])return;L.push(E.files[i],"  Titel: "+c.titel,"  Stelle im Rohvideo: "+cfT(c.s)+" bis "+cfT(c.e)+" ("+Math.round(c.e-c.s)+" Sekunden)");
-  L.push("  Text: "+(c.desc?c.desc+" ":"")+cfTags(c).map(t=>"#"+t).join(" "));L.push("")});
+  L.push("  Text: "+(c.desc?c.desc+" ":"")+cfTags(c).map(t=>"#"+t).join(" "));if(c.mus)L.push("  Musik"+(c.mood?" ("+c.mood+")":"")+": "+(c.mus.stil||"")+(c.mus.tempo?", Tempo "+c.mus.tempo:"")+((c.mus.suche||[]).length?" · Suche: "+c.mus.suche.join(", "):""));L.push("")});
  try{await cfWrite(E.sub,"Titel.txt",new Blob([L.join("\r\n")],{type:"text/plain;charset=utf-8"}))}catch(e){}}
 async function cfExportAll(list,dest){if(CF.exp&&CF.exp.busy)return;CF.exp={busy:true,i:-1,pct:0,done:0,total:list.length,totalMedia:list.reduce((a,i)=>a+(CF.clips[i]?CF.clips[i].e-CF.clips[i].s:0),0),doneMedia:0,t0:0,err:"",cancel:false,sub:dest?dest.sub:null,folder:dest?dest.root+" / "+dest.name:"",files:{},warn:""};cfRender();
  const eti=setInterval(cfRender,1000);
@@ -1790,11 +1795,11 @@ function cfRender(){
   if(CF.segs.length)r+=`<p style="margin-top:12px"><button class="btn gh sm" onclick="A.cfPasteOpen()">Auswahl von Hand einfügen</button></p>${CF.pasteOpen?`<div style="margin-top:8px"><button class="btn gh sm" onclick="A.cfCopyText()">Text und Anweisung kopieren</button><p class="notice" style="margin:8px 0">Falls die automatische KI-Auswahl nicht läuft: Text kopieren, in den Chat mit Claude einfügen und die Antwort (JSON) hier einfügen.</p><textarea class="in" id="cf-paste" rows="5" placeholder='{"clips":[…]}'></textarea><p style="margin-top:8px"><button class="btn sm" onclick="A.cfPasteApply()">Übernehmen</button></p></div>`:""}`}
  if(CF.err)r+=`<p class="err" style="margin-top:12px">${esc(CF.err)}</p>`;
  run.innerHTML=r;
- const lsig=has+"|"+CF.prev+"|"+JSON.stringify(CF.sel)+"|"+CF.clips.map(c=>c.s+","+c.e+","+c.titel).join(";");
+ const lsig=has+"|"+CF.prev+"|"+JSON.stringify(CF.sel)+"|"+CF.clips.map(c=>c.s+","+c.e+","+c.titel+","+(c.mus?c.mus.suche.join(" "):"")).join(";");
  if(list&&list._sig!==lsig){list._sig=lsig;list.innerHTML=!CF.clips.length?emptyBox("Noch keine Vorschläge. Starte oben die Analyse."):
-  `<p class="notice" style="margin:0 0 10px">${nf(CF.clips.length)} Vorschläge, beste zuerst. Haken setzen, ansehen, Anfang und Ende bei Bedarf mit den Pfeilen feinjustieren.</p>`+CF.clips.map((c,i)=>`<div class="row" style="align-items:flex-start;flex-wrap:wrap;gap:10px;${CF.prev===i?"border-color:var(--acc);":""}">
+  `<p class="notice" style="margin:0 0 10px">${nf(CF.clips.length)} Vorschläge, beste zuerst. Haken setzen, ansehen, Anfang und Ende bei Bedarf mit den Pfeilen feinjustieren.</p>${CF.clips.some(c=>c.mus)?`<p class="notice" style="margin:0 0 10px"><b>Musik:</b> Das sind nur Stil-Vorschläge der KI, keine fertigen Lieder. Suche das Stück selbst aus und prüfe die Lizenz. Sicher sind Pixabay Music (kommerziell erlaubt, ohne Nennung; einzelne Stücke kann YouTube trotzdem automatisch beanstanden) und die YouTube Audio Library in YouTube Studio (bei manchen Stücken muss der Urheber in der Beschreibung genannt werden). Trend-Sounds aus TikTok sind nicht automatisch frei nutzbar, gerade bei Clips mit Verdienst.</p>`:""}`+CF.clips.map((c,i)=>`<div class="row" style="align-items:flex-start;flex-wrap:wrap;gap:10px;${CF.prev===i?"border-color:var(--acc);":""}">
    <label style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:230px;cursor:pointer"><input type="checkbox" ${CF.sel[i]?"checked":""} onchange="A.cfSel(${i},this.checked)" style="margin-top:4px;accent-color:#ffc400"><span><b style="color:#fff" title="Titelvorschlag">${esc(c.titel)}</b>${c.bew?` <span class="pill" style="font-size:11px">${c.bew} / 10</span>`:""}${c.kat?` <span class="pill" style="font-size:11px">${esc(c.kat)}</span>`:""}
-   <div class="mf">${cfT(c.s)} bis ${cfT(c.e)} · ${Math.round(c.e-c.s)} Sekunden</div>${c.haken?`<div class="mf">„${esc(c.haken)}“</div>`:""}${c.grund?`<div class="mf">${esc(c.grund)}</div>`:""}<div class="mf" style="margin-top:4px">${c.desc?esc(c.desc)+" ":""}<span style="color:var(--acc)">${cfTags(c).map(t=>"#"+esc(t)).join(" ")}</span></div></span></label>
+   <div class="mf">${cfT(c.s)} bis ${cfT(c.e)} · ${Math.round(c.e-c.s)} Sekunden</div>${c.haken?`<div class="mf">„${esc(c.haken)}“</div>`:""}${c.grund?`<div class="mf">${esc(c.grund)}</div>`:""}${cfMusHtml(c)}<div class="mf" style="margin-top:4px">${c.desc?esc(c.desc)+" ":""}<span style="color:var(--acc)">${cfTags(c).map(t=>"#"+esc(t)).join(" ")}</span></div></span></label>
    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn gh sm" onclick="A.cfPrev(${i})" ${has?"":"disabled"}>${CF.prev===i?"Pause":"Ansehen"}</button><button class="btn gh sm" onclick="A.cfCopyTitle(${i},this)">Titel &amp; Text kopieren</button><button class="btn gh sm" onclick="A.cfHook(${i})" ${has?"":"disabled"}>Start (3 Sek.)</button>
    <span class="mf">Start</span><button class="btn gh sm" onclick="A.cfNudge(${i},'s',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'s',1)">+</button>
    <span class="mf">Ende</span><button class="btn gh sm" onclick="A.cfNudge(${i},'e',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'e',1)">+</button></div></div>`).join("")}
