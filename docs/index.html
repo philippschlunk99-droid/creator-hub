@@ -796,6 +796,8 @@ function clipsAnalyse(req) {
   var code = 0;
   var j = {};
   var tried = [];
+  var data = null;
+  var leerGrund = "";
   var fertig = false;
   for (var round = 0; round < 3 && !fertig; round++) {
     if (round > 0) {
@@ -820,7 +822,17 @@ function clipsAnalyse(req) {
         if (code !== 400) break;
         if (/API key/i.test((j.error && j.error.message) || "")) break;
       }
-      if (code === 200 || code === 401 || code === 403) fertig = true;
+      if (code === 200) {
+        var t0 = "";
+        try { t0 = j.candidates[0].content.parts.map(function (p) { return p.text || ""; }).join(""); } catch (e) {}
+        var d0 = null;
+        try { d0 = JSON.parse(t0); } catch (e) { var m0 = t0.match(/\{[\s\S]*\}/); if (m0) { try { d0 = JSON.parse(m0[0]); } catch (e2) {} } }
+        if (d0 && Array.isArray(d0.clips)) { data = d0; fertig = true; }
+        else {
+          leerGrund = " Grund: keine Stellen im Antworttext (" + ((j.candidates && j.candidates[0] && j.candidates[0].finishReason) || (j.promptFeedback && j.promptFeedback.blockReason) || "unbekannt") + ", " + models[mi] + ", " + t0.length + " Zeichen).";
+        }
+      }
+      if (code === 401 || code === 403) fertig = true;
       if (code === 400 && /API key/i.test((j.error && j.error.message) || "")) fertig = true;
     }
   }
@@ -831,12 +843,11 @@ function clipsAnalyse(req) {
   if (code !== 200) return {ok: false, error: "Gemini-Fehler " + code + ((j.error && j.error.message) ? ": " + j.error.message : "")};
   var t = "";
   try { t = j.candidates[0].content.parts.map(function (p) { return p.text || ""; }).join(""); } catch (e) {}
-  var data = null;
-  try { data = JSON.parse(t); } catch (e) {
+  try { if (!data) data = JSON.parse(t); } catch (e) {
     var m = t.match(/\{[\s\S]*\}/);
     if (m) { try { data = JSON.parse(m[0]); } catch (e2) {} }
   }
-  if (!data || !Array.isArray(data.clips)) return {ok: false, error: "Gemini hat keine brauchbare Antwort geliefert. Bitte nochmal versuchen."};
+  if (!data || !Array.isArray(data.clips)) return {ok: false, error: "Gemini hat keine brauchbare Antwort geliefert. Bitte nochmal versuchen." + leerGrund + hinweis};
   return {ok: true, clips: data.clips.slice(0, 20)};
 }
 
