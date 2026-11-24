@@ -100,6 +100,8 @@ label.f{display:block;margin:0 0 5px;color:#ecd9db;font-size:12px}
 .btn.gh{background:#241214;color:#fff;border:1px solid var(--line);box-shadow:none;font-style:normal}.btn.sm{padding:6px 10px;font-size:12px}.btn:disabled{opacity:.6}
 .fg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:end}.span2{grid-column:span 2}.span3{grid-column:span 3}
 .empty{border:1px dashed var(--line2);border-radius:14px;padding:24px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6}
+.gtab{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}.gt{font:inherit;font-weight:700;font-size:13px;padding:9px 16px;border:1px solid var(--line);border-radius:30px;color:#e8d4d6;background:var(--panel);cursor:pointer;white-space:nowrap;transition:border-color .2s,transform .2s}.gt:hover{border-color:var(--acc);transform:translateY(-1px)}.gt.on{border-color:var(--acc);color:#fff;background:#4a0e14;box-shadow:0 0 14px -6px var(--acc)}
+.gstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin:0 0 6px}.gs{border:1px solid var(--line);border-radius:12px;padding:8px 11px;background:var(--panel);min-width:0}.gs span{display:block;font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}.gs b{display:block;font-size:17px;margin-top:2px}.gs em{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-top:1px}
 .chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:14px 0}.chip{padding:7px 12px;border:1px solid var(--line);border-radius:30px;font-size:12px;color:#e8d4d6;background:var(--panel);cursor:pointer}.chip.on{border-color:var(--acc);color:#fff;background:#4a0e14}.chips .in{width:150px}
 details.dt,details.rng,details.mored{margin:14px 0}details.dt>summary,details.mored>summary{cursor:pointer;font-weight:800;font-style:italic;list-style:none;color:var(--acc)}details.dt>summary::-webkit-details-marker,details.mored>summary::-webkit-details-marker,details.rng>summary::-webkit-details-marker{display:none}
 details.rng>summary{cursor:pointer;list-style:none;display:inline-block;padding:8px 14px;border:1px solid var(--line);border-radius:30px;background:var(--panel);font-size:13px}details.rng>summary:hover{border-color:var(--acc)}
@@ -139,6 +141,7 @@ h1{font-size:25px;margin:6px 0 4px}h1::after{width:70px;height:4px;margin-top:7p
 .intro{font-size:12px;line-height:1.5;margin-top:6px}
 .seg{display:flex;width:100%;margin-top:12px;gap:2px}.seg button{flex:1;justify-content:center;padding:9px 4px;font-size:13px;gap:5px}
 .chips{gap:6px;margin:10px 0}
+.gtab{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.gtab::-webkit-scrollbar{display:none}.gt{flex:none;padding:9px 13px}.gstrip{display:flex;overflow-x:auto;scrollbar-width:none}.gstrip::-webkit-scrollbar{display:none}.gs{flex:none;min-width:118px}.gs em{display:none}
 .prs{display:flex;gap:6px;overflow-x:auto;width:100%;flex-wrap:nowrap;padding-bottom:3px;scrollbar-width:none}.prs::-webkit-scrollbar{display:none}.prs .chip{flex:none;white-space:nowrap;padding:8px 13px}
 .cards{gap:10px;margin:12px 0}.card,.panel{padding:14px}.mv{font-size:24px}
 .pop{position:fixed;left:12px;right:12px;top:auto;bottom:calc(76px + env(safe-area-inset-bottom));width:auto;max-width:none;max-height:62vh;overflow:auto;z-index:70}.cms{justify-content:center}
@@ -1550,12 +1553,18 @@ const head=(e,t,i)=>`<div class="hub">PHILIPP'S CREATOR HUB</div><div class="not
 
 /* ============ Seiten ============ */
 let V="dashboard",F={plat:"",sort:"datum"},OPEN=null,MSG="";
-const NAV=[["dashboard","◧","Dashboard"],["follower","↗","Follower & Statistiken"],["radar","◎","Radar"],["planer","◔","Upload-Planer"],["submit","➤","Einreichen"],["gtasty","€","Auszahlungen"],["beleg","▦","Monatsbeleg"],["finanzen","±","Einnahmen & Ausgaben"],["clips","▤","Clip-Verwaltung"],["clipfinder","✂","Clip-Finder"],["tools","✦","Creator-Tools"],["daten","⚙","Daten & Backup"]];
+const NAV=[["dashboard","◧","Dashboard"],["follower","↗","Follower & Statistiken"],["radar","◎","Radar"],["planer","◔","Upload-Planer"],["geld","€","G-Tasty & Geld"],["clips","▤","Clip-Verwaltung"],["clipfinder","✂","Clip-Finder"],["tools","✦","Creator-Tools"],["daten","⚙","Daten & Backup"]];
 const BOLT='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L8.5 22 20 9.5h-6.2z" fill="currentColor"/></svg>';
 let MORE=false;
-const NAVS={dashboard:"Start",follower:"Statistik",gtasty:"Auszahlung",finanzen:"Finanzen",beleg:"Beleg",clips:"Clips",clipfinder:"Finder"},NAVBAR=["dashboard","clipfinder","follower","gtasty","clips"];
-function side(){const on=k=>V===k||(V==="stats"&&k==="follower")||(V==="clip"&&k==="clips")||(k==="tools"&&["pb","zeit","hash"].includes(V));
- const nb=k=>k==="submit"&&gtList().length?` <span class="pill" style="background:var(--red);color:#fff;margin-left:auto">${gtList().length}</span>`:"";
+const NAVS={dashboard:"Start",follower:"Statistik",geld:"G-Tasty",clips:"Clips",clipfinder:"Finder"},NAVBAR=["dashboard","clipfinder","follower","geld","clips"];
+/* Gruppe „G-Tasty & Geld“: vier Seiten, die zusammengehören. Die Seiten selbst heißen weiter submit/gtasty/beleg/finanzen, nur das Menü zeigt einen Eintrag und oben stehen Reiter. */
+const GROUP=[["submit","Einreichen"],["gtasty","Auszahlungen"],["beleg","Monatsbeleg"],["finanzen","Einnahmen & Ausgaben"]],GKEYS=GROUP.map(x=>x[0]);let GLAST="gtasty";
+function gBar(v){const n=gtList().length,sub=db.clips.filter(c=>c.gtasty),conf=sub.reduce((a,c)=>a+(c.conf||0),0),paid=sub.reduce((a,c)=>a+(c.paid||0),0),pend=sub.filter(c=>!gtSure(c)),
+ it=(l,x,f)=>`<div class="gs"><span>${l}</span><b>${x}</b>${f?`<em>${f}</em>`:""}</div>`;
+ return `<nav class="gtab" aria-label="G-Tasty & Geld">${GROUP.map(([k,l])=>`<button class="gt ${k===v?"on":""}" onclick="A.go('${k}')">${l}${k==="submit"&&n?` <span class="pill" style="background:var(--red);color:#fff;margin-left:4px">${n}</span>`:""}</button>`).join("")}</nav>`+
+ (v==="gtasty"?"":`<div class="gstrip">${it("Sicher erwartet",eur(gtSumSure(sub)),"ab 100.000 Aufrufe")}${it("Vorgemerkt",eur(gtSum(pend)),pend.length+" unter 100.000")}${it("Bestätigt",eur(conf))}${it("Ausgezahlt",eur(paid))}${it("Noch offen",eur(Math.max(0,conf-paid)),"bestätigt minus ausgezahlt")}${it("Zum Einreichen bereit",nf(n))}${it("Im Beleg offen",nf(belegOffen().length),"noch nicht abgerechnet")}</div>`)}
+function side(){const on=k=>V===k||(k==="geld"&&GKEYS.includes(V))||(V==="stats"&&k==="follower")||(V==="clip"&&k==="clips")||(k==="tools"&&["pb","zeit","hash"].includes(V));
+ const nb=k=>k==="geld"&&gtList().length?` <span class="pill" style="background:var(--red);color:#fff;margin-left:auto">${gtList().length}</span>`:"";
  const nv=([k,i,l],c)=>`<button class="nav ${c||""} ${on(k)?"on":""}" onclick="A.go('${k}')"><i>${i}</i><span class="lf">${l}</span><span class="ls">${NAVS[k]||l}</span>${nb(k)}</button>`;
  const bar=NAV.filter(x=>NAVBAR.includes(x[0])),more=NAV.filter(x=>!NAVBAR.includes(x[0])),n=gtList().length,mon=more.some(x=>on(x[0]));
  document.getElementById("side").innerHTML=`<div class="brand"><div class="mark">${BOLT}</div><div><div class="bt">PHILIPP'S<br>CREATOR HUB</div><div class="bs">CONTROL CENTER</div></div></div>`+NAV.map(x=>nv(x,"dn")).join("")+syncBox()
@@ -2890,7 +2899,7 @@ function pbInit(){const $=id=>document.getElementById(id),cv=$("pb-canvas");
    if(t<1)requestAnimationFrame(f);else{draw(ctx,1,c);setTimeout(()=>{if(rec.state!=="inactive")rec.stop()},250)}};requestAnimationFrame(f)}}
 
 /* ============ Aktionen ============ */
-function go(v){if(pbBusy&&v!=="pb"){if(!confirm("Der Export läuft noch. Seite wirklich verlassen?"))return;}V=v;OPEN=null;MSG="";BMSG="";MORE=false;paint()}
+function go(v){if(v==="geld")v=GLAST;if(GKEYS.includes(v))GLAST=v;if(pbBusy&&v!=="pb"){if(!confirm("Der Export läuft noch. Seite wirklich verlassen?"))return;}V=v;OPEN=null;MSG="";BMSG="";MORE=false;paint()}
 const fd=e=>{e.preventDefault();return Object.fromEntries(new FormData(e.target))};
 const A={
  go,more:()=>{MORE=!MORE;side()},preset:p=>{PICK=null;CAL.s=null;setPreset(p);paint()},
@@ -3069,7 +3078,7 @@ Object.assign(A,{
 });
 function paint(){if(V==="clipfinder"&&!OPEN&&cfLock()&&document.getElementById("cf-run")){cfRender();return}side();const m=document.getElementById("main");
  const P={dashboard:pDash,submit:pSubmit,clips:pClips,clip:pClip,follower:pFollower,radar:pRadar,planer:pPlaner,zeit:pZeit,hash:pHash,gtasty:pG,beleg:pBeleg,finanzen:pFin,stats:pStats,tools:pTools,pb:pPB,clipfinder:pClipfinder,daten:pDaten};
- let v=V;if(OPEN)v="clip";m.innerHTML=`<div class="mhead"><div class="mb"><span class="mark">${BOLT}</span><b>CREATOR HUB</b></div><div id="tw-pill">${twPill()}</div></div>`+(P[v]||pDash)();if(v==="pb")pbInit();if(v==="clipfinder")cfInit();twDraw();
+ let v=V;if(OPEN)v="clip";m.innerHTML=`<div class="mhead"><div class="mb"><span class="mark">${BOLT}</span><b>CREATOR HUB</b></div><div id="tw-pill">${twPill()}</div></div>`+(GKEYS.includes(v)?gBar(v):"")+(P[v]||pDash)();if(v==="pb")pbInit();if(v==="clipfinder")cfInit();twDraw();
 }
 (function(){const tip=document.createElement("div");tip.className="tip";document.body.appendChild(tip);let cur=null;
  const hide=()=>{cur=null;tip.classList.remove("on")};
