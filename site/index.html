@@ -792,7 +792,9 @@ function clipsAnalyse(req) {
     + "{\"clips\":[{\"start\":123.4,\"ende\":171.0,\"titel\":\"...\",\"haken\":\"der erste Satz der Stelle\",\"grund\":\"ein Satz, warum die Stelle gut ist\",\"kategorie\":\"...\",\"bewertung\":8,\"beschreibung\":\"kurze Beschreibung fuer die Veroeffentlichung, 1 bis 2 Saetze\",\"tags\":[\"stichwort\"]}]}\n\n"
     + "Transkript:\n" + text;
   var mkey = PropertiesService.getScriptProperties().getProperty("MISTRAL_KEY");
-  var models = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash"];
+  // Jedes Modell hat bei Google eigene Kapazitaet und eigenes Gratis-Limit. Faellt eines aus, nimmt das Skript das naechste.
+  var models = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemma-4-31b-it"];
+  var usedModel = "";
   var started = new Date().getTime();
   var code = 0;
   var j = {};
@@ -809,7 +811,8 @@ function clipsAnalyse(req) {
       if (tried.length > 0 && new Date().getTime() - started > 240000) { fertig = true; break; }
       var cfgs = [
         {responseMimeType: "application/json", temperature: 0.4, thinkingConfig: {thinkingLevel: "minimal"}},
-        {responseMimeType: "application/json", temperature: 0.4}
+        {responseMimeType: "application/json", temperature: 0.4},
+        {temperature: 0.4}
       ];
       for (var ci = 0; ci < cfgs.length; ci++) {
         var body = {contents: [{role: "user", parts: [{text: prompt}]}], generationConfig: cfgs[ci]};
@@ -828,19 +831,19 @@ function clipsAnalyse(req) {
         try { t0 = j.candidates[0].content.parts.map(function (p) { return p.text || ""; }).join(""); } catch (e) {}
         var d0 = null;
         try { d0 = JSON.parse(t0); } catch (e) { var m0 = t0.match(/\{[\s\S]*\}/); if (m0) { try { d0 = JSON.parse(m0[0]); } catch (e2) {} } }
-        if (d0 && Array.isArray(d0.clips)) { data = d0; fertig = true; }
+        if (d0 && Array.isArray(d0.clips)) { data = d0; fertig = true; usedModel = models[mi]; }
         else {
           leerGrund = " Grund: keine Stellen im Antworttext (" + ((j.candidates && j.candidates[0] && j.candidates[0].finishReason) || (j.promptFeedback && j.promptFeedback.blockReason) || "unbekannt") + ", " + models[mi] + ", " + t0.length + " Zeichen).";
         }
       }
-      if (code === 401 || code === 403) fertig = true;
+      if (code === 401 || (code === 403 && /API key|permission denied|blocked/i.test((j.error && j.error.message) || ""))) fertig = true;
       if (code === 400 && /API key/i.test((j.error && j.error.message) || "")) fertig = true;
     }
   }
   var quelle = "Gemini";
   var mcodes = [];
   if (!data && mkey) {
-    var mm = ["mistral-large-latest", "mistral-small-latest"];
+    var mm = ["ministral-14b-2512", "ministral-8b-2512"];
     for (var k = 0; k < mm.length && !data; k++) {
       var r2 = UrlFetchApp.fetch("https://api.mistral.ai/v1/chat/completions", {
         method: "post", contentType: "application/json", headers: {Authorization: "Bearer " + mkey},
@@ -856,8 +859,13 @@ function clipsAnalyse(req) {
         try { d2 = JSON.parse(t2); } catch (e) { var m2 = String(t2).match(/\{[\s\S]*\}/); if (m2) { try { d2 = JSON.parse(m2[0]); } catch (e2) {} } }
         if (d2 && Array.isArray(d2.clips)) { data = d2; quelle = "Mistral"; }
       }
-      if (c2 === 401 || c2 === 403) break;
+      if (c2 === 401) break;
     }
+  }
+  if (!data) {
+    var ueberl = false, lim429 = false;
+    for (var ti = 0; ti < tried.length; ti++) { if (tried[ti] === 429) lim429 = true; if (tried[ti] >= 500 || tried[ti] === 0) ueberl = true; }
+    if (ueberl) code = 503; else if (lim429) code = 429;
   }
   var hinweis = " (Antworten von Google: " + tried.join(", ") + (mkey ? "; Mistral: " + (mcodes.join(", ") || "keine") : "") + ")";
   if (data && quelle === "Mistral") return {ok: true, clips: (Array.isArray(data.clips) ? data.clips : []).slice(0, 20), quelle: quelle};
@@ -873,7 +881,7 @@ function clipsAnalyse(req) {
     if (m) { try { data = JSON.parse(m[0]); } catch (e2) {} }
   }
   if (!data || !Array.isArray(data.clips)) return {ok: false, error: "Gemini hat keine brauchbare Antwort geliefert. Bitte nochmal versuchen." + leerGrund + hinweis};
-  return {ok: true, clips: data.clips.slice(0, 20), quelle: quelle};
+  return {ok: true, clips: data.clips.slice(0, 20), quelle: (usedModel.indexOf("gemma") === 0 ? "Gemma" : "Gemini"), modell: usedModel};
 }
 
 function doPost(e) {
@@ -1952,7 +1960,7 @@ function cfRender(){
  run.innerHTML=r;
  const lsig=has+"|"+CF.prev+"|"+(CF.fbv||0)+"|"+CF.lk+"|"+JSON.stringify(CF.sel)+"|"+CF.clips.map(c=>c.s+","+c.e+","+c.titel+","+(c.mus?c.mus.suche.join(" "):"")+","+(c.st?c.st.cov+c.st.gap:"")).join(";");
  if(list&&list._sig!==lsig){list._sig=lsig;list.innerHTML=!CF.clips.length?emptyBox("Noch keine Vorschläge. Starte oben die Analyse."):
-  `<p class="notice" style="margin:0 0 10px">${nf(CF.clips.length)} Vorschläge, beste zuerst. Haken setzen, ansehen, Anfang und Ende bei Bedarf mit den Pfeilen feinjustieren.${CF.quelle==="Mistral"?" <b style=\"color:#ffb74d\">Diese Auswahl kommt vom Backup (Mistral), weil Gemini gerade überlastet war.</b>":""}</p>${CF.clips.some(c=>c.mus)?`<p class="notice" style="margin:0 0 10px"><b>Musik:</b> Das sind nur Stil-Vorschläge der KI, keine fertigen Lieder. Suche das Stück selbst aus und prüfe die Lizenz. Sicher sind Pixabay Music (kommerziell erlaubt, ohne Nennung; einzelne Stücke kann YouTube trotzdem automatisch beanstanden) und die YouTube Audio Library in YouTube Studio (bei manchen Stücken muss der Urheber in der Beschreibung genannt werden). Trend-Sounds aus TikTok sind nicht automatisch frei nutzbar, gerade bei Clips mit Verdienst.</p>`:""}${cfLearnPanel()}`+CF.clips.map((c,i)=>`<div class="row" style="align-items:flex-start;flex-wrap:wrap;gap:10px;${CF.prev===i?"border-color:var(--acc);":""}">
+  `<p class="notice" style="margin:0 0 10px">${nf(CF.clips.length)} Vorschläge, beste zuerst. Haken setzen, ansehen, Anfang und Ende bei Bedarf mit den Pfeilen feinjustieren.${CF.quelle==="Mistral"||CF.quelle==="Gemma"?` <b style="color:#ffb74d">Diese Auswahl kommt vom Notfall-Modell (${CF.quelle}), weil die besseren Modelle gerade nicht erreichbar waren. Sie ist meist etwas schwächer.</b>`:""}</p>${CF.clips.some(c=>c.mus)?`<p class="notice" style="margin:0 0 10px"><b>Musik:</b> Das sind nur Stil-Vorschläge der KI, keine fertigen Lieder. Suche das Stück selbst aus und prüfe die Lizenz. Sicher sind Pixabay Music (kommerziell erlaubt, ohne Nennung; einzelne Stücke kann YouTube trotzdem automatisch beanstanden) und die YouTube Audio Library in YouTube Studio (bei manchen Stücken muss der Urheber in der Beschreibung genannt werden). Trend-Sounds aus TikTok sind nicht automatisch frei nutzbar, gerade bei Clips mit Verdienst.</p>`:""}${cfLearnPanel()}`+CF.clips.map((c,i)=>`<div class="row" style="align-items:flex-start;flex-wrap:wrap;gap:10px;${CF.prev===i?"border-color:var(--acc);":""}">
    <label style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:230px;cursor:pointer"><input type="checkbox" ${CF.sel[i]?"checked":""} onchange="A.cfSel(${i},this.checked)" style="margin-top:4px;accent-color:#ffc400"><span><b style="color:#fff" title="Titelvorschlag">${esc(c.titel)}</b>${c.score?` <span class="pill" style="font-size:11px">${c.score} / 10</span>`:c.bew?` <span class="pill" style="font-size:11px">${c.bew} / 10</span>`:""}${c.hook?` <span class="pill" style="font-size:11px" title="Wie stark sind die ersten 3 Sekunden (Einschätzung der KI)">Hook ${c.hook} / 10</span>`:""}${c.teil?` <span class="pill" style="font-size:11px">${esc(c.teil)}</span>`:""}${c.kat?` <span class="pill" style="font-size:11px">${esc(c.kat)}</span>`:""}
    <div class="mf">${cfT(c.s)} bis ${cfT(c.e)} · ${Math.round(c.e-c.s)} Sekunden</div>${c.haken?`<div class="mf">„${esc(c.haken)}“</div>`:""}${c.payoff?`<div class="mf"><b style="color:#fff">Danach:</b> ${esc(c.payoff)}</div>`:""}${c.grund?`<div class="mf">${esc(c.grund)}</div>`:""}${c.st?`<div class="mf" style="${c.st.cov<80||c.st.gap>2||c.st.w3<5||c.st.hp>0?"color:#ffb74d":""}">${c.st.m?"Am Ton gemessen":"Am Text geschätzt"}: ${c.st.cov} % aktiv · längste Pause ${String(c.st.gap).replace(".",",")} s · ${c.st.w3} Wörter in den ersten 3 Sekunden${c.st.hp>0?" · Achtung, direkt nach dem Start kommt eine Pause von "+String(c.st.hp).replace(".",",")+" s":c.st.cov<80||c.st.gap>2?" · Achtung, hier gibt es Leerlauf":c.st.w3<5||c.st.qs>0.5?" · Achtung, der Start ist ruhig":""}</div>`:""}${c.fix&&c.fix.length?`<div class="mf" style="color:#9aa">Erkennungsfehler korrigiert: ${esc(c.fix.join(", "))}</div>`:""}${cfMusHtml(c)}${cfFbHtml(c,i)}<div class="mf" style="margin-top:4px">${c.desc?esc(c.desc)+" ":""}<span style="color:var(--acc)">${cfTags(c).map(t=>"#"+esc(t)).join(" ")}</span></div></span></label>
    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="btn gh sm" onclick="A.cfPrev(${i})" ${has?"":"disabled"}>${CF.prev===i?"Pause":"Ansehen"}</button><button class="btn gh sm" onclick="A.cfCopyTitle(${i},this)">Titel &amp; Text kopieren</button><button class="btn gh sm" onclick="A.cfHook(${i})" ${has?"":"disabled"}>Start (3 Sek.)</button>
