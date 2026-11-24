@@ -1365,6 +1365,10 @@ function plCal(A_,thr,pd,D){const low=[],miss=[],E=A_.map(a0=>plEff(a0,thr,pd,D)
 let FA_SEL={tiktok:{},instagram:{},youtube:{}},FA_DAY=null;
 const faLab=h=>{const a=h%12===0?12:h%12;return String(h).padStart(2,"0")+" Uhr ("+a+(h<12?"a":"p")+")"};
 const faOpt=(cur,blank)=>`<option value="">${blank}</option>`+Array.from({length:24},(_,h)=>`<option value="${h}" ${cur===String(h)?"selected":""}>${faLab(h)}</option>`).join("");
+function faWinRun(sv,mx){const q=[];for(let h=0;h<24;h++){if(sv[h]>=.75*mx&&sv[h]>0){const l=q[q.length-1];if(l&&l.e===h-1)l.e=h;else q.push({a:h,e:h})}}
+ if(q.length>1&&q[0].a===0&&q[q.length-1].e===23){const l=q.pop();q[0].a=l.a}
+ return q.sort((x,y)=>(((y.e-y.a+24)%24)-((x.e-x.a+24)%24)))[0]||null}
+const faDateOf=dw=>{for(let i=0;i<8;i++){const d=addDays(today(),-i);if((new Date(d+"T12:00:00").getDay()+6)%7===dw)return d}return today()};
 const FA_UNIT={tiktok:"Zuschauer",instagram:"Follower",youtube:"Zuschauer"},FA_DN=["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
 function faPanel(){const PFL=PF?[PF]:PLS,dd=x=>x.slice(8)+"."+x.slice(5,7)+".",tdow=(new Date().getDay()+6)%7,dw=FA_DAY==null?tdow:FA_DAY;
  const dates=Array.from({length:8},(_,i)=>addDays(today(),-i)),H2=h=>String(h).padStart(2,"0");
@@ -1378,6 +1382,7 @@ function faPanel(){const PFL=PF?[PF]:PLS,dd=x=>x.slice(8)+"."+x.slice(5,7)+".",t
   const pct=v=>Math.round(v/mx*100),rawTxt=h=>f.raw&&f.raw[h]?` · ${nf(Math.round(f.raw[h]))} ${FA_UNIT[p]}`:"";
   const msg=!n?(f.est?`Noch keine Eintragung. Der Plan schätzt die Uhrzeiten gerade aus der Follower-Aktivität auf ${f.src.map(q=>PL[q]).join(" und ")}. Das ist nur eine Schätzung.`:"Noch keine Eintragung."):wk<4?`Eintragungen aus ${wk} von 4 Wochen. Trag etwa einmal pro Woche ein. Ab 4 Wochen zeigt der Hub, ob das Muster stabil ist.`:st?"Muster stabil: Die aktivsten Uhrzeiten ändern sich kaum noch. Es reicht, wenn du alle 4 Wochen einträgst.":"Muster noch in Bewegung: Die aktivsten Uhrzeiten ändern sich noch. Trag weiter etwa einmal pro Woche ein.";
   const basis=f.used==="dow"?`Gezeigt: ${FA_DN[dw]}`:f.used==="est"?`Geschätzt für ${FA_DN[dw]}`:`Für ${FA_DN[dw]} gibt es noch keine Eintragung. Gezeigt wird der Durchschnitt aller Tage.`;
+  if(!S.touched){const wr=f.n&&mx>0.0001?faWinRun(f.s,mx):null;S.d=faDateOf(dw);S.f=wr?String(wr.a):"";S.t=wr?String(wr.e):"";S.k=top.length?String(top[0].a):""}
   return `<div class="card" style="min-width:0"><div class="ml">${PL[p]}</div>
   <div class="mf" style="margin-top:6px">${basis}${f.n&&f.used==="dow"?` (${f.n} Eintragung${f.n===1?"":"en"})`:""}</div>
   <div style="display:flex;align-items:flex-end;gap:2px;height:84px;margin:8px 0 2px">${f.s.map((v,h)=>{const top1=v>0&&v>=mx-1e-9;return `<div title="${H2(h)}:00 Uhr · ${pct(v)} % der höchsten Stunde${rawTxt(h)}" style="flex:1;height:${Math.max(2,Math.round(v/mx*100))}%;background:${v>0?(top1?"#e53935":"var(--acc)"):"rgba(255,255,255,.12)"};opacity:${f.est?.55:1};border-radius:2px"></div>`}).join("")}</div>
@@ -1386,7 +1391,7 @@ function faPanel(){const PFL=PF?[PF]:PLS,dd=x=>x.slice(8)+"."+x.slice(5,7)+".",t
   ${top.length?`<div class="mf" style="margin-top:6px"><b>Aktiv von … bis:</b> ${act}<br><b style="color:#e53935">Höchste Stunde (rote Säule):</b> ${rl(top[0])}${f.used==="dow"?"":" (Durchschnitt aller Tage)"}</div>`:""}
   <div class="mf" style="margin-top:8px">${msg}</div>
   ${ago!=null&&ago>=28?`<div class="mf" style="color:var(--acc)">Letzte Eintragung vor ${ago} Tagen. Bitte aktualisieren.</div>`:ago!=null?`<div class="mf">Letzte Eintragung: ${dd(last)}${ago===0?" (heute)":""}</div>`:""}
-  <div class="mf" style="margin-top:12px"><b>Neu eintragen</b></div>
+  <div class="mf" style="margin-top:12px"><b>Neu eintragen</b>${S.touched?"":" (ausgefüllt mit den Werten von "+FA_DN[dw]+", ändere etwas und speichere)"}</div>
   <div class="mf" style="margin-top:2px">Zu finden: ${FA_HINT[p]} Die Menünamen können sich ändern. Der Wochentag ergibt sich aus dem Datum des Diagramms.</div>
   <div style="display:grid;gap:6px;margin:8px 0">
    <label class="mf">Datum des Diagramms<select class="in" onchange="A.faSet('${p}','d',this.value)">${dates.map(d=>`<option value="${d}" ${(S.d||today())===d?"selected":""}>${PL_DK[(new Date(d+"T12:00:00").getDay()+6)%7]} ${dd(d)}${d===today()?" (heute)":""}</option>`).join("")}</select></label>
@@ -2058,9 +2063,10 @@ const A={
  calDay:v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||v>today())return;if(!CAL.s){CAL.s=v;paint();return}const a=CAL.s<v?CAL.s:v,b=CAL.s<v?v:CAL.s;R={preset:"custom",from:a,to:b};CAL.s=null;PICK=null;paint()},
  pf:v=>{PF=PLS.includes(v)?v:"";if(PF)QP=PF;paint()},
  ytNow:()=>{YTNEXT=0;ytTick()},
- faDay:i=>{FA_DAY=i;paint()},
- faSet:(p,k,v)=>{FA_SEL[p][k]=v},
+ faDay:i=>{FA_DAY=i;for(const q of PLS)FA_SEL[q]={};paint()},
+ faSet:(p,k,v)=>{FA_SEL[p][k]=v;FA_SEL[p].touched=1},
  faSave:p=>{const S=FA_SEL[p],m=document.getElementById("fa-msg-"+p),n=x=>x===undefined||x===""?null:Number(x),f=n(S.f),t=n(S.t),k=n(S.k);
+  if(!S.touched){if(m)m.textContent="Das sind schon deine gespeicherten Werte. Ändere etwas, dann speichere.";return}
   if((f==null)!==(t==null)){if(m)m.textContent="Bitte „von“ und „bis“ beide wählen, oder beide leer lassen.";return}
   if(f==null&&k==null){if(m)m.textContent="Bitte zuerst Uhrzeiten wählen.";return}
   const d=S.d||today(),e={d};if(f!=null){e.f=f;e.t=t}if(k!=null)e.k=k;
