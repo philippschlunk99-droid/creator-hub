@@ -926,6 +926,9 @@ function doPost(e) {
       return antwort({ok: false, error: "Sync-Code falsch oder noch nicht in den Skripteigenschaften (HUB_SYNC_CODE) eingetragen"});
     }
     if (req.action === "clips") return antwort(clipsAnalyse(req));
+    if (req.action === "belegBild") return antwort(belegBildSpeichern(req));
+    if (req.action === "belegBildWeg") return antwort(belegBildLoeschen(req));
+    if (req.action === "beleg") return antwort(belegErstellen(req.monat));
     lock.waitLock(25000);
     var f = hubDatei();
     var st = {};
@@ -1010,6 +1013,386 @@ function erinnerungEinrichten() {
   });
   ScriptApp.newTrigger("erinnerungPruefen").timeBased().everyMinutes(5).create();
   mailSenden("Creator Hub: Einrichtung", "Die Erinnerungen sind eingerichtet. Ab jetzt kommt ca. 30 Minuten vor der aktivsten Zeit eine E-Mail.");
+}
+
+// ---------- Wochenbericht und Monatsbeleg (optional) ----------
+// Wochenbericht: jeden Montag um 8 Uhr eine E-Mail an dein eigenes Google-Konto (neue Aufrufe, G-Tasty-Verdienst, bester Clip, Fast geschafft).
+// Monatsbeleg: am letzten Tag jedes Monats legt das Skript eine Google-Tabelle mit allen eingereichten Clips an (Link, Aufrufe, Verdienst, Screenshots)
+// und schickt dir den Link per E-Mail. Die Tabelle ist privat. Teilen (Freigeben) machst nur du, in Google Tabellen oben rechts.
+// Alle Zahlen kommen aus deinen eigenen Blaettern (YouTube, Instagram, TikTok) und aus deinen Hub-Eintraegen. Es wird nichts erfunden und nichts an Dritte geschickt.
+var GT_TIERS = [[500000, 100], [400000, 80], [300000, 60], [200000, 40], [100000, 20], [80000, 20]];
+var GT_STEPS = [80000, 100000, 200000, 300000, 400000, 500000];
+var GT_ZAHL1 = "2026-12-01";
+var PLN_NAME = {tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube"};
+var MONATE = ["Januar", "Februar", "M\u00e4rz", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+
+function repTag(v, tz) { return v instanceof Date ? Utilities.formatDate(v, tz, "yyyy-MM-dd") : String(v == null ? "" : v).slice(0, 10); }
+function repHeute() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd"); }
+function repTagPlus(tag, n) { return Utilities.formatDate(new Date(Date.parse(tag + "T12:00:00Z") + n * 864e5), "UTC", "yyyy-MM-dd"); }
+function repDe(tag) { return tag ? String(tag).slice(8, 10) + "." + String(tag).slice(5, 7) + "." + String(tag).slice(0, 4) : ""; }
+function repZahl(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
+function repEur(n) {
+  var s = (Math.round(n * 100) / 100).toFixed(2).split(".");
+  return s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + s[1] + " \u20ac";
+}
+function monatsName(m) { return MONATE[Number(String(m).slice(5, 7)) - 1] + " " + String(m).slice(0, 4); }
+
+// Liest die Blaetter YouTube ("Verlauf"), "Instagram" und "TikTok" und legt deine Hub-Eintraege (eingereicht, Betraege, Screenshots) darueber.
+function repClips() {
+  var tz = Session.getScriptTimeZone();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var map = {};
+  var quellen = [["Verlauf", "youtube", "yt"], ["Instagram", "instagram", "ig"], ["TikTok", "tiktok", "tt"]];
+  quellen.forEach(function (q) {
+    var sh = ss.getSheetByName(q[0]);
+    if (!sh || sh.getLastRow() < 2) return;
+    var v = sh.getDataRange().getValues();
+    var h = v[0].map(function (x) { return String(x).trim().toLowerCase(); });
+    var ix = function (n) { for (var i = 0; i < h.length; i++) { if (h[i].indexOf(n) === 0) return i; } return -1; };
+    var iD = ix("datum"), iI = ix(q[2] === "yt" ? "video-id" : "post-id"), iT = ix("titel"), iP = ix("ver"), iV = ix("aufrufe"), iU = ix("link");
+    if (iD < 0 || iI < 0 || iV < 0) return;
+    for (var r = 1; r < v.length; r++) {
+      var d = repTag(v[r][iD], tz), id = String(v[r][iI] == null ? "" : v[r][iI]).trim(), n = Number(v[r][iV]);
+      if (!d || !id || id === "KONTO" || isNaN(n) || n < 0) continue;
+      var key = q[2] + ":" + id;
+      var c = map[key];
+      if (!c) {
+        var titel = iT >= 0 ? String(v[r][iT] || "").replace(/\s+/g, " ").trim() : "";
+        var link = iU >= 0 ? String(v[r][iU] || "").trim() : "";
+        if (q[2] === "tt") link = link.split("?")[0];
+        if (q[2] === "yt") link = "https://www.youtube.com/watch?v=" + encodeURIComponent(id);
+        if (!/^https?:\/\//i.test(link)) link = "";
+        c = map[key] = {key: key, platform: q[1], title: titel || id, url: link, published: "", hist: {}, g: false, a: "", e: null, cf: null, pd: null, sh: []};
+      }
+      if (!c.published && iP >= 0) { var pm = String(v[r][iP] || "").match(/^(\d{4}-\d{2}-\d{2})/); if (pm) c.published = pm[1]; }
+      c.hist[d] = n;
+    }
+  });
+  var st = {};
+  try { st = JSON.parse(hubDatei().getBlob().getDataAsString() || "{}"); } catch (x) {}
+  var items = st.items || {};
+  var gt = (items["s:gtAuto"] && items["s:gtAuto"].r) || {};
+  var cfg = {on: gt.on !== false, from: gt.from || "2026-10-28", min: gt.min || 80000};
+  var titelIdx = {};
+  Object.keys(map).forEach(function (k) { titelIdx[map[k].platform + "|" + map[k].title.toLowerCase()] = true; });
+  Object.keys(items).forEach(function (k) {
+    var r = items[k] && items[k].r;
+    if (!r || typeof r !== "object" || k.indexOf("s:") === 0) return;
+    var shots = Array.isArray(r.sh) ? r.sh.filter(function (x) { return x && typeof x.i === "string" && /^[\w-]{10,}$/.test(x.i); }) : [];
+    if (k.indexOf("c:") === 0) {
+      if (!r.title || !PLN_NAME[r.platform] || titelIdx[r.platform + "|" + String(r.title).toLowerCase()]) return;
+      var hist = {};
+      (r.metrics || []).forEach(function (m) { if (m && m[0] && m[1] != null && !isNaN(Number(m[1]))) hist[String(m[0]).slice(0, 10)] = Number(m[1]); });
+      map[k] = {key: k, platform: r.platform, title: String(r.title), url: String(r.url || ""), published: String(r.published || "").slice(0, 10), hist: hist, manual: !!r.manual,
+        g: !!r.gtasty, a: String(r.gtAt || "").slice(0, 10), e: r.euro == null ? null : r.euro, cf: r.conf == null ? null : r.conf, pd: r.paid == null ? null : r.paid, sh: shots};
+    } else if (map[k]) {
+      var c2 = map[k];
+      c2.g = !!r.g; c2.a = String(r.a || "").slice(0, 10); c2.e = r.e == null ? null : r.e; c2.cf = r.cf == null ? null : r.cf; c2.pd = r.pd == null ? null : r.pd; c2.sh = shots;
+    }
+  });
+  return {clips: Object.keys(map).map(function (k) { return map[k]; }), cfg: cfg};
+}
+
+function repLetzter(c) { var best = "", v = 0; for (var d in c.hist) { if (d > best) { best = d; v = c.hist[d]; } } return best ? {date: best, views: v} : null; }
+function repErster(c) { var best = "", v = 0; for (var d in c.hist) { if (!best || d < best) { best = d; v = c.hist[d]; } } return best ? {date: best, views: v} : null; }
+function repBei(c, tag) { var best = "", v = 0; for (var d in c.hist) { if (d <= tag && d > best) { best = d; v = c.hist[d]; } } return best ? {date: best, views: v} : null; }
+function gtEuroV(v) { for (var i = 0; i < GT_TIERS.length; i++) { if (v >= GT_TIERS[i][0]) return GT_TIERS[i][1]; } return 0; }
+function repAufrufe(c) { var l = repLetzter(c); return l ? l.views : 0; }
+function repHandEuro(c) { return c.e != null && isFinite(c.e); }
+function repClipEuro(c) { return repHandEuro(c) ? Number(c.e) : gtEuroV(repAufrufe(c)); }
+function repSicher(c) { return repHandEuro(c) || repAufrufe(c) >= 100000; }
+
+// Zuwachs der letzten "tage" Tage. sicher=false heisst: Der Wert von vor 7 Tagen fehlt (Messung ist juenger), dann zaehlt der Zuwachs seit der ersten Messung.
+function repZuwachs(c, heute, tage) {
+  var l = repLetzter(c);
+  if (!l) return null;
+  var grenze = repTagPlus(heute, -tage);
+  var b = repBei(c, grenze), basis, sicher = true;
+  if (b) basis = b.views;
+  else if (c.published && c.published > grenze) basis = 0;
+  else { basis = repErster(c).views; sicher = false; }
+  return {g: Math.max(0, l.views - basis), base: basis, sicher: sicher};
+}
+
+function repZahlTag(eta, heute) {
+  var d = repTagPlus(heute, Math.max(0, Math.ceil(eta))), p = GT_ZAHL1;
+  while (p <= d) {
+    var y = Number(p.slice(0, 4)), m = Number(p.slice(5, 7)) + 1;
+    if (m > 12) { m = 1; y++; }
+    p = y + "-" + (m < 10 ? "0" : "") + m + "-01";
+  }
+  return {p: p, knapp: (Date.parse(p) - Date.parse(d)) / 864e5 <= 2};
+}
+
+function wochenberichtBauen() {
+  var d = repClips();
+  var heute = repHeute();
+  var sum = {tiktok: 0, instagram: 0, youtube: 0}, unsicher = 0, best = null, first = "", mitDaten = 0;
+  d.clips.forEach(function (c) {
+    var z = repZuwachs(c, heute, 7);
+    c.zw = z;
+    if (!z) return;
+    mitDaten++;
+    if (sum[c.platform] !== undefined) sum[c.platform] += z.g;
+    if (!z.sicher) unsicher++;
+    if (z.g > 0 && (!best || z.g > best.zw.g)) best = c;
+    var e = repErster(c);
+    if (e && (!first || e.date < first)) first = e.date;
+  });
+  var gesamt = sum.tiktok + sum.instagram + sum.youtube;
+  var L = [];
+  L.push("Wochenbericht, " + repDe(repTagPlus(heute, -7)) + " bis " + repDe(heute) + " (die letzten 7 Tage)");
+  L.push("");
+  L.push("AUFRUFE NEU");
+  ["tiktok", "instagram", "youtube"].forEach(function (p) { L.push(PLN_NAME[p] + ": +" + repZahl(sum[p])); });
+  L.push("Zusammen: +" + repZahl(gesamt));
+  if (!mitDaten) L.push("Noch keine Messwerte vorhanden.");
+  else if (unsicher) L.push("Hinweis: Bei " + unsicher + (unsicher === 1 ? " Clip fehlt" : " Clips fehlt") + " der Messwert von vor 7 Tagen" + (first ? " (der Hub misst erst seit " + repDe(first) + ")" : "") + ". Dort z\u00e4hlt der Zuwachs seit der ersten Messung.");
+  L.push("");
+  L.push("BESTER CLIP DER WOCHE");
+  if (best) {
+    L.push("\"" + best.title + "\" (" + PLN_NAME[best.platform] + "): +" + repZahl(best.zw.g) + " Aufrufe, insgesamt " + repZahl(repAufrufe(best)));
+    if (best.url) L.push(best.url);
+  } else L.push("Noch kein Clip mit messbarem Zuwachs.");
+  L.push("");
+  var gtl = d.clips.filter(function (c) { return c.g; });
+  var tot = 0, sure = 0, pend = 0, nPend = 0, conf = 0, paid = 0, offen = 0, neu = 0;
+  gtl.forEach(function (c) {
+    var e = repClipEuro(c);
+    tot += e;
+    if (repSicher(c)) sure += e; else { pend += e; nPend++; }
+    var cf = Number(c.cf) || 0, pd = Number(c.pd) || 0;
+    conf += cf; paid += pd; offen += Math.max(0, cf - pd);
+    if (!repHandEuro(c) && c.zw && c.zw.sicher) neu += e - gtEuroV(c.zw.base);
+  });
+  L.push("VERDIENST G-TASTY (eingereichte Clips: " + gtl.length + ")");
+  L.push("Erwartet nach der Staffel: " + repEur(tot));
+  L.push("  davon sicher (ab 100.000 Aufrufe): " + repEur(sure));
+  L.push("  davon vorgemerkt (unter 100.000)" + (nPend ? ", " + nPend + " Clip" + (nPend === 1 ? "" : "s") : "") + ": " + repEur(pend));
+  L.push("Von dir als best\u00e4tigt eingetragen: " + repEur(conf));
+  L.push("Ausgezahlt: " + repEur(paid));
+  L.push("Best\u00e4tigt, aber noch nicht ausgezahlt: " + repEur(offen));
+  L.push("Diese Woche dazugekommen (nach der Staffel): " + (neu >= 0 ? "+" : "") + repEur(neu));
+  L.push("Die Staffel ist eine Rechnung, keine Zusage von G-Tasty.");
+  L.push("");
+  var near = [];
+  d.clips.forEach(function (c) {
+    if (repHandEuro(c)) return;
+    if (!(c.g || c.manual || (c.published && c.published >= d.cfg.from))) return;
+    var v = repAufrufe(c), nx = 0;
+    for (var i = 0; i < GT_STEPS.length; i++) { if (GT_STEPS[i] > v) { nx = GT_STEPS[i]; break; } }
+    if (!nx || v < nx * 0.7) return;
+    if (!c.zw || !(c.zw.g > 0)) return;
+    var rem = nx - v, eta = rem / (c.zw.g / 7);
+    if (eta > 30) return;
+    var ne = gtEuroV(nx), cur = gtEuroV(v);
+    near.push({c: c, v: v, nx: nx, rem: rem, eta: eta, ne: ne, add: ne - cur,
+      addSure: Math.max(0, (nx >= 100000 ? ne : 0) - (repSicher(c) ? cur : 0)), pay: repZahlTag(eta, heute)});
+  });
+  near.sort(function (a, b) { return a.eta - b.eta || a.rem - b.rem; });
+  L.push("FAST GESCHAFFT (n\u00e4chste G-Tasty-Stufe in h\u00f6chstens 30 Tagen, nach dem Tempo der letzten 7 Tage)");
+  if (!near.length) L.push("Gerade kein Clip in Reichweite.");
+  near.slice(0, 10).forEach(function (x, i) {
+    var t = x.eta < 1 ? "unter 1 Tag" : "ca. " + Math.ceil(x.eta) + (Math.ceil(x.eta) === 1 ? " Tag" : " Tage");
+    L.push((i + 1) + ". \"" + x.c.title + "\" (" + PLN_NAME[x.c.platform] + "): " + repZahl(x.v) + " Aufrufe, bis " + repZahl(x.nx) + " fehlen " + repZahl(x.rem) + ", " + t
+      + ", dann " + repEur(x.ne) + (x.addSure > 0 ? " (+" + repEur(x.addSure) + " sicher)" : "") + ", z\u00e4hlt f\u00fcr die Auszahlung am " + repDe(x.pay.p) + (x.pay.knapp ? " (knapp)" : ""));
+  });
+  if (near.length > 10) L.push("... und " + (near.length - 10) + " weitere (siehe Radar im Hub).");
+  var addAll = near.reduce(function (a, x) { return a + x.addSure; }, 0);
+  if (near.length) L.push("Wenn alle diese Clips die Stufe schaffen: bis zu " + repEur(addAll) + " mehr sicheres Geld.");
+  L.push("");
+  L.push("Alle Zahlen kommen aus deinen eigenen Messwerten und deinen Eintr\u00e4gen im Hub.");
+  return {betreff: "Creator Hub: Wochenbericht " + repDe(heute), text: L.join("\n")};
+}
+
+function wochenberichtSenden() {
+  var props = PropertiesService.getScriptProperties();
+  var heute = repHeute();
+  if (props.getProperty("wochenberichtTag") === heute) return;
+  var b = wochenberichtBauen();
+  mailSenden(b.betreff, b.text);
+  props.setProperty("wochenberichtTag", heute);
+}
+
+// Schickt den Wochenbericht sofort (zum Anschauen und Testen).
+function wochenberichtTest() {
+  var b = wochenberichtBauen();
+  mailSenden("[Test] " + b.betreff, b.text);
+}
+
+// ---------- Screenshots (Insights) fuer den Monatsbeleg ----------
+function belegOrdner() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty("belegOrdner");
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
+  var f = DriveApp.createFolder("Creator Hub Belege (privat)");
+  props.setProperty("belegOrdner", f.getId());
+  return f;
+}
+
+function belegDateiImOrdner(file) {
+  var ord = belegOrdner().getId(), ps = file.getParents();
+  while (ps.hasNext()) { if (ps.next().getId() === ord) return true; }
+  return false;
+}
+
+function belegBildSpeichern(req) {
+  var data = String(req.data || "");
+  if (data.length < 200 || data.length > 9000000) return {ok: false, error: "Das Bild ist zu klein oder zu gro\u00df."};
+  var bytes = Utilities.base64Decode(data);
+  var name = String(req.name || "screenshot").replace(/[^\w.\- ]/g, "_").slice(0, 60);
+  var f = belegOrdner().createFile(Utilities.newBlob(bytes, "image/jpeg", name + ".jpg"));
+  return {ok: true, id: f.getId()};
+}
+
+function belegBildLoeschen(req) {
+  var id = String(req.id || "");
+  if (!/^[\w-]{10,}$/.test(id)) return {ok: false, error: "Ung\u00fcltige Datei."};
+  try {
+    var f = DriveApp.getFileById(id);
+    if (!belegDateiImOrdner(f)) return {ok: false, error: "Diese Datei liegt nicht im Belege-Ordner."};
+    f.setTrashed(true);
+  } catch (e) { return {ok: false, error: "Datei nicht gefunden."}; }
+  return {ok: true};
+}
+
+// ---------- Monatsbeleg als Google-Tabelle ----------
+function belegZeilen(liste) {
+  return liste.map(function (c, i) {
+    var man = repHandEuro(c);
+    return [i + 1, c.title, PLN_NAME[c.platform] || c.platform, repDe(c.published), repDe(c.a), c.url, repAufrufe(c), repClipEuro(c),
+      man ? "von Hand eingetragen" : (repSicher(c) ? "sicher (ab 100.000 Aufrufe)" : "vorgemerkt (unter 100.000)"),
+      c.cf != null ? Number(c.cf) : "", c.pd != null ? Number(c.pd) : "", (c.sh || []).length];
+  });
+}
+
+function belegTabelle(sh, titel, unter, liste) {
+  var kopf = ["Nr.", "Clip", "Plattform", "Ver\u00f6ffentlicht", "Eingereicht am", "Link", "Aufrufe", "Verdienst laut Staffel (\u20ac)", "Status", "Best\u00e4tigt (\u20ac)", "Ausgezahlt (\u20ac)", "Screenshots"];
+  sh.getRange(1, 1).setValue(titel).setFontSize(16).setFontWeight("bold");
+  sh.getRange(2, 1).setValue(unter);
+  sh.getRange(4, 1, 1, kopf.length).setValues([kopf]).setFontWeight("bold").setBackground("#222222").setFontColor("#ffffff");
+  var z = belegZeilen(liste);
+  if (z.length) {
+    sh.getRange(5, 1, z.length, kopf.length).setValues(z);
+    for (var i = 0; i < z.length; i++) {
+      if (z[i][5]) sh.getRange(5 + i, 6).setRichTextValue(SpreadsheetApp.newRichTextValue().setText(z[i][5]).setLinkUrl(z[i][5]).build());
+    }
+    sh.getRange(5, 7, z.length, 1).setNumberFormat("#,##0");
+    sh.getRange(5, 8, z.length, 1).setNumberFormat("#,##0.00");
+    sh.getRange(5, 10, z.length, 2).setNumberFormat("#,##0.00");
+  }
+  var sr = 5 + z.length;
+  sh.getRange(sr, 2).setValue("Summe (" + z.length + " Clips)").setFontWeight("bold");
+  if (z.length) {
+    sh.getRange(sr, 7).setFormula("=SUM(G5:G" + (sr - 1) + ")").setNumberFormat("#,##0");
+    sh.getRange(sr, 8).setFormula("=SUM(H5:H" + (sr - 1) + ")").setNumberFormat("#,##0.00");
+    sh.getRange(sr, 10).setFormula("=SUM(J5:J" + (sr - 1) + ")").setNumberFormat("#,##0.00");
+    sh.getRange(sr, 11).setFormula("=SUM(K5:K" + (sr - 1) + ")").setNumberFormat("#,##0.00");
+  }
+  sh.getRange(sr, 1, 1, kopf.length).setFontWeight("bold").setBorder(true, null, null, null, null, null);
+  sh.getRange(sr + 2, 1).setValue("Die Staffel ist eine Rechnung nach Aufrufen und keine Zusage von G-Tasty. \u201eBest\u00e4tigt\u201c und \u201eAusgezahlt\u201c sind Betr\u00e4ge, die der Creator selbst eingetragen hat.");
+  sh.getRange(sr + 3, 1).setValue("Die Aufrufe stammen direkt aus den Konten bei TikTok, Instagram und YouTube. Die Screenshots der Insights stehen im Blatt \u201eScreenshots\u201c.");
+  sh.setFrozenRows(4);
+  sh.setColumnWidth(1, 50); sh.setColumnWidth(2, 380); sh.setColumnWidth(3, 90); sh.setColumnWidth(4, 100); sh.setColumnWidth(5, 110);
+  sh.setColumnWidth(6, 300); sh.setColumnWidth(7, 90); sh.setColumnWidth(8, 150); sh.setColumnWidth(9, 190); sh.setColumnWidth(10, 100); sh.setColumnWidth(11, 100); sh.setColumnWidth(12, 90);
+}
+
+function belegBilder(sh, liste) {
+  var fehler = 0;
+  sh.getRange(1, 1).setValue("Insight-Screenshots (Beleg f\u00fcr die Aufrufe)").setFontSize(16).setFontWeight("bold");
+  sh.setColumnWidths(1, 6, 340);
+  var zeile = 3;
+  liste.forEach(function (c, i) {
+    sh.getRange(zeile, 1).setValue((i + 1) + ". " + c.title + "  |  " + (PLN_NAME[c.platform] || c.platform) + "  |  " + repZahl(repAufrufe(c)) + " Aufrufe  |  " + c.url).setFontWeight("bold");
+    zeile++;
+    if (!(c.sh || []).length) {
+      sh.getRange(zeile, 1).setValue("Kein Screenshot hinterlegt.").setFontStyle("italic");
+      zeile += 2;
+      return;
+    }
+    var maxH = 60;
+    c.sh.slice(0, 6).forEach(function (x, k) {
+      try {
+        var f = DriveApp.getFileById(x.i);
+        if (!belegDateiImOrdner(f)) throw new Error("fremde Datei");
+        var img = sh.insertImage(f.getBlob(), 1 + k, zeile);
+        var w = img.getInherentWidth(), h = img.getInherentHeight();
+        var s = Math.min(330 / w, 760 / h, 1);
+        img.setWidth(Math.round(w * s)).setHeight(Math.round(h * s));
+        maxH = Math.max(maxH, Math.round(h * s) + 10);
+      } catch (e) {
+        fehler++;
+        sh.getRange(zeile, 1 + k).setValue("Bild nicht lesbar");
+      }
+    });
+    sh.setRowHeight(zeile, maxH);
+    zeile += 2;
+  });
+  return fehler;
+}
+
+// Baut (oder aktualisiert) die Beleg-Tabelle fuer einen Monat ("2026-11"). Der Link bleibt pro Monat immer derselbe.
+function belegErstellen(monat) {
+  monat = String(monat || "").trim();
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monat)) monat = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM");
+  var d = repClips();
+  var alle = d.clips.filter(function (c) { return c.g; });
+  var cmp = function (a, b) { return String(a.a || "").localeCompare(String(b.a || "")) || repAufrufe(b) - repAufrufe(a); };
+  alle.sort(cmp);
+  var imMonat = alle.filter(function (c) { return String(c.a || "").slice(0, 7) === monat; });
+  var props = PropertiesService.getScriptProperties();
+  var ss = null, id = props.getProperty("belegId_" + monat), neu = false;
+  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (e) { ss = null; } }
+  if (!ss) {
+    ss = SpreadsheetApp.create("G-Tasty Abrechnung " + monatsName(monat));
+    props.setProperty("belegId_" + monat, ss.getId());
+    neu = true;
+  }
+  var stand = Utilities.formatDate(new Date(), "Europe/Berlin", "dd.MM.yyyy HH:mm");
+  var alt = ss.getSheets();
+  var namen = ["Abrechnung", "Alle eingereicht", "Screenshots"];
+  var blaetter = namen.map(function (n) { return ss.insertSheet("neu_" + n); });
+  belegTabelle(blaetter[0], "G-Tasty Abrechnung " + monatsName(monat), "Clips, die im " + monatsName(monat) + " bei G-Tasty eingereicht wurden. Stand der Aufrufe: " + stand + " Uhr.", imMonat);
+  belegTabelle(blaetter[1], "Alle bisher eingereichten Clips", "Alle Clips, die bisher bei G-Tasty eingereicht wurden. Stand der Aufrufe: " + stand + " Uhr.", alle);
+  var fehler = belegBilder(blaetter[2], imMonat);
+  alt.forEach(function (s) { ss.deleteSheet(s); });
+  blaetter.forEach(function (s, i) { s.setName(namen[i]); });
+  ss.setActiveSheet(blaetter[0]);
+  var summe = imMonat.reduce(function (a, c) { return a + repClipEuro(c); }, 0);
+  var summeAlle = alle.reduce(function (a, c) { return a + repClipEuro(c); }, 0);
+  var ohne = imMonat.filter(function (c) { return !(c.sh || []).length; }).length;
+  return {ok: true, url: ss.getUrl(), neu: neu, monat: monat, n: imMonat.length, nAlle: alle.length, summe: summe, summeAlle: summeAlle, ohneBild: ohne, bildFehler: fehler, stand: stand};
+}
+
+// Laeuft jeden Tag um 8 Uhr. Am letzten Tag des Monats wird der Beleg gebaut und der Link per E-Mail geschickt.
+function monatsendeCheck() {
+  var jetzt = new Date();
+  if (Utilities.formatDate(new Date(jetzt.getTime() + 864e5), "Europe/Berlin", "d") !== "1") return;
+  var props = PropertiesService.getScriptProperties();
+  var monat = Utilities.formatDate(jetzt, "Europe/Berlin", "yyyy-MM");
+  if (props.getProperty("belegMail") === monat) return;
+  var res;
+  try { res = belegErstellen(monat); } catch (e) { res = {ok: false, error: String(e)}; }
+  if (!res.ok) { mailSenden("Creator Hub: Beleg konnte nicht erstellt werden", "Der Monatsbeleg f\u00fcr " + monatsName(monat) + " ging schief: " + res.error + "\nDu kannst ihn im Hub auf der Seite Monatsbeleg selbst erstellen."); return; }
+  mailSenden("Creator Hub: G-Tasty-Beleg " + monatsName(monat),
+    "Dein G-Tasty-Beleg f\u00fcr " + monatsName(monat) + " ist fertig:\n" + res.url + "\n\n"
+    + res.n + " Clips eingereicht, Verdienst nach der Staffel zusammen " + repEur(res.summe) + ".\n"
+    + (res.ohneBild ? res.ohneBild + " Clip" + (res.ohneBild === 1 ? " hat" : "s haben") + " noch keinen Screenshot. Du kannst Screenshots im Hub unter Monatsbeleg nachtragen und die Tabelle dort neu erstellen (der Link bleibt gleich).\n" : "Alle Clips haben einen Screenshot.\n")
+    + "\nWichtig: Die Tabelle ist privat. Zum Teilen in Google Tabellen oben rechts auf Freigeben klicken, dann \u201eJeder mit dem Link\u201c und \u201eBetrachter\u201c w\u00e4hlen.");
+  props.setProperty("belegMail", monat);
+}
+
+// Einmal ausfuehren: legt den Wochenbericht (montags 8 Uhr) und die Monatsende-Pruefung (taeglich 8 Uhr) an und schickt einen Test-Wochenbericht.
+// Beim ersten Mal fragt Google nach der Erlaubnis (Tabellen und Drive-Dateien anlegen). Die Erlaubnis bestaetigst nur du.
+function berichteEinrichten() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    var f = t.getHandlerFunction();
+    if (f === "wochenberichtSenden" || f === "monatsendeCheck") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("wochenberichtSenden").timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).inTimezone("Europe/Berlin").create();
+  ScriptApp.newTrigger("monatsendeCheck").timeBased().everyDays(1).atHour(8).inTimezone("Europe/Berlin").create();
+  belegOrdner();
+  wochenberichtTest();
 }
 </script>
 <script>
@@ -1146,10 +1529,10 @@ const head=(e,t,i)=>`<div class="hub">PHILIPP'S CREATOR HUB</div><div class="not
 
 /* ============ Seiten ============ */
 let V="dashboard",F={plat:"",sort:"datum"},OPEN=null,MSG="";
-const NAV=[["dashboard","◧","Dashboard"],["follower","↗","Follower & Statistiken"],["radar","◎","Radar"],["planer","◔","Upload-Planer"],["submit","➤","Einreichen"],["gtasty","€","Auszahlungen"],["finanzen","±","Einnahmen & Ausgaben"],["clips","▤","Clip-Verwaltung"],["clipfinder","✂","Clip-Finder"],["tools","✦","Creator-Tools"],["daten","⚙","Daten & Backup"]];
+const NAV=[["dashboard","◧","Dashboard"],["follower","↗","Follower & Statistiken"],["radar","◎","Radar"],["planer","◔","Upload-Planer"],["submit","➤","Einreichen"],["gtasty","€","Auszahlungen"],["beleg","▦","Monatsbeleg"],["finanzen","±","Einnahmen & Ausgaben"],["clips","▤","Clip-Verwaltung"],["clipfinder","✂","Clip-Finder"],["tools","✦","Creator-Tools"],["daten","⚙","Daten & Backup"]];
 const BOLT='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L8.5 22 20 9.5h-6.2z" fill="currentColor"/></svg>';
 let MORE=false;
-const NAVS={dashboard:"Start",follower:"Statistik",gtasty:"Auszahlung",finanzen:"Finanzen",clips:"Clips",clipfinder:"Finder"},NAVBAR=["dashboard","clipfinder","follower","gtasty","clips"];
+const NAVS={dashboard:"Start",follower:"Statistik",gtasty:"Auszahlung",finanzen:"Finanzen",beleg:"Beleg",clips:"Clips",clipfinder:"Finder"},NAVBAR=["dashboard","clipfinder","follower","gtasty","clips"];
 function side(){const on=k=>V===k||(V==="stats"&&k==="follower")||(V==="clip"&&k==="clips")||(k==="tools"&&["pb","zeit","hash"].includes(V));
  const nb=k=>k==="submit"&&gtList().length?` <span class="pill" style="background:var(--red);color:#fff;margin-left:auto">${gtList().length}</span>`:"";
  const nv=([k,i,l],c)=>`<button class="nav ${c||""} ${on(k)?"on":""}" onclick="A.go('${k}')"><i>${i}</i><span class="lf">${l}</span><span class="ls">${NAVS[k]||l}</span>${nb(k)}</button>`;
@@ -1191,7 +1574,7 @@ function pSubmit(){const a=db.gtAuto||{on:false,from:"2026-10-28",min:80000},L=g
  `${gtOverview(L,done)}<div class="chips" style="margin:16px 0 0"><span class="muted" style="font-size:12px">Plattform:</span>${[["","Alle"],...PLS.map(k=>[k,PL[k]])].map(([k,l])=>`<span class="chip ${GP===k?"on":""}" onclick="A.gtPf('${k}')">${l} (${cnt(k)})</span>`).join("")}</div>${L.length+done.length>1?`<div class="chips" style="margin:8px 0 0"><span class="muted" style="font-size:12px">Sortieren nach:</span>${[["aufrufe","Aufrufe"],["datum","Veröffentlicht am"]].map(([k,l])=>`<span class="chip ${GS.by===k?"on":""}" onclick="A.gtSort('${k}')">${l}${GS.by===k?(GS.dir<0?" ↓":" ↑"):""}</span>`).join("")}<span class="muted" style="font-size:12px">${GS.by==="aufrufe"?(GS.dir<0?"meiste zuerst":"wenigste zuerst"):(GS.dir<0?"neueste zuerst":"älteste zuerst")} · gilt für beide Listen · nochmal klicken dreht die Reihenfolge um</span></div>`:""}<section class="panel" style="margin:16px 0;${L.length?"border-color:var(--red)":""}"><h2>★ Bereit zum Einreichen${L.length?` (${L.length})`:""}</h2>${L.length?`<p class="notice" style="margin:-6px 0 8px">${gtSplit(L)}</p>`:""}
  <p class="notice" style="font-size:13px">Das <b>≈ €</b> bei jedem Clip ist das, was er laut Regel einbringt: ab 80.000 Aufrufen <b>20 €</b> (vorgemerkt), 100.000–200.000: <b>20 €</b>, 200.000–300.000: <b>40 €</b>, 300.000–400.000: <b>60 €</b>, 400.000–500.000: <b>80 €</b>, ab 500.000: <b>100 €</b>. Rechnerisch, keine Zusage von G-Tasty.</p><p class="notice" style="font-size:13px">So gehst du vor: <b>Link kopieren</b> (oder <b>Angaben kopieren</b>), den Clip bei G-Tasty einreichen, dann hier auf <b>✓ Eingereicht</b> klicken. Eingereicht wird bei G-Tasty selbst, der Hub kann dort nichts absenden. Mit „✓ Eingereicht“ merkt sich nur der Hub, dass du es getan hast, und der Clip verschwindet aus dieser Liste.</p>
  ${L.length?L.map(gtRow).join("")+`<p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="btn gh sm" onclick="A.gtCopyAll(this)">Alle Links kopieren (${L.length})</button><button class="btn gh sm" onclick="A.gtDoneAll()">Alle ${L.length} als eingereicht markieren</button></p>`:`<div class="empty">Aktuell ist kein Clip bereit. Sobald ein Clip die Regel erfüllt, erscheint er hier.</div>`}</section>
- <section class="panel"><h2>Bereits eingereicht (${done.length})</h2>${done.length?`<p class="notice" style="margin:-6px 0 8px">${gtSplit(done)}</p>`:""}${done.length?done.slice(0,50).map(c=>`<div class="row"><span><a onclick="A.open('${c.id}')">${esc(c.title)}</a> <span class="muted">· ${PL[c.platform]} · ${dde(c.published)}${c.gtAt?" · eingereicht am "+dde(c.gtAt):""}</span></span><span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><b>${nf(gtMax(c))}</b> ${gtPill(c)} <button class="btn gh sm" onclick="A.gtEdit('${c.id}')">Bearbeiten</button><button class="btn gh sm" onclick="A.gtUndo('${c.id}')">Rückgängig</button></span></div>`).join("")+(done.length>50?`<p class="notice">… und ${done.length-50} weitere.</p>`:""):`<div class="empty">Noch nichts als eingereicht markiert.</div>`}${done.length?`<p class="notice" style="margin-top:10px">Betrag bestätigt, ausgezahlt? Das trägst du unter <a onclick="A.go('gtasty')">Auszahlungen</a> ein. Dort steht dieselbe Liste.</p>`:""}</section>${gtEditor()}${gtAutoPanel()}`}
+ <section class="panel"><h2>Bereits eingereicht (${done.length})</h2>${done.length?`<p class="notice" style="margin:-6px 0 8px">${gtSplit(done)}</p>`:""}${done.length?done.slice(0,50).map(c=>`<div class="row"><span><a onclick="A.open('${c.id}')">${esc(c.title)}</a> <span class="muted">· ${PL[c.platform]} · ${dde(c.published)}${c.gtAt?" · eingereicht am "+dde(c.gtAt):""}</span></span><span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><b>${nf(gtMax(c))}</b> ${gtPill(c)} <button class="btn gh sm" onclick="A.gtEdit('${c.id}')">Bearbeiten</button><button class="btn gh sm" onclick="A.gtUndo('${c.id}')">Rückgängig</button></span></div>`).join("")+(done.length>50?`<p class="notice">… und ${done.length-50} weitere.</p>`:""):`<div class="empty">Noch nichts als eingereicht markiert.</div>`}${done.length?`<p class="notice" style="margin-top:10px">Betrag bestätigt, ausgezahlt? Das trägst du unter <a onclick="A.go('gtasty')">Auszahlungen</a> ein. Dort steht dieselbe Liste. Screenshots der Insights und die Abrechnungstabelle für G-Tasty gibt es unter <a onclick="A.go('beleg')">Monatsbeleg</a>.</p>`:""}</section>${gtEditor()}${gtAutoPanel()}`}
 function gtDashPanel(pf){const a=db.gtAuto,L=gtList().filter(c=>!pf||c.platform===pf);if(!a||!a.on)return"";
  return `<section class="panel" style="margin-bottom:14px;border-color:${L.length?"var(--red)":"var(--line)"}"><h2>★ Zum Einreichen bei G-Tasty bereit${L.length?` (${L.length})`:""}</h2>
  ${L.length?`<p class="notice">Veröffentlicht ab ${dde(a.from)} und mindestens ${nf(a.min)} Aufrufe. Klicke einen Clip an, dann siehst du Link und Angaben zum Kopieren.</p>`+L.slice(0,8).map(c=>`<div class="row"><span><a onclick="A.open('${c.id}')"><b>${esc(c.title)}</b></a> <span class="muted">· ${PL[c.platform]} · ${dde(c.published)}</span></span><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><b>${nf(gtMax(c))}</b><button class="btn gh sm" onclick="A.gtCopy('${c.id}','link',this)">${c.url?"Link kopieren":"Kein Link"}</button><button class="btn sm" onclick="A.gtDone('${c.id}')">✓ Eingereicht</button></span></div>`).join("")+(L.length>8?`<p class="notice">… und ${L.length-8} weitere. <a onclick="A.go('submit')">Alle auf der Seite „Einreichen“ ansehen →</a></p>`:""):`<p class="notice" style="margin:0">Aktuell kein Clip bereit. Sobald ein Clip (veröffentlicht ab ${dde(a.from)}) ${nf(a.min)} Aufrufe erreicht, erscheint er hier.</p>`}</section>`}
@@ -1321,6 +1704,40 @@ function finCharges(e,T){const out=[];
  for(let i=0;i<600;i++){const k=y+"-"+String(m).padStart(2,"0");if(k>end)break;out.push({m:k,amt:e.amt});m+=step;while(m>12){m-=12;y++}}
  return out}
 const monDe=k=>{const [y,m]=k.split("-").map(Number);return new Date(y,m-1,1).toLocaleDateString("de-DE",{month:"long",year:"numeric"})};
+/* ============ Monatsbeleg für G-Tasty (Google-Tabelle mit Screenshots) ============ */
+let BM="",BBUSY="",BMSG="";
+const shClean=a=>Array.isArray(a)?a.filter(x=>x&&typeof x.i==="string"&&/^[\w-]{10,}$/.test(x.i)).slice(0,6).map(x=>({i:x.i,th:typeof x.th==="string"&&/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]{1,40000}$/.test(x.th)?x.th:""})):[];
+const belClean=r=>{const o={};if(r&&typeof r==="object")for(const k of Object.keys(r)){const v=r[k];if(/^\d{4}-\d{2}$/.test(k)&&v&&typeof v.url==="string"&&/^https:\/\/docs\.google\.com\/spreadsheets\//.test(v.url))o[k]={url:v.url,at:Number(v.at)||0,n:Number(v.n)||0,sum:Number(v.sum)||0,all:Number(v.all)||0}}return o};
+const belegMonths=()=>{const o=[],T=today();let y=Number(T.slice(0,4)),m=Number(T.slice(5,7));for(let i=0;i<12;i++){o.push([y+"-"+String(m).padStart(2,"0"),MN[m-1]+" "+y]);m--;if(m<1){m=12;y--}}return o};
+const belegList=m=>db.clips.filter(c=>c.gtasty&&String(c.gtAt||"").slice(0,7)===m).sort((a,b)=>(a.gtAt||"").localeCompare(b.gtAt||"")||gtMax(b)-gtMax(a));
+const belegHint=m=>/berechtig|authori|permission|zugriff|scope/i.test(m)?m+" Das Skript braucht eine neue Erlaubnis: Im Skript die Funktion „berichteEinrichten“ ausführen und die Erlaubnis selbst bestätigen (siehe „Einrichten“ unten).":m;
+async function shImg(file){const u=URL.createObjectURL(file);try{const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error("Das Bild konnte nicht gelesen werden."));i.src=u});
+ const mk=(m,q)=>{const s=Math.min(1,m/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement("canvas");c.width=Math.max(1,Math.round(im.naturalWidth*s));c.height=Math.max(1,Math.round(im.naturalHeight*s));const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);return c.toDataURL("image/jpeg",q)};
+ return{full:mk(1800,.85),th:mk(150,.6)}}finally{URL.revokeObjectURL(u)}}
+function pBeleg(){
+ const ms=belegMonths();if(!BM||!ms.some(x=>x[0]===BM))BM=today().slice(0,7);
+ const L=belegList(BM),all=db.clips.filter(c=>c.gtasty),sum=gtSum(L),sure=gtSumSure(L),noShot=L.filter(c=>!(c.shots&&c.shots.length)).length,undated=all.filter(c=>!c.gtAt).length,bl=(db.beleg||{})[BM],ok=!!SY&&!!SY.url,
+  shots=c=>(c.shots||[]).map((x,i)=>`<span style="display:inline-block;margin:2px 8px 2px 0;white-space:nowrap">${x.th?`<img src="${x.th}" alt="Screenshot" style="height:56px;vertical-align:middle;border-radius:4px;border:1px solid var(--line,#444)">`:"📷"}<a title="Screenshot entfernen" style="margin-left:4px" onclick="A.belegDel('${c.id}',${i})">✕</a></span>`).join("");
+ return head("Geld","Monatsbeleg für G-Tasty","Eine Google-Tabelle mit allen Clips, die du eingereicht hast: Link, Aufrufe, Verdienst und Screenshots der Insights. Die kannst du an G-Tasty schicken, damit die sehen, dass alles echt ist.")+
+ `<div class="chips" style="margin:14px 0 6px"><span class="muted" style="font-size:12px">Monat:</span><select class="in" style="width:auto;padding:6px 10px" onchange="A.belegMonth(this.value)">${ms.map(([k,l])=>`<option value="${k}" ${k===BM?"selected":""}>${l}</option>`).join("")}</select></div>
+ <section class="cards">${stat("Eingereicht in diesem Monat",nf(L.length),"Clips mit Einreich-Datum im "+monDe(BM),1)}${stat("Verdienst nach der Staffel",eur(sum),"davon sicher (ab 100.000 Aufrufe): "+eur(sure))}${stat("Screenshots fehlen",nf(noShot),noShot?"Clips ohne Screenshot":L.length?"Alle Clips haben einen":"Noch nichts eingereicht")}${stat("Alle bisher eingereicht",nf(all.length),"steht im zweiten Blatt der Tabelle")}</section>
+ <section class="panel" style="margin-bottom:14px"><h2>Clips im ${monDe(BM)}</h2>
+ <p class="notice" style="margin:0 0 10px">Hier legst du pro Clip die Screenshots der Insights ab (Aufrufe, Zuschauer, Herkunft). Am Handy wählst du sie aus der Galerie, am PC aus deinen Dateien. Die Bilder liegen privat in deinem Google Drive und tauchen nur in der Beleg-Tabelle auf.${undated?` ${undated} eingereichte${undated===1?"r Clip hat":" Clips haben"} kein Einreich-Datum und ${undated===1?"steht":"stehen"} nur im Blatt „Alle eingereicht“.`:""}</p>
+ ${L.length?`<div class="tw"><table><thead><tr><th>Clip</th><th>Plattform</th><th>Eingereicht</th><th class="num">Aufrufe</th><th class="num">Verdienst</th></tr></thead><tbody>${L.map(c=>`<tr><td><a onclick="A.open('${c.id}')">${esc(c.title)}</a><div class="mf">${c.url?esc(c.url):"kein Link hinterlegt"}</div><div style="margin-top:6px">${shots(c)}<label class="btn gh sm" style="cursor:pointer;display:inline-block">${BBUSY===c.id?"Lädt …":"+ Screenshot"}<input type="file" accept="image/*" multiple hidden onchange="A.belegAdd('${c.id}',this)"></label></div></td><td>${PL[c.platform]}</td><td>${dde(c.gtAt)}</td><td class="num">${nf(gtMax(c))}</td><td class="num">${gtPill(c)}</td></tr>`).join("")}</tbody></table></div>`:emptyBox("In diesem Monat wurde noch kein Clip als eingereicht markiert. Das machst du auf der Seite <a onclick=\"A.go('submit')\">Einreichen</a>.")}</section>
+ <section class="panel" style="margin-bottom:14px"><h2>Google-Tabelle</h2>
+ <p class="notice" style="margin:0 0 10px">Die Tabelle hat drei Blätter: <b>Abrechnung</b> (Clips dieses Monats mit Summe), <b>Alle eingereicht</b> (alles bisher) und <b>Screenshots</b>. Der Link bleibt pro Monat immer derselbe. Wenn du neue Screenshots hinzufügst, klick einfach nochmal auf den Knopf, dann wird dieselbe Tabelle aktualisiert. Am letzten Tag jedes Monats um 8 Uhr baut das Skript die Tabelle außerdem von selbst und schickt dir den Link per E-Mail.</p>
+ <p style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="btn" ${BBUSY?"disabled":""} onclick="A.belegMake()">${bl?"Tabelle aktualisieren":"Tabelle erstellen"}</button>${bl?`<a class="btn gh" href="${esc(bl.url)}" target="_blank" rel="noopener">Tabelle öffnen</a><button class="btn gh" onclick="A.belegCopy(this)">Link kopieren</button>`:""}</p>
+ ${bl?`<p class="notice">Zuletzt gebaut am ${new Date(bl.at).toLocaleString("de-DE")}: ${nf(bl.n)} Clips, ${eur(bl.sum)}.</p>`:""}
+ <p class="${BMSG.startsWith("✓")?"ok":BMSG.startsWith("Lade")||BMSG.startsWith("Die Tabelle wird")?"notice":BMSG?"err":""}">${esc(BMSG)}</p>
+ ${ok?"":`<p class="err">Der Abgleich mit deinem Google-Skript ist noch nicht verbunden. Ohne ihn kann der Hub keine Tabelle bauen und keine Bilder ablegen. Das richtest du unter <a onclick="A.go('daten')">Daten & Backup</a> ein.</p>`}
+ <p class="notice"><b>Teilen:</b> Die Tabelle ist zuerst privat, nur du kommst rein. Zum Weitergeben öffnest du sie, klickst oben rechts auf <b>Freigeben</b> und stellst <b>„Jeder mit dem Link“</b> auf <b>Betrachter</b>. Dann schickst du den Link, niemand muss etwas herunterladen. Du entscheidest selbst, wann das passiert.</p>
+ <p class="notice"><b>Zur Einordnung:</b> Die Aufrufe stammen aus deinen eigenen Konten, der Verdienst ist die Staffel (80.000 bis 500.000 Aufrufe), keine Zusage von G-Tasty. „Bestätigt“ und „Ausgezahlt“ stehen nur, wenn du sie unter Auszahlungen eingetragen hast.</p></section>
+ <section class="panel"><h2>Einrichten (einmal, auch für den Wochenbericht)</h2>
+ <p class="notice" style="margin:0 0 8px">Der Wochenbericht kommt jeden <b>Montag um 8 Uhr</b> per E-Mail an dein Google-Konto: Aufrufe neu pro Plattform, bester Clip, G-Tasty-Verdienst und was bei G-Tasty fast geschafft ist. Beides läuft in deinem Google-Skript. Dafür einmal:</p>
+ <ol class="notice" style="font-size:13px;line-height:1.8">
+ <li>Im Apps Script den Code komplett neu kopieren und den alten ersetzen (Strg+A, Strg+V), speichern. <button class="btn gh sm" onclick="A.ytCopy(this)">Code kopieren</button></li>
+ <li>Oben rechts <b>Bereitstellen → Bereitstellungen verwalten</b>, den Stift, bei Version <b>Neue Version</b> wählen und <b>Bereitstellen</b> klicken. Die Web-App-URL bleibt gleich.</li>
+ <li>Oben im Editor die Funktion <b>berichteEinrichten</b> wählen und auf <b>Ausführen</b> klicken. Google fragt jetzt nach der Erlaubnis (Tabellen und Dateien in deinem Drive anlegen, E-Mails an dich schicken). Die bestätigst du selbst. Danach kommt sofort ein <b>Test-Wochenbericht</b> per E-Mail.</li></ol></section>`}
 function pFin(){
  const T=today(),fin=finGet(),sg=n=>(n<0?"− ":"")+eur(Math.abs(n)),M={},ad=(m,k,v)=>{(M[m]=M[m]||{i:0,e:0})[k]+=v};
  let undated=0;
@@ -2253,26 +2670,27 @@ const syH=s=>{let h=5381;for(let i=0;i<s.length;i++)h=(h*33^s.charCodeAt(i))>>>0
 const syKey=c=>c.yt?"yt:"+c.yt:c.ig?"ig:"+c.ig:c.tt?"tt:"+c.tt:"c:"+c.id;
 const syN=x=>x==null?null:x;
 function syRec(c){
- if(c.yt||c.ig||c.tt){if(!(c.gtasty||c.euro!=null||c.conf!=null||c.paid!=null||c.cat))return null;return Object.assign({g:!!c.gtasty,a:c.gtAt||"",e:syN(c.euro),cf:syN(c.conf),pd:syN(c.paid),ct:c.cat||null},c.paidAt?{pa:c.paidAt}:{})}
- return{id:c.id,platform:c.platform,title:c.title,url:c.url||"",published:c.published||"",gtasty:!!c.gtasty,gtAt:c.gtAt||"",manual:!!c.manual,euro:syN(c.euro),conf:syN(c.conf),paid:syN(c.paid),cat:c.cat||"",...(c.paidAt?{paidAt:c.paidAt}:{}),
+ if(c.yt||c.ig||c.tt){if(!(c.gtasty||c.euro!=null||c.conf!=null||c.paid!=null||c.cat||(c.shots&&c.shots.length)))return null;return Object.assign({g:!!c.gtasty,a:c.gtAt||"",e:syN(c.euro),cf:syN(c.conf),pd:syN(c.paid),ct:c.cat||null},c.paidAt?{pa:c.paidAt}:{},c.shots&&c.shots.length?{sh:c.shots}:{})}
+ return{id:c.id,platform:c.platform,title:c.title,url:c.url||"",published:c.published||"",gtasty:!!c.gtasty,gtAt:c.gtAt||"",manual:!!c.manual,euro:syN(c.euro),conf:syN(c.conf),paid:syN(c.paid),cat:c.cat||"",...(c.paidAt?{paidAt:c.paidAt}:{}),...(c.shots&&c.shots.length?{sh:c.shots}:{}),
   metrics:[...c.metrics].sort((a,b)=>a.date.localeCompare(b.date)).map(m=>[m.date,m.views,m.likes,m.comments,m.shares])}}
-function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[syKey(c)]=r}const g=db.gtAuto;if(g)m["s:gtAuto"]={on:!!g.on,from:g.from,min:g.min};const cf=plCfg();m["s:cats"]={list:cf.list,rules:cf.rules,thr:cf.thr||50000,pd:cf.pd||1};if(db.fa&&typeof db.fa==="object")m["s:fa"]=db.fa;const np=ntfPlan();if(np)m["s:ntf"]=np;if(db.ntfTest)m["s:ntfT"]={t:db.ntfTest};if(db.fin&&typeof db.fin==="object")m["s:fin"]=db.fin;return m}
+function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[syKey(c)]=r}const g=db.gtAuto;if(g)m["s:gtAuto"]={on:!!g.on,from:g.from,min:g.min};const cf=plCfg();m["s:cats"]={list:cf.list,rules:cf.rules,thr:cf.thr||50000,pd:cf.pd||1};if(db.fa&&typeof db.fa==="object")m["s:fa"]=db.fa;const np=ntfPlan();if(np)m["s:ntf"]=np;if(db.ntfTest)m["s:ntfT"]={t:db.ntfTest};if(db.fin&&typeof db.fin==="object")m["s:fin"]=db.fin;if(db.beleg&&Object.keys(db.beleg).length)m["s:bel"]=db.beleg;return m}
 const syHash=r=>r==null?"":syH(JSON.stringify(r));
 function syApply(k,r,idx){
  if(k==="s:gtAuto"){if(r)db.gtAuto={on:!!r.on,from:r.from,min:r.min,v2:true};return true}
  if(k==="s:fa"){if(r&&typeof r==="object"){const o={};for(const q of PLS)if(Array.isArray(r[q]))o[q]=r[q].filter(e=>e&&typeof e.d==="string"&&(Number.isInteger(e.k)||(Number.isInteger(e.f)&&Number.isInteger(e.t))||(Array.isArray(e.w)&&e.w.length===24))).slice(-FA_MAXE);db.fa=o}return true}
  if(k==="s:ntf"){if(r&&r.on&&typeof r.on==="object"){const o={};for(const q of PLS)if(r.on[q]===false)o[q]=false;db.ntf=o}return true}
  if(k==="s:fin"){if(r&&typeof r==="object")db.fin=finClean(r);return true}
+ if(k==="s:bel"){if(r&&typeof r==="object")db.beleg=belClean(r);return true}
  if(k==="s:ntfT"){if(r&&Number.isFinite(r.t)&&r.t>(db.ntfTest||0))db.ntfTest=r.t;return true}
  if(k==="s:cats"){if(r&&Array.isArray(r.list))db.cats={list:r.list,rules:r.rules||{},thr:r.thr||50000,pd:r.pd||1};return true}
  if(k.startsWith("c:")){const old=idx.get(k);
   if(r===null){if(old){db.clips=db.clips.filter(c=>c!==old);idx.delete(k)}return true}
   const nc={id:r.id,platform:r.platform,title:r.title,url:r.url||"",published:r.published||"",gtasty:!!r.gtasty,metrics:(r.metrics||[]).map(m=>({date:m[0],views:m[1],likes:m[2],comments:m[3],shares:m[4]}))};
-  if(r.gtAt)nc.gtAt=r.gtAt;if(r.manual)nc.manual=true;if(r.cat)nc.cat=r.cat;if(r.euro!=null)nc.euro=r.euro;if(r.conf!=null)nc.conf=r.conf;if(r.paid!=null)nc.paid=r.paid;if(r.paidAt)nc.paidAt=r.paidAt;
+  if(r.gtAt)nc.gtAt=r.gtAt;if(r.manual)nc.manual=true;if(r.cat)nc.cat=r.cat;if(r.euro!=null)nc.euro=r.euro;if(r.conf!=null)nc.conf=r.conf;if(r.paid!=null)nc.paid=r.paid;if(r.paidAt)nc.paidAt=r.paidAt;{const sh=shClean(r.sh);if(sh.length)nc.shots=sh}
   if(old)db.clips[db.clips.indexOf(old)]=nc;else db.clips.push(nc);idx.set(k,nc);return true}
  const c=idx.get(k);if(!c)return r===null;
- if(r===null){c.gtasty=false;delete c.gtAt;delete c.euro;delete c.conf;delete c.paid;delete c.paidAt;delete c.cat;return true}
- c.gtasty=!!r.g;if(r.a)c.gtAt=r.a;else delete c.gtAt;if(r.pa)c.paidAt=r.pa;else delete c.paidAt;if(r.ct)c.cat=r.ct;else delete c.cat;
+ if(r===null){c.gtasty=false;delete c.gtAt;delete c.euro;delete c.conf;delete c.paid;delete c.paidAt;delete c.cat;delete c.shots;return true}
+ c.gtasty=!!r.g;if(r.a)c.gtAt=r.a;else delete c.gtAt;if(r.pa)c.paidAt=r.pa;else delete c.paidAt;if(r.ct)c.cat=r.ct;else delete c.cat;{const sh=shClean(r.sh);if(sh.length)c.shots=sh;else delete c.shots}
  for(const [f,g] of [["e","euro"],["cf","conf"],["pd","paid"]]){if(r[f]==null)delete c[g];else c[g]=r[f]}return true}
 async function syPost(o){let r;
  try{r=await fetch(SY.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({code:SY.code},o)),redirect:"follow"})}
@@ -2432,7 +2850,7 @@ function pbInit(){const $=id=>document.getElementById(id),cv=$("pb-canvas");
    if(t<1)requestAnimationFrame(f);else{draw(ctx,1,c);setTimeout(()=>{if(rec.state!=="inactive")rec.stop()},250)}};requestAnimationFrame(f)}}
 
 /* ============ Aktionen ============ */
-function go(v){if(pbBusy&&v!=="pb"){if(!confirm("Der Export läuft noch. Seite wirklich verlassen?"))return;}V=v;OPEN=null;MSG="";MORE=false;paint()}
+function go(v){if(pbBusy&&v!=="pb"){if(!confirm("Der Export läuft noch. Seite wirklich verlassen?"))return;}V=v;OPEN=null;MSG="";BMSG="";MORE=false;paint()}
 const fd=e=>{e.preventDefault();return Object.fromEntries(new FormData(e.target))};
 const A={
  go,more:()=>{MORE=!MORE;side()},preset:p=>{PICK=null;CAL.s=null;setPreset(p);paint()},
@@ -2518,6 +2936,30 @@ const A={
  setPay:(id,k,v)=>{const c=db.clips.find(x=>x.id===id);if(!c||(k!=="conf"&&k!=="paid"))return;const t=String(v).trim();if(t==="")delete c[k];else{const n=num(v);if(!(n>=0))return paint();c[k]=n}if(k==="paid"){if(c.paid>0){if(!c.paidAt)c.paidAt=today()}else delete c.paidAt}save();paint()},
  payConf:()=>{for(const c of db.clips)if(c.gtasty&&gtSure(c)&&c.conf==null)c.conf=gtEuro(c);save();paint()},
  payPaid:()=>{for(const c of db.clips)if(c.gtasty&&c.conf>0&&c.paid==null){c.paid=c.conf;c.paidAt=today()}save();paint()},
+ belegMonth:v=>{BM=v;BMSG="";paint()},
+ belegAdd:async(id,inp)=>{const c=db.clips.find(x=>x.id===id),fs=[...inp.files];inp.value="";if(!c||!fs.length||BBUSY)return;
+  if(!SY||!SY.url){BMSG="Dafür muss der Abgleich verbunden sein (Daten & Backup). Die Bilder liegen in deinem Google Drive.";paint();return}
+  BBUSY=c.id;BMSG="Lade "+fs.length+" Bild"+(fs.length===1?"":"er")+" hoch …";paint();let n=0;
+  try{for(const f of fs){if((c.shots||[]).length>=6){BMSG="Pro Clip sind höchstens 6 Screenshots möglich.";break}
+    const im=await shImg(f),r=await syPost({action:"belegBild",name:c.title.slice(0,30)+"-"+(c.shots||[]).length,data:im.full.split(",")[1]});
+    if(!r.id)throw new Error("Das Skript ist noch nicht auf dem neuen Stand. Bitte den Code neu einfügen und eine neue Version bereitstellen (siehe „Einrichten“ unten).");
+    (c.shots=c.shots||[]).push({i:r.id,th:im.th});n++;save()}
+   if(n)BMSG="✓ "+n+" Screenshot"+(n===1?"":"s")+" gespeichert."}
+  catch(e){BMSG="Fehler: "+belegHint(e.message)}
+  BBUSY="";paint()},
+ belegDel:async(id,i)=>{const c=db.clips.find(x=>x.id===id);if(!c||!c.shots||!c.shots[i])return;if(!confirm("Diesen Screenshot entfernen?"))return;const s=c.shots.splice(i,1)[0];if(!c.shots.length)delete c.shots;BMSG="";save();paint();
+  if(SY&&SY.url){try{await syPost({action:"belegBildWeg",id:s.i})}catch(e){}}},
+ belegMake:async()=>{if(BBUSY)return;if(!SY||!SY.url){BMSG="Dafür muss der Abgleich verbunden sein (Daten & Backup).";paint();return}
+  BBUSY="make";BMSG="Die Tabelle wird gebaut. Das kann mit Bildern bis zu einer Minute dauern …";paint();
+  try{const r=await syPost({action:"beleg",monat:BM});
+   if(!r.url)throw new Error("Das Skript ist noch nicht auf dem neuen Stand. Bitte den Code neu einfügen und eine neue Version bereitstellen (siehe „Einrichten“ unten).");
+   if(!/^https:\/\/docs\.google\.com\/spreadsheets\//.test(r.url))throw new Error("Unerwartete Antwort vom Skript.");
+   db.beleg=Object.assign({},db.beleg||{});db.beleg[BM]={url:r.url,at:Date.now(),n:Number(r.n)||0,sum:Number(r.summe)||0,all:Number(r.nAlle)||0};save();
+   const hs=gtSum(belegList(BM));
+   BMSG="✓ Tabelle "+(r.neu?"erstellt":"aktualisiert")+": "+r.n+" Clips, "+eur(r.summe)+"."+(Math.abs(hs-r.summe)>0.005?" Hinweis: Der Hub rechnet gerade "+eur(hs)+". Das kann an einem neueren Messwert liegen. Bitte kurz warten und nochmal aktualisieren.":"")+(r.bildFehler?" "+r.bildFehler+" Bild(er) konnten nicht eingefügt werden.":"")+(r.ohneBild?" "+r.ohneBild+" Clip"+(r.ohneBild===1?" hat":"s haben")+" noch keinen Screenshot.":"")}
+  catch(e){BMSG="Fehler: "+belegHint(e.message)}
+  BBUSY="";paint()},
+ belegCopy:b=>{const bl=(db.beleg||{})[BM];if(!bl)return;const t=bl.url,ok=()=>{b.textContent="✓ Kopiert"},fb=()=>{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}ta.remove();ok()};try{navigator.clipboard.writeText(t).then(ok,fb)}catch(e){fb()}},
  finAddExp:e=>{const f=fd(e),n=num(f.amt);if(!f.name.trim()||!(n>0)||!f.from||!FIN_KIND[f.kind]){MSG="Bitte Name, Betrag (größer als 0) und Datum eintragen.";paint();return false}
   if(f.to&&f.to<f.from){MSG="„Läuft bis“ darf nicht vor dem Startdatum liegen.";paint();return false}
   finEdit(d=>d.exp.push({id:uid(),name:f.name.trim().slice(0,80),amt:n,kind:f.kind,from:f.from,to:f.kind==="einmal"?"":(f.to||"")}));MSG="✓ Ausgabe gespeichert.";paint();return false},
@@ -2584,7 +3026,7 @@ Object.assign(A,{
   const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}ta.remove();try{navigator.clipboard.writeText(t)}catch(e){}alert("Zeiten kopiert:\n\n"+t)}
 });
 function paint(){if(V==="clipfinder"&&!OPEN&&cfLock()&&document.getElementById("cf-run")){cfRender();return}side();const m=document.getElementById("main");
- const P={dashboard:pDash,submit:pSubmit,clips:pClips,clip:pClip,follower:pFollower,radar:pRadar,planer:pPlaner,zeit:pZeit,hash:pHash,gtasty:pG,finanzen:pFin,stats:pStats,tools:pTools,pb:pPB,clipfinder:pClipfinder,daten:pDaten};
+ const P={dashboard:pDash,submit:pSubmit,clips:pClips,clip:pClip,follower:pFollower,radar:pRadar,planer:pPlaner,zeit:pZeit,hash:pHash,gtasty:pG,beleg:pBeleg,finanzen:pFin,stats:pStats,tools:pTools,pb:pPB,clipfinder:pClipfinder,daten:pDaten};
  let v=V;if(OPEN)v="clip";m.innerHTML=`<div class="mhead"><div class="mb"><span class="mark">${BOLT}</span><b>CREATOR HUB</b></div><div id="tw-pill">${twPill()}</div></div>`+(P[v]||pDash)();if(v==="pb")pbInit();if(v==="clipfinder")cfInit();twDraw();
 }
 (function(){const tip=document.createElement("div");tip.className="tip";document.body.appendChild(tip);let cur=null;
