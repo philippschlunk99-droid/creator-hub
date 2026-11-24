@@ -1722,7 +1722,14 @@ Schreibe in JEDES Clip-Objekt ausserdem die Felder "hook_staerke", "payoff", "te
 `;
 async function cfAsk(){if(!SY||!SY.url)throw new Error("Für die KI-Auswahl muss der Abgleich eingerichtet sein (Mehr, Daten & Backup, Abgleich zwischen PC und Handy).");
  const text=CF_HINT+"TRANSKRIPT (jede Zeile beginnt mit der Startzeit in Sekunden):\n"+CF.segs.map((s,i)=>{const pe=i?CF.segs[i-1].e:s.s,pz=Math.round(Math.max(i?s.s-pe:0,cfQuiet(pe,s.e)));return "["+Math.round(s.s)+"] "+(pz>=2?"(Pause "+pz+" s) ":"")+s.t}).join("\n");
- const j=await syPost({action:"clips",text,kategorien:plCfg().list});
+ let j;
+ for(let k=0;k<4;k++){
+  try{j=await syPost({action:"clips",text,kategorien:plCfg().list});break}
+  catch(e){const m=String(e&&e.message||e);
+   if(k<3&&/ueberlastet|Limit von Gemini/.test(m)){const end=Date.now()+45000;
+    while(Date.now()<end){CF.step="Google ist gerade überlastet";CF.msg="Das ist normal und passiert bei Google öfter. Der Hub versucht es von selbst nochmal (Versuch "+(k+2)+" von 4) in "+Math.ceil((end-Date.now())/1000)+" Sekunden. Fenster offen lassen.";cfRender();await new Promise(r=>setTimeout(r,1000))}
+    CF.step="Die KI sucht die besten Stellen";CF.msg="Das dauert meist unter einer Minute, bei Überlastung bei Google auch länger.";cfRender();continue}
+   throw e}}
  if(!Array.isArray(j.clips))throw new Error("Dein Abgleich-Skript kennt den Clip-Finder noch nicht. Der neue Skript-Code muss eingefügt und als neue Version bereitgestellt werden.");
  return j.clips}
 const cfTagClean=t=>String(t||"").replace(/^#+/,"").replace(/[^0-9A-Za-zÄÖÜäöüß]+/g,"");
@@ -1883,7 +1890,7 @@ function cfRender(){
    <span class="mf">Start</span><button class="btn gh sm" onclick="A.cfNudge(${i},'s',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'s',1)">+</button>
    <span class="mf">Ende</span><button class="btn gh sm" onclick="A.cfNudge(${i},'e',-1)">−</button><button class="btn gh sm" onclick="A.cfNudge(${i},'e',1)">+</button></div></div>`).join("")}
  if(exp){const n=Object.keys(CF.sel).filter(k=>CF.sel[k]&&CF.clips[k]).length,E=CF.exp;
-  exp.innerHTML=!CF.clips.length?emptyBox("Erst Vorschläge erzeugen."):`<p class="notice" style="margin:0 0 10px">Die Clips behalten das Originalbild (kein Zuschnitt, keine Unschärfe, volle Auflösung). Der Export läuft in Echtzeit, ein Clip von 45 Sekunden dauert also etwa 45 Sekunden. Das Fenster muss dabei offen und sichtbar bleiben. Jeder Clip kommt als MP4 ohne Untertitel, die machst du in CapCut. Beim Export fragt dich der Browser einmal nach einem Ordner (zum Beispiel „Clips“). Darin legt der Hub einen Unterordner mit Datum und Videoname an. Wenn du den Ordner nicht wählst, landen die Clips im Download-Ordner. <span style="color:#9be39b">Export-Version 5 (Originalbild, Ordner) · Clip-Finder-Stand 24.11.2026, 13:30 (Pausen am Ton gemessen, Hörfehler-Korrektur)</span></p>
+  exp.innerHTML=!CF.clips.length?emptyBox("Erst Vorschläge erzeugen."):`<p class="notice" style="margin:0 0 10px">Die Clips behalten das Originalbild (kein Zuschnitt, keine Unschärfe, volle Auflösung). Der Export läuft in Echtzeit, ein Clip von 45 Sekunden dauert also etwa 45 Sekunden. Das Fenster muss dabei offen und sichtbar bleiben. Jeder Clip kommt als MP4 ohne Untertitel, die machst du in CapCut. Beim Export fragt dich der Browser einmal nach einem Ordner (zum Beispiel „Clips“). Darin legt der Hub einen Unterordner mit Datum und Videoname an. Wenn du den Ordner nicht wählst, landen die Clips im Download-Ordner. <span style="color:#9be39b">Export-Version 5 (Originalbild, Ordner) · Clip-Finder-Stand 24.11.2026, 13:15 (Pausen am Ton gemessen, Hörfehler-Korrektur, automatischer Neuversuch bei Google-Überlastung)</span></p>
    ${E&&E.busy?`<div class="mf" style="color:#fff;font-weight:700">Clip ${E.done+1} von ${E.total}: ${esc(CF.clips[E.i]?CF.clips[E.i].titel:"")}</div>${E.prep?`<div class="mf">Ton wird einmalig vorbereitet, das kann bei langen Videos etwas dauern.</div>`:""}<div class="bar" style="margin:8px 0"><i style="width:${E.pct}%"></i></div><div class="mf">${esc(cfEta(E))}</div><p><button class="btn gh sm" onclick="A.cfCancel()">Abbrechen</button></p>`
    :`<button class="btn" onclick="A.cfExport()" ${has&&n?"":"disabled style='opacity:.5'"}>${n} ausgewählte Clips exportieren</button> <button class="btn gh sm" onclick="A.cfCopyTimes()">Nur die Zeiten kopieren</button>${has?"":`<p class="notice" style="margin-top:10px">Zum Exportieren das Video oben auswählen.</p>`}`}
    ${E&&!E.busy&&E.done?`<p class="notice" style="margin-top:10px;color:#9be39b">✓ ${E.done} Clips exportiert. ${E.folder?"Du findest sie im Ordner „"+esc(E.folder)+"“, dazu die Datei Titel.txt mit Titeln und Texten.":"Du findest sie im Download-Ordner."}</p>`:""}${E&&E.warn?`<p class="err" style="margin-top:10px">${esc(E.warn)}</p>`:""}${E&&E.err?`<p class="err" style="margin-top:10px">${esc(E.err)}</p>`:""}`}}
