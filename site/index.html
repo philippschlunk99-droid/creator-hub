@@ -875,53 +875,27 @@ function doPost(e) {
   }
 }
 
-// ---------- Benachrichtigung aufs Handy (optional) ----------
-// Schickt dir ca. 30 Minuten vor der aktivsten Zeit deiner Follower/Zuschauer eine Nachricht ueber ntfy.sh (kostenlos, ohne Konto).
-// Der Plan kommt aus dem Hub (Follower & Statistiken). Das ist nur eine Info, keine Empfehlung zum Posten.
-// Der geheime Themenname steht nur in den Skripteigenschaften (NTFY_TOPIC) und in deiner privaten Abgleich-Datei, nie in diesem Code.
-function ntfyThema() {
-  var props = PropertiesService.getScriptProperties();
-  var t = props.getProperty("NTFY_TOPIC");
-  if (!t) {
-    t = "hub-" + Utilities.getUuid().replace(/-/g, "");
-    props.setProperty("NTFY_TOPIC", t);
-  }
-  return t;
-}
-
-function ntfySenden(titel, text) {
-  UrlFetchApp.fetch("https://ntfy.sh/", {
-    method: "post",
-    contentType: "application/json; charset=utf-8",
-    payload: JSON.stringify({topic: ntfyThema(), title: titel, message: text, priority: 3, tags: ["bell"]}),
-    muteHttpExceptions: true
+// ---------- Erinnerung aufs Handy per E-Mail (optional) ----------
+// Schickt dir ca. 30 Minuten vor der aktivsten Zeit deiner Follower/Zuschauer eine E-Mail an dein eigenes Google-Konto.
+// Die Gmail-App meldet sie aufs Handy. Der Plan kommt aus dem Hub (Follower & Statistiken). Nur eine Info, keine Empfehlung zum Posten.
+function mailSenden(titel, text) {
+  MailApp.sendEmail({
+    to: Session.getEffectiveUser().getEmail(),
+    subject: titel,
+    body: text,
+    name: "Creator Hub"
   });
 }
 
-function ntfyThemaAblegen(thema) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(25000);
-  try {
-    var f = hubDatei();
-    var st = {};
-    try { st = JSON.parse(f.getBlob().getDataAsString() || "{}"); } catch (x) {}
-    if (!st.items) st.items = {};
-    st.items["s:ntfTopic"] = {r: thema, t: Date.now()};
-    f.setContent(JSON.stringify(st));
-  } finally {
-    try { lock.releaseLock(); } catch (y) {}
-  }
-}
-
-function ntfyPruefen() {
+function erinnerungPruefen() {
   var props = PropertiesService.getScriptProperties();
   var st = {};
   try { st = JSON.parse(hubDatei().getBlob().getDataAsString() || "{}"); } catch (x) { return; }
   var items = st.items || {};
   var test = items["s:ntfT"] && items["s:ntfT"].r;
-  if (test && Number(test.t) > Number(props.getProperty("ntfyTestErledigt") || 0)) {
-    props.setProperty("ntfyTestErledigt", String(Number(test.t)));
-    ntfySenden("Creator Hub: Test", "Das ist deine Test-Benachrichtigung. Wenn du das liest, klappt es.");
+  if (test && Number(test.t) > Number(props.getProperty("erinnerungTestErledigt") || 0)) {
+    mailSenden("Creator Hub: Test", "Das ist deine Test-Erinnerung. Wenn du das auf dem Handy siehst, klappt es.");
+    props.setProperty("erinnerungTestErledigt", String(Number(test.t)));
   }
   var plan = items["s:ntf"] && items["s:ntf"].r;
   if (!plan || !plan.d) return;
@@ -938,28 +912,28 @@ function ntfyPruefen() {
       var start = lauf.a * 60 + off * 1440;
       if (min >= start - vorlauf && min < start) {
         var ziel = Utilities.formatDate(new Date(jetzt.getTime() + off * 86400000), "Europe/Berlin", "yyyy-MM-dd") + " " + lauf.a;
-        var schl = "ntfyGesendet_" + p;
+        var schl = "erinnerungGesendet_" + p;
         if (props.getProperty(schl) === ziel) continue;
-        props.setProperty(schl, ziel);
         var u = (plan.u && plan.u[p]) || "Zuschauer";
         var h = function (x) { return (x < 10 ? "0" : "") + x; };
         var txt = "In ca. " + (start - min) + " Minuten (ab " + h(lauf.a) + " Uhr) sind deine " + u + " bei " + namen[p] + " am aktivsten";
         if (typeof lauf.f === "number" && typeof lauf.t === "number") txt += ", insgesamt aktiv etwa " + h(lauf.f) + " bis " + h(lauf.t) + " Uhr";
         txt += ". Nur zur Info, keine Empfehlung zum Posten.";
-        ntfySenden(namen[p] + ": gleich viel los", txt);
+        mailSenden(namen[p] + ": gleich viel los", txt);
+        props.setProperty(schl, ziel);
       }
     }
   }
 }
 
-// Einmal ausfuehren: legt den Geheimnamen an, den Lauf alle 5 Minuten und schickt eine Test-Nachricht.
-function ntfyEinrichten() {
+// Einmal ausfuehren: legt den Lauf alle 5 Minuten an und schickt eine Test-Mail. Beim ersten Mal fragt Google nach der Erlaubnis zum Mailversand.
+function erinnerungEinrichten() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === "ntfyPruefen") ScriptApp.deleteTrigger(t);
+    var f = t.getHandlerFunction();
+    if (f === "ntfyPruefen" || f === "erinnerungPruefen") ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger("ntfyPruefen").timeBased().everyMinutes(5).create();
-  ntfyThemaAblegen(ntfyThema());
-  ntfySenden("Creator Hub: Einrichtung", "Die Benachrichtigungen sind eingerichtet. Ab jetzt kommt ca. 30 Minuten vor der aktivsten Zeit eine Nachricht.");
+  ScriptApp.newTrigger("erinnerungPruefen").timeBased().everyMinutes(5).create();
+  mailSenden("Creator Hub: Einrichtung", "Die Erinnerungen sind eingerichtet. Ab jetzt kommt ca. 30 Minuten vor der aktivsten Zeit eine E-Mail.");
 }
 </script>
 <script>
@@ -1464,23 +1438,20 @@ function ntfRun(p,dow){const f=faShare(p,dow);if(!f.n)return null;const mx=Math.
  return{a:t.a,e:(t.e+1)%24,f:wr?wr.a:null,t:wr?(wr.e+1)%24:null}}
 function ntfPlan(){const d={};let any=false;for(const p of PLS){if(!faList(p).length){d[p]=null;continue}d[p]=Array.from({length:7},(_,i)=>ntfRun(p,i));if(d[p].some(x=>x))any=true}
  if(!any)return null;const on={};for(const p of PLS)on[p]=ntfOn(p);return{lead:30,on,u:FA_UNIT,d}}
-function ntfPanel(){const H2=h=>String(h).padStart(2,"0"),tdow=(new Date().getDay()+6)%7,tp=db.ntfTopic;
+function ntfPanel(){const H2=h=>String(h).padStart(2,"0"),tdow=(new Date().getDay()+6)%7;
  const pl=ntfPlan();
  const rows=PLS.map(p=>{const r=pl&&pl.d[p];if(!r)return `<tr><td>${PL[p]}</td><td colspan="2" class="muted">noch keine Eintragung</td></tr>`;
   const one=i=>{const x=r[i];if(!x)return "—";const m=((x.a*60-30)+1440)%1440;return `${H2(Math.floor(m/60))}:${H2(m%60)} Uhr`};
   return `<tr><td>${PL[p]}</td><td>${one(tdow)}</td><td>${one((tdow+1)%7)}</td></tr>`}).join("");
- const url=tp?"https://ntfy.sh/"+tp:"";
- return `<section class="panel" style="margin:14px 0"><h2>Benachrichtigung aufs Handy</h2>
- <p class="notice" style="margin:0 0 12px"><b>Nur eine Erinnerung.</b> Etwa 30 Minuten bevor deine Follower oder Zuschauer am aktivsten sind, kommt eine Nachricht aufs Handy, auch wenn der Hub und die App zu sind. Pro Plattform und Tag höchstens eine. Es ist keine Empfehlung zum Posten und sagt nicht, wann Videos viral gehen. Die Zeiten kommen aus „Wann sind deine Follower aktiv?“ weiter oben.</p>
+ return `<section class="panel" style="margin:14px 0"><h2>Erinnerung aufs Handy</h2>
+ <p class="notice" style="margin:0 0 12px"><b>Nur eine Erinnerung.</b> Etwa 30 Minuten bevor deine Follower oder Zuschauer am aktivsten sind, kommt eine Erinnerung aufs Handy, auch wenn der Hub zu ist. Pro Plattform und Tag höchstens eine. Es ist keine Empfehlung zum Posten und sagt nicht, wann Videos viral gehen. Die Zeiten kommen aus „Wann sind deine Follower aktiv?“ weiter oben.</p>
  <div class="chips" style="margin:6px 0 12px"><span class="muted" style="font-size:12px">Benachrichtigen bei</span>${PLS.map(p=>`<span class="chip ${ntfOn(p)?"on":""}" onclick="A.ntfTog('${p}')">${PL[p]}</span>`).join("")}</div>
  <div class="tw"><table><thead><tr><th>Plattform</th><th>Heute (${PL_DK[tdow]})</th><th>Morgen (${PL_DK[(tdow+1)%7]})</th></tr></thead><tbody>${rows}</tbody></table></div>
- <p class="mf" style="margin-top:6px">Uhrzeit = wann die Nachricht kommt (30 Minuten vor der höchsten Aktivität des Tages). Das Skript prüft alle 5 Minuten, die Nachricht kann also bis zu 5 Minuten früher oder später kommen.</p>
- ${SY&&SY.url?(tp?`<div class="mf" style="margin-top:12px"><b>Einmal auf dem Handy einrichten</b></div>
- <ol class="mf" style="margin:6px 0 6px 18px;padding:0;line-height:1.6"><li>App „ntfy“ installieren (Google Play oder App Store, kostenlos, ohne Konto).</li><li>In der App auf das Plus tippen, „Thema abonnieren“ wählen und diesen Namen eintragen. Der Server bleibt ntfy.sh.</li><li>Benachrichtigungen der App erlauben, und auf Android die Akku-Optimierung für ntfy ausschalten.</li></ol>
- <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0"><code style="user-select:all;word-break:break-all;padding:6px 8px;background:rgba(255,255,255,.08);border-radius:6px">${esc(tp)}</code><button class="btn sm" onclick="A.ntfCopy(this)">Namen kopieren</button><a class="btn gh sm" href="${esc(url)}" target="_blank" rel="noopener">Im Browser öffnen</a></div>
- <p class="mf">Der Name ist wie ein Passwort: Wer ihn kennt, kann deine Nachrichten mitlesen. Gib ihn nicht weiter. Am PC: den Link „Im Browser öffnen“ aufrufen und dort Benachrichtigungen erlauben. Das klappt nur, solange der Browser läuft. Auf dem Handy ist die App die sichere Lösung.</p>
- <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn sm" onclick="A.ntfTest()">Test-Nachricht senden</button><span class="mf" id="ntf-msg">${db.ntfTest&&Date.now()-db.ntfTest<600000?"Test angefordert. Kommt innerhalb von etwa 5 Minuten.":""}</span></div>`
- :`<p class="mf" style="margin-top:12px">Noch nicht eingerichtet. Sobald das Abgleich-Skript die Benachrichtigung eingerichtet hat, steht hier der Name zum Abonnieren.</p>`)
+ <p class="mf" style="margin-top:6px">Uhrzeit = wann die Erinnerung kommt (30 Minuten vor der höchsten Aktivität des Tages). Das Skript prüft alle 5 Minuten, sie kann also bis zu 5 Minuten früher oder später kommen.</p>
+ ${SY&&SY.url?`<div class="mf" style="margin-top:12px"><b>So kommt es aufs Handy</b></div>
+ <p class="mf" style="margin:4px 0">Das Skript schickt dir die Erinnerung als <b>E-Mail an dein eigenes Google-Konto</b>. Die <b>Gmail-App</b> auf dem Handy meldet sie sofort, auch wenn die App zu ist. Dafür muss in der Gmail-App der Benachrichtigungston für dein Konto an sein (Gmail, Menü, Einstellungen, dein Konto, Benachrichtigungen: „Alle“ oder „Nur Hauptkategorie“). Am PC meldet Gmail im Browser genauso, wenn du dort Benachrichtigungen erlaubst.</p>
+ <p class="mf" style="margin:4px 0">Die Mails kommen vom Absender „Creator Hub“ mit dem Titel „TikTok: gleich viel los“ und so weiter. Pro Plattform und Tag höchstens eine.</p>
+ <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px"><button class="btn sm" onclick="A.ntfTest()">Test-Mail senden</button><span class="mf" id="ntf-msg">${db.ntfTest&&Date.now()-db.ntfTest<600000?"Test angefordert. Die Mail kommt innerhalb von etwa 5 Minuten.":""}</span></div>`
  :`<p class="mf" style="margin-top:12px">Dafür muss der Abgleich zwischen PC und Handy verbunden sein (Daten &amp; Backup).</p>`}
  </section>`}
 function faPanel(){const PFL=PF?[PF]:PLS,dd=x=>x.slice(8)+"."+x.slice(5,7)+".",tdow=(new Date().getDay()+6)%7,dw=FA_DAY==null?tdow:FA_DAY;
@@ -1999,7 +1970,6 @@ const syHash=r=>r==null?"":syH(JSON.stringify(r));
 function syApply(k,r,idx){
  if(k==="s:gtAuto"){if(r)db.gtAuto={on:!!r.on,from:r.from,min:r.min,v2:true};return true}
  if(k==="s:fa"){if(r&&typeof r==="object"){const o={};for(const q of PLS)if(Array.isArray(r[q]))o[q]=r[q].filter(e=>e&&typeof e.d==="string"&&(Number.isInteger(e.k)||(Number.isInteger(e.f)&&Number.isInteger(e.t))||(Array.isArray(e.w)&&e.w.length===24))).slice(-FA_MAXE);db.fa=o}return true}
- if(k==="s:ntfTopic"){if(typeof r==="string"&&/^[A-Za-z0-9_-]{8,80}$/.test(r))db.ntfTopic=r;return true}
  if(k==="s:ntf"){if(r&&r.on&&typeof r.on==="object"){const o={};for(const q of PLS)if(r.on[q]===false)o[q]=false;db.ntf=o}return true}
  if(k==="s:ntfT"){if(r&&Number.isFinite(r.t)&&r.t>(db.ntfTest||0))db.ntfTest=r.t;return true}
  if(k==="s:cats"){if(r&&Array.isArray(r.list))db.cats={list:r.list,rules:r.rules||{},thr:r.thr||50000,pd:r.pd||1};return true}
@@ -2181,7 +2151,6 @@ const A={
  ytNow:()=>{YTNEXT=0;ytTick()},
  ntfTog:p=>{if(!db.ntf||typeof db.ntf!=='object')db.ntf={};if(ntfOn(p))db.ntf[p]=false;else delete db.ntf[p];save();paint()},
  ntfTest:()=>{db.ntfTest=Date.now();save();paint()},
- ntfCopy:b=>{const t=db.ntfTopic||'';const ok=()=>{b.textContent='✓ Kopiert'};try{navigator.clipboard.writeText(t).then(ok,()=>{})}catch(e){}},
  faDay:i=>{FA_DAY=i;for(const q of PLS)FA_SEL[q]={};paint()},
  faSet:(p,k,v)=>{FA_SEL[p][k]=v;FA_SEL[p].touched=1},
  faSave:p=>{const S=FA_SEL[p],m=document.getElementById("fa-msg-"+p),n=x=>x===undefined||x===""?null:Number(x),f=n(S.f),t=n(S.t),k=n(S.k);
