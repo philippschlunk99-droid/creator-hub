@@ -1114,10 +1114,10 @@ const head=(e,t,i)=>`<div class="hub">PHILIPP'S CREATOR HUB</div><div class="not
 
 /* ============ Seiten ============ */
 let V="dashboard",F={plat:"",sort:"datum"},OPEN=null,MSG="";
-const NAV=[["dashboard","◧","Dashboard"],["follower","↗","Follower & Statistiken"],["radar","◎","Radar"],["planer","◔","Upload-Planer"],["submit","➤","Einreichen"],["gtasty","€","Auszahlungen"],["clips","▤","Clip-Verwaltung"],["clipfinder","✂","Clip-Finder"],["tools","✦","Creator-Tools"],["daten","⚙","Daten & Backup"]];
+const NAV=[["dashboard","◧","Dashboard"],["follower","↗","Follower & Statistiken"],["radar","◎","Radar"],["planer","◔","Upload-Planer"],["submit","➤","Einreichen"],["gtasty","€","Auszahlungen"],["finanzen","±","Einnahmen & Ausgaben"],["clips","▤","Clip-Verwaltung"],["clipfinder","✂","Clip-Finder"],["tools","✦","Creator-Tools"],["daten","⚙","Daten & Backup"]];
 const BOLT='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L8.5 22 20 9.5h-6.2z" fill="currentColor"/></svg>';
 let MORE=false;
-const NAVS={dashboard:"Start",follower:"Statistik",gtasty:"Auszahlung",clips:"Clips",clipfinder:"Finder"},NAVBAR=["dashboard","clipfinder","follower","gtasty","clips"];
+const NAVS={dashboard:"Start",follower:"Statistik",gtasty:"Auszahlung",finanzen:"Finanzen",clips:"Clips",clipfinder:"Finder"},NAVBAR=["dashboard","clipfinder","follower","gtasty","clips"];
 function side(){const on=k=>V===k||(V==="stats"&&k==="follower")||(V==="clip"&&k==="clips")||(k==="tools"&&["pb","zeit","hash"].includes(V));
  const nb=k=>k==="submit"&&gtList().length?` <span class="pill" style="background:var(--red);color:#fff;margin-left:auto">${gtList().length}</span>`:"";
  const nv=([k,i,l],c)=>`<button class="nav ${c||""} ${on(k)?"on":""}" onclick="A.go('${k}')"><i>${i}</i><span class="lf">${l}</span><span class="ls">${NAVS[k]||l}</span>${nb(k)}</button>`;
@@ -1273,8 +1273,64 @@ function pG(){
  ${L.length?`<div class="tw"><table><thead><tr><th>Clip</th><th>Plattform</th><th class="num">Aufrufe</th><th class="num">Erwartet</th><th class="num">Bestätigt (€)</th><th class="num">Ausgezahlt (€)</th><th class="num">Offen</th></tr></thead><tbody>${L.map(c=>`<tr><td><a onclick="A.open('${c.id}')">${esc(c.title)}</a><div class="mf">${dde(c.published)}${c.gtAt?" · eingereicht am "+dde(c.gtAt):""}</div></td><td>${PL[c.platform]}</td><td class="num">${nf(gtMax(c))}</td><td class="num">${gtPill(c)}</td><td class="num">${inp(c,"conf")}</td><td class="num">${inp(c,"paid")}</td><td class="num">${eur(Math.max(0,(c.conf||0)-(c.paid||0)))}</td></tr>`).join("")}<tr><td colspan="4"><b>Summe${GP?" ("+PL[GP]+")":""}</b></td><td class="num"><b>${eur(tc)}</b></td><td class="num"><b>${eur(tp)}</b></td><td class="num"><b>${eur(Math.max(0,tc-tp))}</b></td></tr></tbody></table></div>
  <p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="btn gh sm" onclick="A.payConf()">Bestätigt aus Erwartet füllen (leere, sichere Clips)</button><button class="btn gh sm" onclick="A.payPaid()">Ausgezahlt = Bestätigt (leere Felder)</button></p>`:`<div class="empty">Noch kein Clip als eingereicht markiert. Das machst du unter <a onclick="A.go('submit')">Einreichen</a>, danach erscheint der Clip hier.</div>`}
  <p class="notice">Erwartet ist eine Rechnung nach der Staffel, keine Zusage von G-Tasty. Bestätigt und ausgezahlt trägst du selbst ein, sobald G-Tasty es meldet. Leere Felder zählen als 0.</p></section>
- <section class="panel"><h2>So kommt das Geld an</h2><p class="notice">Auszahlung als USDC (Solana) an deine hinterlegte Wallet bei Kraken, dort in Euro tauschen und per SEPA aufs Bankkonto überweisen. Erste Auszahlung laut G-Tasty: 1. Dezember 2026.</p></section>`}
+ <section class="panel"><h2>So kommt das Geld an</h2><p class="notice">Auszahlung als USDC (Solana) an deine hinterlegte Wallet bei Kraken, dort in Euro tauschen und per SEPA aufs Bankkonto überweisen. Erste Auszahlung laut G-Tasty: 1. Dezember 2026, die nächste nach deiner Angabe am 1. Januar 2027.</p></section>`}
 
+/* ============ Einnahmen & Ausgaben ============ */
+const FIN_KIND={monat:"monatlich",jahr:"jährlich",einmal:"einmalig"},FIN_SRC=["TikTok","YouTube","Instagram","Twitch","Sonstiges"];
+function finClean(r){const ok=x=>typeof x==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(x);
+ return{exp:(Array.isArray(r.exp)?r.exp:[]).filter(e=>e&&typeof e.id==="string"&&typeof e.name==="string"&&isFinite(e.amt)&&ok(e.from)&&FIN_KIND[e.kind]).map(e=>({id:e.id,name:e.name.slice(0,80),amt:Number(e.amt),kind:e.kind,from:e.from,to:ok(e.to)?e.to:""})),
+  inc:(Array.isArray(r.inc)?r.inc:[]).filter(e=>e&&typeof e.id==="string"&&typeof e.name==="string"&&isFinite(e.amt)&&ok(e.date)).map(e=>({id:e.id,name:e.name.slice(0,80),amt:Number(e.amt),date:e.date,src:typeof e.src==="string"?e.src.slice(0,30):"Sonstiges"}))}}
+const finGet=()=>db.fin&&Array.isArray(db.fin.exp)&&Array.isArray(db.fin.inc)?db.fin:{exp:[],inc:[]};
+function finEdit(fn){if(!db.fin||!Array.isArray(db.fin.exp)||!Array.isArray(db.fin.inc))db.fin={exp:[],inc:[]};fn(db.fin);save();paint()}
+/* Alle Abbuchungen einer Ausgabe bis heute: [{m:"JJJJ-MM",amt}] */
+function finCharges(e,T){const out=[];
+ if(e.kind==="einmal"){if(e.from<=T)out.push({m:e.from.slice(0,7),amt:e.amt});return out}
+ const end=(e.to&&e.to<T?e.to:T).slice(0,7),step=e.kind==="jahr"?12:1;let [y,m]=e.from.slice(0,7).split("-").map(Number);
+ for(let i=0;i<600;i++){const k=y+"-"+String(m).padStart(2,"0");if(k>end)break;out.push({m:k,amt:e.amt});m+=step;while(m>12){m-=12;y++}}
+ return out}
+const monDe=k=>{const [y,m]=k.split("-").map(Number);return new Date(y,m-1,1).toLocaleDateString("de-DE",{month:"long",year:"numeric"})};
+function pFin(){
+ const T=today(),fin=finGet(),sg=n=>(n<0?"− ":"")+eur(Math.abs(n)),M={},ad=(m,k,v)=>{(M[m]=M[m]||{i:0,e:0})[k]+=v};
+ let undated=0;
+ const pays=db.clips.filter(c=>c.paid>0).sort((a,b)=>(a.paidAt||"9999").localeCompare(b.paidAt||"9999"));
+ for(const c of pays){if(c.paidAt)ad(c.paidAt.slice(0,7),"i",c.paid);else undated+=c.paid}
+ for(const e of fin.inc)if(e.date<=T)ad(e.date.slice(0,7),"i",e.amt);
+ for(const e of fin.exp)for(const x of finCharges(e,T))ad(x.m,"e",x.amt);
+ const ks=Object.keys(M).sort().reverse(),inc=undated+ks.reduce((a,k)=>a+M[k].i,0),exp=ks.reduce((a,k)=>a+M[k].e,0),gain=inc-exp,
+  run=fin.exp.filter(e=>e.kind!=="einmal"&&e.from.slice(0,7)<=T.slice(0,7)&&(!e.to||e.to>=T)).reduce((a,e)=>a+(e.kind==="monat"?e.amt:e.amt/12),0),
+  gt=db.clips.filter(c=>c.gtasty),open=gt.reduce((a,c)=>a+Math.max(0,(c.conf||0)-(c.paid||0)),0),expd=gt.filter(c=>c.conf==null&&gtSure(c)).reduce((a,c)=>a+gtEuro(c),0),
+  col=n=>n<0?"color:#ff8f8f":n>0?"color:#9be39b":"",
+  cur=M[T.slice(0,7)]||{i:0,e:0};
+ const nm=["Claude Pro","Handyvertrag","CapCut Pro","Google Gemini (bezahlt)","Kraken-Gebühren","Sonstiges"];
+ return head("Geld","Einnahmen & Ausgaben","Was du mit deinen Clips verdienst und was du dafür ausgibst, zum Beispiel Claude Pro. Unten siehst du, was am Ende übrig bleibt.")+
+ `<section class="cards">${stat("Einnahmen (angekommen)",eur(inc),"G-Tasty ausgezahlt plus deine eigenen Einnahmen",1)}${stat("Ausgaben bisher",eur(exp),"Alle Kosten bis heute")}${stat("Gewinn",`<span style="${col(gain)}">${sg(gain)}</span>`,"Einnahmen minus Ausgaben")}${stat("Dieser Monat",`<span style="${col(cur.i-cur.e)}">${sg(cur.i-cur.e)}</span>`,monDe(T.slice(0,7))+": "+eur(cur.i)+" rein, "+eur(cur.e)+" raus")}</section>
+ <section class="cards c3">${stat("Laufende Kosten",eur(run)+" / Monat","Monatliche Abos plus jährliche geteilt durch 12")}${stat("G-Tasty bestätigt, noch offen",eur(open),"Von dir bei den Auszahlungen als bestätigt eingetragen, aber noch nicht ausgezahlt")}${stat("G-Tasty erwartet, noch nicht bestätigt",eur(expd),"Nach der Staffel ab 100.000 Aufrufen, keine Zusage")}</section>
+ <section class="panel" style="margin-bottom:14px"><h2>Monat für Monat</h2>
+ ${ks.length||undated?`<div class="tw"><table><thead><tr><th>Monat</th><th class="num">Einnahmen</th><th class="num">Ausgaben</th><th class="num">Gewinn</th></tr></thead><tbody>${ks.map(k=>`<tr><td>${monDe(k)}</td><td class="num">${eur(M[k].i)}</td><td class="num">${eur(M[k].e)}</td><td class="num"><b style="${col(M[k].i-M[k].e)}">${sg(M[k].i-M[k].e)}</b></td></tr>`).join("")}${undated?`<tr><td>Ohne Datum (G-Tasty ausgezahlt)</td><td class="num">${eur(undated)}</td><td class="num">—</td><td class="num"><b>${sg(undated)}</b></td></tr>`:""}<tr><td><b>Zusammen</b></td><td class="num"><b>${eur(inc)}</b></td><td class="num"><b>${eur(exp)}</b></td><td class="num"><b style="${col(gain)}">${sg(gain)}</b></td></tr></tbody></table></div>`:emptyBox("Noch nichts eingetragen. Trage unten deine Ausgaben ein, zum Beispiel Claude Pro. G-Tasty-Auszahlungen erscheinen hier von selbst, sobald du sie auf der Auszahlungen-Seite als „Ausgezahlt“ einträgst.")}
+ <p class="notice">Steuern sind hier nicht eingerechnet, das ist nur dein Überblick vor Steuern. Eine Ausgabe zählt ab dem Monat, in dem sie beginnt.</p></section>
+ <section class="panel" style="margin-bottom:14px"><h2>Ausgabe eintragen</h2>
+ <form onsubmit="return A.finAddExp(event)"><div class="fg">
+ <div class="span2"><label class="f">Wofür?</label><input class="in" name="name" list="fin-names" placeholder="z. B. Claude Pro" required><datalist id="fin-names">${nm.map(n=>`<option value="${esc(n)}">`).join("")}</datalist></div>
+ <div><label class="f">Betrag in € (pro Zahlung)</label><input class="in" name="amt" inputmode="decimal" placeholder="0,00" required></div>
+ <div><label class="f">Wie oft?</label><select class="in" name="kind"><option value="monat">monatlich</option><option value="jahr">jährlich</option><option value="einmal">einmalig (Kauf)</option></select></div>
+ <div><label class="f">Ab (Datum der ersten Zahlung)</label><input class="in" type="date" name="from" value="${T}" required></div>
+ <div><label class="f">Läuft bis (leer = läuft weiter)</label><input class="in" type="date" name="to"></div>
+ <div><button class="btn">Ausgabe speichern</button></div></div></form>
+ <p class="notice">Kosten für den Umtausch von USDC in Euro bei Kraken oder Gebühren für Gemini trägst du am besten als „einmalig“ ein, mit dem Betrag in Euro.</p>
+ ${fin.exp.length?`<div class="tw"><table><thead><tr><th>Wofür</th><th>Wie oft</th><th class="num">Betrag</th><th>Ab</th><th>Bis</th><th class="num">Bisher bezahlt</th><th></th></tr></thead><tbody>${[...fin.exp].sort((a,b)=>b.from.localeCompare(a.from)).map(e=>`<tr><td><b>${esc(e.name)}</b></td><td>${FIN_KIND[e.kind]}</td><td class="num">${eur(e.amt)}</td><td>${dde(e.from)}</td><td>${e.to?dde(e.to):e.kind==="einmal"?"—":"läuft"}</td><td class="num">${eur(finCharges(e,T).reduce((a,x)=>a+x.amt,0))}</td><td><a onclick="A.finDel('exp','${e.id}')">löschen</a></td></tr>`).join("")}</tbody></table></div>`:""}</section>
+ <section class="panel" style="margin-bottom:14px"><h2>Eigene Einnahmen eintragen</h2>
+ <p class="notice">Hier kommt alles hinein, was nicht von G-Tasty kommt (zum Beispiel Geld von TikTok oder YouTube). <b>G-Tasty trägst du hier nicht ein</b>, das holt sich der Hub von der Auszahlungen-Seite.</p>
+ <form onsubmit="return A.finAddInc(event)"><div class="fg">
+ <div class="span2"><label class="f">Woher?</label><input class="in" name="name" placeholder="z. B. TikTok Creator Rewards" required></div>
+ <div><label class="f">Betrag in €</label><input class="in" name="amt" inputmode="decimal" placeholder="0,00" required></div>
+ <div><label class="f">Quelle</label><select class="in" name="src">${FIN_SRC.map(x=>`<option>${x}</option>`).join("")}</select></div>
+ <div><label class="f">Datum</label><input class="in" type="date" name="date" value="${T}" required></div>
+ <div><button class="btn">Einnahme speichern</button></div></div></form>
+ ${fin.inc.length?`<div class="tw"><table><thead><tr><th>Woher</th><th>Quelle</th><th>Datum</th><th class="num">Betrag</th><th></th></tr></thead><tbody>${[...fin.inc].sort((a,b)=>b.date.localeCompare(a.date)).map(e=>`<tr><td><b>${esc(e.name)}</b></td><td>${esc(e.src)}</td><td>${dde(e.date)}</td><td class="num">${eur(e.amt)}</td><td><a onclick="A.finDel('inc','${e.id}')">löschen</a></td></tr>`).join("")}</tbody></table></div>`:""}
+ <p class="${MSG.startsWith("✓")?"ok":"err"}">${MSG}</p></section>
+ <section class="panel"><h2>G-Tasty ausgezahlt (von der Auszahlungen-Seite)</h2>
+ ${pays.length?`<div class="tw"><table><thead><tr><th>Clip</th><th class="num">Ausgezahlt</th><th>Am</th></tr></thead><tbody>${pays.map(c=>`<tr><td><a onclick="A.open('${c.id}')">${esc(c.title)}</a></td><td class="num">${eur(c.paid)}</td><td><input class="in" type="date" style="width:auto;padding:6px" value="${c.paidAt||""}" onchange="A.finPaidAt('${c.id}',this.value)"></td></tr>`).join("")}</tbody></table></div>
+ <p class="notice">Das Datum setzt der Hub auf den Tag, an dem du „Ausgezahlt“ einträgst. Stimmt es nicht (zum Beispiel Auszahlung war am 1.12.), stell es hier um, dann landet das Geld im richtigen Monat.</p>`:emptyBox("Noch nichts als ausgezahlt eingetragen. Das machst du unter <a onclick=\"A.go('gtasty')\">Auszahlungen</a>.")}</section>`}
 function statsBody(){const pr=prevR(),cl=PF?db.clips.filter(c=>c.platform===PF):db.clips,g=cl.reduce((a,c)=>a+gained(c,R),0),o=cl.reduce((a,c)=>a+gained(c,pr),0),dl=dailyAll(cl,R,PF),pvC=pvT(PF,R),pvO=pvT(PF,pr),d=pvO>0?(pvC-pvO)/pvO*100:null,hasM=cl.some(c=>latest(c,R.to)),cs=(!PF||PF==="youtube")?chanSum(R):null;
  const per=PLS.map(p=>({p,v:pvX(p,R),o:pvX(p,pr)})).filter(x=>x.v>0||x.o>0);
  const best=cl.map(c=>({c,v:gained(c,R)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,10);
@@ -1287,6 +1343,10 @@ const pStats=()=>pFollower();
 /* ============ Radar: Läuft gerade + Fast geschafft ============ */
 const GT_STEPS=[80000,100000,200000,300000,400000,500000];
 const tierEuro=v=>{for(const [m,e] of GT_TIERS)if(v>=m)return e;return 0};
+/* Auszahlungstermine laut Angabe: 1.12.2026, danach 1.1.2027; weiter rechnet der Hub zum jeweiligen Monatsersten (Annahme). */
+const GT_PAY1="2026-12-01";
+const gtPayNext=p=>{let [y,m]=p.split("-").map(Number);m++;if(m>12){m=1;y++}return y+"-"+String(m).padStart(2,"0")+"-01"};
+function gtPayFor(eta){const d=addDays(today(),Math.max(0,Math.ceil(eta)));let p=GT_PAY1;while(p<=d)p=gtPayNext(p);return{p,tight:(Date.parse(p)-Date.parse(d))/864e5<=2}}
 const nowH=()=>{const d=new Date();return d.getHours()+d.getMinutes()/60};
 const dfmt=(n,d=1)=>new Intl.NumberFormat("de-DE",{maximumFractionDigits:d}).format(n);
 /* Fenster = seit Ende von vorgestern bis jetzt (Tageswerte), dazu das Fenster davor. Nur Clips mit Wert von heute und sicherem Ausgangswert. */
@@ -1316,15 +1376,16 @@ function radarCard(x){const sc=x.score,big=x.gain!=null?`<div class="mv g">${nf(
  ${x.src==="konto"?`<div class="mf">Schnitt aus dem Konto-Verlauf (alle Videos)</div>`:""}</div>`}
 function nearList(pr,PFsel){const a=db.gtAuto||{},rate=new Map(pr.flatMap(x=>x.w).map(x=>[x.c.id,x.g/x.hrs*24]));
  return db.clips.filter(c=>(!PFsel||c.platform===PFsel)&&c.euro==null&&(c.gtasty||c.manual||(c.published&&c.published>=(a.from||"0000-01-01")))).map(c=>{const v=gtMax(c),next=GT_STEPS.find(s=>s>v);if(!next||v<next*.7)return null;
-  const rem=next-v,r=rate.get(c.id),eta=r>0?rem/r:null,cur=gtEuro(c),ne=tierEuro(next);return{c,v,next,rem,eta,cur,ne,add:ne-cur,r}}).filter(Boolean).filter(x=>x.eta!=null&&x.eta<=30).sort((x,y)=>x.eta-y.eta||x.rem-y.rem)}
+  const rem=next-v,r=rate.get(c.id),eta=r>0?rem/r:null,cur=gtEuro(c),ne=tierEuro(next),addSure=Math.max(0,(next>=100000?ne:0)-(gtSure(c)?cur:0));return{c,v,next,rem,eta,cur,ne,add:ne-cur,addSure,r,pay:eta!=null?gtPayFor(eta):null}}).filter(Boolean).filter(x=>x.eta!=null&&x.eta<=30).sort((x,y)=>x.eta-y.eta||x.rem-y.rem)}
 let RADW=2,RADS="aufrufe";
 const radTr=x=>x.prev==null?null:x.prev===0?(x.g>0?Infinity:null):((x.g/x.hrs)/(x.prev/(24*x.k))-1)*100;
 function pRadar(){const T=today(),PFL=PF?[PF]:PLS,pr=PFL.map(p=>radarPlat(p,T)),k=RADW,hh=24*(k-1)+nowH(),
  top=PFL.flatMap(p=>db.clips.filter(c=>c.platform===p).map(c=>clipWin(c,T,k)).filter(Boolean)).filter(x=>x.g>0).sort((a,b)=>b.g-a.g).slice(0,10),
  rk=new Map([...top].sort((a,b)=>{const x=radTr(a),y=radTr(b);return (y==null?-Infinity:y)-(x==null?-Infinity:x)||(x==null)-(y==null)||b.g-a.g}).map((x,i)=>[x.c.id,i+1])),
- rows=RADS==="trend"?[...top].sort((a,b)=>rk.get(a.c.id)-rk.get(b.c.id)):top,near=nearList(pr,PF),addSum=near.reduce((a,x)=>a+Math.max(0,x.add),0),
+ rows=RADS==="trend"?[...top].sort((a,b)=>rk.get(a.c.id)-rk.get(b.c.id)):top,near=nearList(pr,PF),addSum=near.reduce((a,x)=>a+x.addSure,0),pendSum=near.reduce((a,x)=>a+(x.next===80000?x.ne:0),0),
+ grp=[...new Set(near.map(x=>x.pay.p))].sort().slice(0,3).map(p=>{const L=near.filter(x=>x.pay.p===p);return{p,n:L.length,s:L.reduce((a,x)=>a+x.addSure,0),pv:L.reduce((a,x)=>a+(x.next===80000?x.ne:0),0),ne:L.filter(x=>!x.c.gtasty).length}}),
  eta=x=>x.eta<1?"unter 1 Tag":"ca. "+Math.ceil(x.eta)+(Math.ceil(x.eta)===1?" Tag":" Tage"),
- nxt=x=>x.next===80000&&x.v<80000?"20 € vorgemerkt":x.next===100000?"wird sicher, "+eur(x.ne):eur(x.ne)+(x.add>0?" (+"+eur(x.add)+")":"");
+ nxt=x=>x.next===80000&&x.v<80000?eur(x.ne)+" vorgemerkt":(x.next===100000?eur(x.ne)+" sicher":eur(x.ne))+(x.addSure>0?" (+"+eur(x.addSure)+")":"");
  return head("Auswertung","Radar","Zeigt, welche deiner Clips gerade laufen und welche kurz vor der nächsten G-Tasty-Stufe stehen. Alles wird aus deinen eigenen Messwerten gerechnet.")+pfSwitch()+
  `<h2 style="margin:24px 0 4px;font-size:22px">Läuft gerade</h2><p class="notice" style="margin:0 0 6px">Wie viele Aufrufe jede Plattform in den letzten 48 Stunden gemacht hat und wie das im Vergleich zu deinem eigenen Schnitt pro Tag auf dieser Plattform aussieht.</p>
  <section class="cards c3" style="margin-top:12px">${pr.map(radarCard).join("")}</section>
@@ -1336,10 +1397,11 @@ function pRadar(){const T=today(),PFL=PF?[PF]:PLS,pr=PFL.map(p=>radarPlat(p,T)),
  <p class="notice" style="margin-top:10px">Läuft ein Clip stark und der Trend zeigt ▲, ist das der Moment, einen Teil 2 oder einen ähnlichen Clip nachzulegen oder ihn auf einer weiteren Plattform zu posten. Eine Garantie, dass er weiter wächst, gibt es nicht.</p>`:emptyBox("Noch keine Clips mit Aufrufen in den letzten ${k*24} Stunden. Der Radar braucht Messwerte von heute (Sync läuft alle 15 Minuten).")}
  <p class="notice">So wird gerechnet: Der Hub speichert pro Clip einen Wert pro Tag. „Letzte 48 h“ heißt: Zuwachs seit Ende von vorgestern bis jetzt, also gestern plus der bisherige Tag. „Letzte 24 h“ heißt: Zuwachs seit Ende von gestern bis jetzt, also der bisherige Tag; die 24 h davor sind dann der ganze gestrige Tag. Die Zeit davor ist jeweils der Zuwachs im Fenster zuvor. Der Trend vergleicht die Aufrufe pro Stunde in beiden Fenstern. Die Trend-Nr. reiht die bis zu 10 Clips der Tabelle nach diesem Trend: 1 ist der stärkste Anstieg (ein ganz neuer Clip zählt als stärkster), 10 der schwächste, Clips ohne Vergleichswert kommen ans Ende. Verglichen wird nur, was der Hub sicher kennt (Clips mit Wert von heute und bekanntem Ausgangswert). „Pro Tag aktuell“ rechnet die Aufrufe des Fensters auf einen ganzen Tag um. Die Prozentzahl zeigt, wie viel mehr oder weniger du damit als in deinem Schnitt machst. Das Wort dazu fasst es zusammen: „läuft stark“ ab etwa dem 1,7-fachen deines Schnitts, „läuft gut“ ab dem 1,3-fachen, „normal“ ab dem 0,7-fachen, darunter „ruhig“. „Dein Schnitt“ sind die Aufrufe pro Stunde der letzten bis zu 30 Tage vor dem Fenster, es braucht mindestens 4 Tage Verlauf. Reichen die Messwerte der einzelnen Clips dafür noch nicht, nimmt der Hub bei YouTube und Instagram den Tagesverlauf des ganzen Kontos als Schnitt (Aufrufe pro Tag laut YouTube Analytics bzw. Instagram, „Konto-Verlauf“ auf der Karte). TikTok hat keinen solchen Verlauf, dort erscheint der Vergleich nach 6 Tagen Messwerten.</p></section>
  <h2 style="margin:30px 0 4px;font-size:22px">Fast geschafft</h2><p class="notice" style="margin:0 0 6px">Clips, die höchstens 30 % unter der nächsten G-Tasty-Stufe liegen (Staffel: 80.000, 100.000, 200.000, 300.000, 400.000, 500.000 Aufrufe) <b>und die sie bei aktuellem Tempo innerhalb von 30 Tagen erreichen würden</b>. Wer länger bräuchte oder dessen Tempo nicht bekannt ist, wird nicht gezeigt.</p>
- <section class="cards c3" style="margin-top:12px">${stat("Clips kurz vor der nächsten Stufe",nf(near.length),near.length?"Zuerst die, die am schnellsten ankommen":"Aktuell keiner, der es in 30 Tagen schafft",1)}${stat("Möglicher Mehrbetrag",near.length?"+ "+eur(addSum):"—","Wenn alle die nächste Stufe schaffen, rechnerisch")}${stat("Davon schon eingereicht",nf(near.filter(x=>x.c.gtasty).length),"Die anderen reichst du ein, sobald sie bereit sind")}</section>
+ <section class="cards c3" style="margin-top:12px">${stat("Clips kurz vor der nächsten Stufe",nf(near.length),near.length?"Zuerst die, die am schnellsten ankommen":"Aktuell keiner, der es in 30 Tagen schafft",1)}${stat("Möglicher Mehrbetrag (sicher)",near.length?"+ "+eur(addSum):"—","Wenn alle die nächste Stufe schaffen. Clips, die von „vorgemerkt“ (80.000–99.999) auf „sicher“ (ab 100.000) springen, zählen mit."+(pendSum?" Dazu "+eur(pendSum)+" neu vorgemerkt.":""))}${grp.map(g=>stat("Auszahlung am "+dde(g.p),"+ "+eur(g.s),g.n+" Clip"+(g.n===1?" erreicht":"s erreichen")+" die Stufe bis dahin"+(g.pv?", dazu "+eur(g.pv)+" vorgemerkt":"")+(g.ne?" · "+g.ne+" davon noch nicht eingereicht":""))).join("")}${stat("Davon schon eingereicht",nf(near.filter(x=>x.c.gtasty).length),"Die anderen reichst du ein, sobald sie bereit sind")}</section>
+ <p class="notice" style="margin:0 0 6px">Auszahlungstermine nach deiner Angabe: erste Auszahlung am 1.12.2026, die nächste am 1.1.2027 (danach rechnet der Hub jeweils zum Monatsersten weiter). Ein Clip zählt für die Auszahlung, vor der er die Stufe bei aktuellem Tempo erreicht hat. Wann G-Tasty genau den Stichtag setzt, weiß der Hub nicht: Steht „knapp“ dabei, schafft der Clip es nur ungefähr 2 Tage vor dem Termin.</p>
  <section class="panel" style="margin-bottom:14px"><h2>Nächste Stufe in Reichweite</h2>
- ${near.length?`<div class="tw"><table><thead><tr><th>Clip</th><th>Plattform</th><th class="num">Aufrufe</th><th class="num">Nächste Stufe</th><th class="num">Noch</th><th class="num">Dann</th><th class="num">Bei aktuellem Tempo</th></tr></thead><tbody>${near.slice(0,15).map(x=>`<tr class="cl"><td><a onclick="A.open('${x.c.id}')"><b>${esc(x.c.title)}</b></a><div class="mf">${dde(x.c.published)} · ${x.c.gtasty?"eingereicht":"noch nicht eingereicht"}</div></td><td>${PL[x.c.platform]}</td><td class="num">${nf(x.v)}</td><td class="num">${nf(x.next)}</td><td class="num"><b>${nf(x.rem)}</b></td><td class="num">${nxt(x)}</td><td class="num">${eta(x)}</td></tr>`).join("")}</tbody></table></div>`:emptyBox("Aktuell steht kein Clip nah genug vor einer Stufe oder keiner würde sie bei aktuellem Tempo innerhalb von 30 Tagen erreichen. Berücksichtigt werden Clips, die ab dem Datum der Einreich-Regel veröffentlicht wurden, bereits eingereichte und von Hand angelegte Clips. Clips mit von dir eingetragenem Betrag fehlen hier.")}
- <p class="notice">„Bei aktuellem Tempo“ ist eine grobe Rechnung: Fehlende Aufrufe geteilt durch die Aufrufe pro Tag der letzten 48 Stunden. Es werden nur Clips gezeigt, die damit in höchstens 30 Tagen ankommen. Das Tempo ändert sich oft schnell, nimm es nur als Anhaltspunkt. Die Beträge sind rechnerisch nach der Staffel, keine Zusage von G-Tasty.</p></section>`}
+ ${near.length?`<div class="tw"><table><thead><tr><th>Clip</th><th>Plattform</th><th class="num">Aufrufe</th><th class="num">Nächste Stufe</th><th class="num">Noch</th><th class="num">Dann</th><th class="num">Bei aktuellem Tempo</th><th class="num">Zählt für Auszahlung</th></tr></thead><tbody>${near.slice(0,15).map(x=>`<tr class="cl"><td><a onclick="A.open('${x.c.id}')"><b>${esc(x.c.title)}</b></a><div class="mf">${dde(x.c.published)} · ${x.c.gtasty?"eingereicht":"noch nicht eingereicht"}</div></td><td>${PL[x.c.platform]}</td><td class="num">${nf(x.v)}</td><td class="num">${nf(x.next)}</td><td class="num"><b>${nf(x.rem)}</b></td><td class="num">${nxt(x)}</td><td class="num">${eta(x)}</td><td class="num">${dde(x.pay.p)}${x.pay.tight?` <span class="mf">knapp</span>`:""}</td></tr>`).join("")}</tbody></table></div>`:emptyBox("Aktuell steht kein Clip nah genug vor einer Stufe oder keiner würde sie bei aktuellem Tempo innerhalb von 30 Tagen erreichen. Berücksichtigt werden Clips, die ab dem Datum der Einreich-Regel veröffentlicht wurden, bereits eingereichte und von Hand angelegte Clips. Clips mit von dir eingetragenem Betrag fehlen hier.")}
+ <p class="notice">„Bei aktuellem Tempo“ ist eine grobe Rechnung: Fehlende Aufrufe geteilt durch die Aufrufe pro Tag der letzten 48 Stunden. Es werden nur Clips gezeigt, die damit in höchstens 30 Tagen ankommen. Das Tempo ändert sich oft schnell, nimm es nur als Anhaltspunkt. Die Beträge sind rechnerisch nach der Staffel, keine Zusage von G-Tasty. „Sicher“ heißt: ab 100.000 Aufrufe (so wie auf der Auszahlungen-Seite). Der Mehrbetrag oben zählt nur das, was zu deinem „sicheren“ Betrag dazukommt.</p></section>`}
 /* ============ Upload-Planer ============ */
 const PL_DEF={list:["Rage Bait","Politik","Fragen beantworten","Drama / Streit","Satire / Comedy","Gaming","Sonstiges"],
  rules:{"Rage Bait":["ragebait","rage","bait","ausgerastet","ausraster","wutanfall"],
@@ -2130,25 +2192,26 @@ const syH=s=>{let h=5381;for(let i=0;i<s.length;i++)h=(h*33^s.charCodeAt(i))>>>0
 const syKey=c=>c.yt?"yt:"+c.yt:c.ig?"ig:"+c.ig:c.tt?"tt:"+c.tt:"c:"+c.id;
 const syN=x=>x==null?null:x;
 function syRec(c){
- if(c.yt||c.ig||c.tt){if(!(c.gtasty||c.euro!=null||c.conf!=null||c.paid!=null||c.cat))return null;return{g:!!c.gtasty,a:c.gtAt||"",e:syN(c.euro),cf:syN(c.conf),pd:syN(c.paid),ct:c.cat||null}}
- return{id:c.id,platform:c.platform,title:c.title,url:c.url||"",published:c.published||"",gtasty:!!c.gtasty,gtAt:c.gtAt||"",manual:!!c.manual,euro:syN(c.euro),conf:syN(c.conf),paid:syN(c.paid),cat:c.cat||"",
+ if(c.yt||c.ig||c.tt){if(!(c.gtasty||c.euro!=null||c.conf!=null||c.paid!=null||c.cat))return null;return Object.assign({g:!!c.gtasty,a:c.gtAt||"",e:syN(c.euro),cf:syN(c.conf),pd:syN(c.paid),ct:c.cat||null},c.paidAt?{pa:c.paidAt}:{})}
+ return{id:c.id,platform:c.platform,title:c.title,url:c.url||"",published:c.published||"",gtasty:!!c.gtasty,gtAt:c.gtAt||"",manual:!!c.manual,euro:syN(c.euro),conf:syN(c.conf),paid:syN(c.paid),cat:c.cat||"",...(c.paidAt?{paidAt:c.paidAt}:{}),
   metrics:[...c.metrics].sort((a,b)=>a.date.localeCompare(b.date)).map(m=>[m.date,m.views,m.likes,m.comments,m.shares])}}
-function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[syKey(c)]=r}const g=db.gtAuto;if(g)m["s:gtAuto"]={on:!!g.on,from:g.from,min:g.min};const cf=plCfg();m["s:cats"]={list:cf.list,rules:cf.rules,thr:cf.thr||50000,pd:cf.pd||1};if(db.fa&&typeof db.fa==="object")m["s:fa"]=db.fa;const np=ntfPlan();if(np)m["s:ntf"]=np;if(db.ntfTest)m["s:ntfT"]={t:db.ntfTest};return m}
+function syLayer(){const m={};for(const c of db.clips){const r=syRec(c);if(r)m[syKey(c)]=r}const g=db.gtAuto;if(g)m["s:gtAuto"]={on:!!g.on,from:g.from,min:g.min};const cf=plCfg();m["s:cats"]={list:cf.list,rules:cf.rules,thr:cf.thr||50000,pd:cf.pd||1};if(db.fa&&typeof db.fa==="object")m["s:fa"]=db.fa;const np=ntfPlan();if(np)m["s:ntf"]=np;if(db.ntfTest)m["s:ntfT"]={t:db.ntfTest};if(db.fin&&typeof db.fin==="object")m["s:fin"]=db.fin;return m}
 const syHash=r=>r==null?"":syH(JSON.stringify(r));
 function syApply(k,r,idx){
  if(k==="s:gtAuto"){if(r)db.gtAuto={on:!!r.on,from:r.from,min:r.min,v2:true};return true}
  if(k==="s:fa"){if(r&&typeof r==="object"){const o={};for(const q of PLS)if(Array.isArray(r[q]))o[q]=r[q].filter(e=>e&&typeof e.d==="string"&&(Number.isInteger(e.k)||(Number.isInteger(e.f)&&Number.isInteger(e.t))||(Array.isArray(e.w)&&e.w.length===24))).slice(-FA_MAXE);db.fa=o}return true}
  if(k==="s:ntf"){if(r&&r.on&&typeof r.on==="object"){const o={};for(const q of PLS)if(r.on[q]===false)o[q]=false;db.ntf=o}return true}
+ if(k==="s:fin"){if(r&&typeof r==="object")db.fin=finClean(r);return true}
  if(k==="s:ntfT"){if(r&&Number.isFinite(r.t)&&r.t>(db.ntfTest||0))db.ntfTest=r.t;return true}
  if(k==="s:cats"){if(r&&Array.isArray(r.list))db.cats={list:r.list,rules:r.rules||{},thr:r.thr||50000,pd:r.pd||1};return true}
  if(k.startsWith("c:")){const old=idx.get(k);
   if(r===null){if(old){db.clips=db.clips.filter(c=>c!==old);idx.delete(k)}return true}
   const nc={id:r.id,platform:r.platform,title:r.title,url:r.url||"",published:r.published||"",gtasty:!!r.gtasty,metrics:(r.metrics||[]).map(m=>({date:m[0],views:m[1],likes:m[2],comments:m[3],shares:m[4]}))};
-  if(r.gtAt)nc.gtAt=r.gtAt;if(r.manual)nc.manual=true;if(r.cat)nc.cat=r.cat;if(r.euro!=null)nc.euro=r.euro;if(r.conf!=null)nc.conf=r.conf;if(r.paid!=null)nc.paid=r.paid;
+  if(r.gtAt)nc.gtAt=r.gtAt;if(r.manual)nc.manual=true;if(r.cat)nc.cat=r.cat;if(r.euro!=null)nc.euro=r.euro;if(r.conf!=null)nc.conf=r.conf;if(r.paid!=null)nc.paid=r.paid;if(r.paidAt)nc.paidAt=r.paidAt;
   if(old)db.clips[db.clips.indexOf(old)]=nc;else db.clips.push(nc);idx.set(k,nc);return true}
  const c=idx.get(k);if(!c)return r===null;
- if(r===null){c.gtasty=false;delete c.gtAt;delete c.euro;delete c.conf;delete c.paid;delete c.cat;return true}
- c.gtasty=!!r.g;if(r.a)c.gtAt=r.a;else delete c.gtAt;if(r.ct)c.cat=r.ct;else delete c.cat;
+ if(r===null){c.gtasty=false;delete c.gtAt;delete c.euro;delete c.conf;delete c.paid;delete c.paidAt;delete c.cat;return true}
+ c.gtasty=!!r.g;if(r.a)c.gtAt=r.a;else delete c.gtAt;if(r.pa)c.paidAt=r.pa;else delete c.paidAt;if(r.ct)c.cat=r.ct;else delete c.cat;
  for(const [f,g] of [["e","euro"],["cf","conf"],["pd","paid"]]){if(r[f]==null)delete c[g];else c[g]=r[f]}return true}
 async function syPost(o){let r;
  try{r=await fetch(SY.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({code:SY.code},o)),redirect:"follow"})}
@@ -2391,9 +2454,16 @@ const A={
  hsCopy:b=>{const t=hashStats(PF).multi.sort((x,y)=>y.avg-x.avg).slice(0,5).map(r=>r.t).join(" "),o=b.textContent,done=()=>{b.textContent="✓ Kopiert";setTimeout(()=>{if(b.isConnected)b.textContent=o},1600)};
   const fb=()=>{const x=document.createElement("textarea");x.value=t;document.body.appendChild(x);x.select();try{document.execCommand("copy");done()}catch(e){b.textContent="Nicht möglich"}x.remove()};
   try{navigator.clipboard.writeText(t).then(done,fb)}catch(e){fb()}},
- setPay:(id,k,v)=>{const c=db.clips.find(x=>x.id===id);if(!c||(k!=="conf"&&k!=="paid"))return;const t=String(v).trim();if(t==="")delete c[k];else{const n=num(v);if(!(n>=0))return paint();c[k]=n}save();paint()},
+ setPay:(id,k,v)=>{const c=db.clips.find(x=>x.id===id);if(!c||(k!=="conf"&&k!=="paid"))return;const t=String(v).trim();if(t==="")delete c[k];else{const n=num(v);if(!(n>=0))return paint();c[k]=n}if(k==="paid"){if(c.paid>0){if(!c.paidAt)c.paidAt=today()}else delete c.paidAt}save();paint()},
  payConf:()=>{for(const c of db.clips)if(c.gtasty&&gtSure(c)&&c.conf==null)c.conf=gtEuro(c);save();paint()},
- payPaid:()=>{for(const c of db.clips)if(c.gtasty&&c.conf>0&&c.paid==null)c.paid=c.conf;save();paint()},
+ payPaid:()=>{for(const c of db.clips)if(c.gtasty&&c.conf>0&&c.paid==null){c.paid=c.conf;c.paidAt=today()}save();paint()},
+ finAddExp:e=>{const f=fd(e),n=num(f.amt);if(!f.name.trim()||!(n>0)||!f.from||!FIN_KIND[f.kind]){MSG="Bitte Name, Betrag (größer als 0) und Datum eintragen.";paint();return false}
+  if(f.to&&f.to<f.from){MSG="„Läuft bis“ darf nicht vor dem Startdatum liegen.";paint();return false}
+  finEdit(d=>d.exp.push({id:uid(),name:f.name.trim().slice(0,80),amt:n,kind:f.kind,from:f.from,to:f.kind==="einmal"?"":(f.to||"")}));MSG="✓ Ausgabe gespeichert.";paint();return false},
+ finAddInc:e=>{const f=fd(e),n=num(f.amt);if(!f.name.trim()||!(n>0)||!f.date){MSG="Bitte Name, Betrag (größer als 0) und Datum eintragen.";paint();return false}
+  finEdit(d=>d.inc.push({id:uid(),name:f.name.trim().slice(0,80),amt:n,date:f.date,src:FIN_SRC.includes(f.src)?f.src:"Sonstiges"}));MSG="✓ Einnahme gespeichert.";paint();return false},
+ finDel:(k,id)=>{if(k!=="exp"&&k!=="inc")return;finEdit(d=>{d[k]=d[k].filter(x=>x.id!==id)});MSG="✓ Gelöscht.";paint()},
+ finPaidAt:(id,v)=>{const c=db.clips.find(x=>x.id===id);if(!c||!/^\d{4}-\d{2}-\d{2}$/.test(v))return;c.paidAt=v;save();paint()},
  export:()=>{const b=new Blob([JSON.stringify(db,null,1)],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="creator-hub-backup-"+today()+".json";a.click();setTimeout(()=>URL.revokeObjectURL(u),5e3);MSG="✓ Backup heruntergeladen.";paint()},
  import:inp=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.clips))throw 0;if(!confirm("Aktuelle Daten durch das Backup ersetzen?"))return;db=fixDb(Object.assign(blank(),d));save();MSG="✓ Backup importiert.";paint()}catch(e){MSG="Datei ist kein gültiges Backup.";paint()}};r.readAsText(f)},
  impFile:inp=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const t=csvParse(String(r.result));if(t.length<2)throw 0;const hd=t[0].map(x=>x.trim()),meta=hd.includes("Permalink")&&hd.includes("Post ID");IMP={name:f.name,head:hd,rows:t.slice(1),platform:meta?"instagram":"youtube",tz:meta?"la":"none",date:today(),map:impGuess(hd)};MSG=""}catch(e){IMP=null;MSG="Die Datei konnte nicht als Tabelle gelesen werden."}paint()};r.readAsText(f,"utf-8")},
@@ -2443,7 +2513,7 @@ Object.assign(A,{
   const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}ta.remove();try{navigator.clipboard.writeText(t)}catch(e){}alert("Zeiten kopiert:\n\n"+t)}
 });
 function paint(){if(V==="clipfinder"&&!OPEN&&cfLock()&&document.getElementById("cf-run")){cfRender();return}side();const m=document.getElementById("main");
- const P={dashboard:pDash,submit:pSubmit,clips:pClips,clip:pClip,follower:pFollower,radar:pRadar,planer:pPlaner,zeit:pZeit,hash:pHash,gtasty:pG,stats:pStats,tools:pTools,pb:pPB,clipfinder:pClipfinder,daten:pDaten};
+ const P={dashboard:pDash,submit:pSubmit,clips:pClips,clip:pClip,follower:pFollower,radar:pRadar,planer:pPlaner,zeit:pZeit,hash:pHash,gtasty:pG,finanzen:pFin,stats:pStats,tools:pTools,pb:pPB,clipfinder:pClipfinder,daten:pDaten};
  let v=V;if(OPEN)v="clip";m.innerHTML=`<div class="mhead"><div class="mb"><span class="mark">${BOLT}</span><b>CREATOR HUB</b></div><div id="tw-pill">${twPill()}</div></div>`+(P[v]||pDash)();if(v==="pb")pbInit();if(v==="clipfinder")cfInit();twDraw();
 }
 (function(){const tip=document.createElement("div");tip.className="tip";document.body.appendChild(tip);let cur=null;
