@@ -958,8 +958,9 @@ function doPost(e) {
 }
 
 // ---------- Erinnerung aufs Handy per E-Mail (optional) ----------
-// Schickt dir ca. 30 Minuten vor der aktivsten Zeit deiner Follower/Zuschauer eine E-Mail an dein eigenes Google-Konto.
-// Die Gmail-App meldet sie aufs Handy. Der Plan kommt aus dem Hub (Follower & Statistiken). Nur eine Info, keine Empfehlung zum Posten.
+// Schickt dir ca. 30 Minuten vor einer Upload-Zeit aus dem Upload-Planer eine E-Mail an dein eigenes Google-Konto (mit der aktivsten Zeit deiner Follower als Zusatz).
+// Gibt es fuer eine Plattform noch keinen Planer-Vorschlag, kommt wie bisher die Erinnerung zur aktivsten Zeit der Follower.
+// Die Gmail-App meldet die Mail aufs Handy. Der Plan kommt aus dem Hub. Ein Hinweis aus deinen bisherigen Clips, keine Garantie.
 function mailSenden(titel, text) {
   MailApp.sendEmail({
     to: Session.getEffectiveUser().getEmail(),
@@ -986,23 +987,58 @@ function erinnerungPruefen() {
   var min = Number(Utilities.formatDate(jetzt, "Europe/Berlin", "H")) * 60 + Number(Utilities.formatDate(jetzt, "Europe/Berlin", "m"));
   var vorlauf = Number(plan.lead) || 30;
   var namen = {tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube"};
+  var h = function (x) { return (x < 10 ? "0" : "") + x; };
   for (var p in namen) {
-    if (!plan.d[p] || (plan.on && plan.on[p] === false)) continue;
+    if (plan.on && plan.on[p] === false) continue;
+    var upP = plan.up && plan.up[p];
+    var u = (plan.u && plan.u[p]) || "Zuschauer";
     for (var off = 0; off < 2; off++) {
-      var lauf = plan.d[p][(tag + off) % 7];
-      if (!lauf || typeof lauf.a !== "number") continue;
-      var start = lauf.a * 60 + off * 1440;
-      if (min >= start - vorlauf && min < start) {
-        var ziel = Utilities.formatDate(new Date(jetzt.getTime() + off * 86400000), "Europe/Berlin", "yyyy-MM-dd") + " " + lauf.a;
-        var schl = "erinnerungGesendet_" + p;
-        if (props.getProperty(schl) === ziel) continue;
-        var u = (plan.u && plan.u[p]) || "Zuschauer";
-        var h = function (x) { return (x < 10 ? "0" : "") + x; };
-        var txt = "In ca. " + (start - min) + " Minuten (ab " + h(lauf.a) + " Uhr) sind deine " + u + " bei " + namen[p] + " am aktivsten";
-        if (typeof lauf.f === "number" && typeof lauf.t === "number") txt += ", insgesamt aktiv etwa " + h(lauf.f) + " bis " + h(lauf.t) + " Uhr";
-        txt += ". Nur zur Info, keine Empfehlung zum Posten.";
-        mailSenden(namen[p] + ": gleich viel los", txt);
-        props.setProperty(schl, ziel);
+      var dow = (tag + off) % 7;
+      var lauf = plan.d[p] && plan.d[p][dow];
+      var hatLauf = lauf && typeof lauf.a === "number";
+      var datum = Utilities.formatDate(new Date(jetzt.getTime() + off * 86400000), "Europe/Berlin", "yyyy-MM-dd");
+      var fol = "";
+      if (hatLauf) {
+        fol = "Deine " + u + " sind bei " + namen[p] + " ab " + h(lauf.a) + " Uhr am aktivsten";
+        if (typeof lauf.f === "number" && typeof lauf.t === "number") fol += " (insgesamt aktiv etwa " + h(lauf.f) + " bis " + h(lauf.t) + " Uhr)";
+        fol += ".";
+      }
+      if (upP) {
+        // Upload-Zeiten aus dem Upload-Planer, eine Mail pro Uhrzeit
+        var slots = upP[dow] || [];
+        for (var k = 0; k < slots.length; k++) {
+          var sl = slots[k];
+          if (!sl || typeof sl.h !== "number" || sl.h < 0 || sl.h > 23) continue;
+          var startU = sl.h * 60 + off * 1440;
+          if (!(min >= startU - vorlauf && min < startU)) continue;
+          var zielU = datum + " " + sl.h;
+          var schlU = "erinnerungGesendet_" + p + "_u" + k;
+          if (props.getProperty(schlU) === zielU) continue;
+          var t1 = "In ca. " + (startU - min) + " Minuten (ab " + h(sl.h) + " Uhr) ist laut deinem Upload-Planer eine gute Zeit f\u00fcr einen Clip auf " + namen[p] + ".";
+          if (sl.s === "weak") t1 += " Dazu gibt es noch wenig Daten (wenige Clips mit bekannter Uhrzeit), nimm es eher als Anhaltspunkt.";
+          else if (sl.s === "pool") t1 += " Die Uhrzeit ist aus allen Plattformen zusammen berechnet, weil bei " + namen[p] + " noch zu wenige Clips mit Uhrzeit da sind.";
+          else t1 += " Deine Clips sind zu dieser Uhrzeit bisher \u00fcberdurchschnittlich oft viral gegangen.";
+          if (sl.b) t1 += " " + (off ? "Morgen" : "Heute") + " ist au\u00dferdem dein bester Tag auf " + namen[p] + ".";
+          if (typeof sl.t === "string" && sl.t) t1 += " Thema laut Plan: " + sl.t.slice(0, 40) + ".";
+          if (fol) t1 += "\n\n" + fol;
+          t1 += "\n\nDas ist ein Hinweis aus deinen bisherigen Clips, keine Garantie, dass ein Clip viral geht.";
+          mailSenden(namen[p] + ": gute Zeit zum Hochladen", t1);
+          props.setProperty(schlU, zielU);
+        }
+      } else if (hatLauf) {
+        // Noch kein Planer-Vorschlag fuer diese Plattform: wie bisher die aktivste Zeit der Follower
+        var startF = lauf.a * 60 + off * 1440;
+        if (min >= startF - vorlauf && min < startF) {
+          var zielF = datum + " " + lauf.a;
+          var schlF = "erinnerungGesendet_" + p;
+          if (props.getProperty(schlF) !== zielF) {
+            var t2 = "In ca. " + (startF - min) + " Minuten (ab " + h(lauf.a) + " Uhr) sind deine " + u + " bei " + namen[p] + " am aktivsten";
+            if (typeof lauf.f === "number" && typeof lauf.t === "number") t2 += ", insgesamt aktiv etwa " + h(lauf.f) + " bis " + h(lauf.t) + " Uhr";
+            t2 += ". F\u00fcr den Upload-Planer gibt es bei dieser Plattform noch keinen Vorschlag (zu wenige Clips mit bekannter Uhrzeit), deshalb kommt nur diese Info. Keine Empfehlung zum Posten.";
+            mailSenden(namen[p] + ": gleich viel los", t2);
+            props.setProperty(schlF, zielF);
+          }
+        }
       }
     }
   }
@@ -2021,11 +2057,11 @@ function plCal(A_,thr,pd,D){const low=[],miss=[],E=A_.map(a0=>plEff(a0,thr,pd,D)
   for(const dy of days){const w=a.wd[dy.dow].st,f=w.n>=6&&a.p0>0?w.sh/a.p0:null;if(e.bestDay&&e.bestDay.i===dy.dow)dy.bestFor.push(a.p);
    full.forEach((s,k)=>dy.slots.push({p:a.p,h:s.h,src:s.src,th:plThema(a,dy.dow,k,t2),f,past:dy.i===0&&s.h<=nowH}))}}
  const card=dy=>`<div class="card" style="padding:12px;min-width:0;${dy.bestFor.length?"border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)":""}"><div class="ml">${PL_DK[dy.dow]} ${dy.d.slice(8)}.${dy.d.slice(5,7)}.${dy.i===0?` <span class="pill" style="font-size:11px">Heute</span>`:""}</div>${dy.bestFor.length?`<div class="mf" style="color:var(--acc);font-weight:800;margin-top:4px">★ Bester Tag: ${dy.bestFor.map(p=>PL[p]).join(", ")}</div>`:""}${dy.slots.length?dy.slots.sort((x,y)=>x.h-y.h).map(x=>`<div style="margin-top:10px;${x.past?"opacity:.45":""}"><div style="font-size:20px;font-weight:800;color:#fff">${String(x.h).padStart(2,"0")}:00</div><div class="mf"><b style="color:var(--acc)">${PL[x.p]}</b>${x.th?` · ${esc(x.th.name)}`:""}</div>${x.th&&x.th.fix?`<div class="mf">bewährt (${x.th.st.vir} von ${x.th.st.n} viral)</div>`:""}${x.f!=null?`<div class="mf">${x.f>=1.2?"starker Tag":x.f<=0.8?"schwächerer Tag":"normaler Tag"}</div>`:`<div class="mf">wenig Daten für diesen Tag</div>`}${x.src==="weak"?`<div class="mf">wenig Daten für diese Uhrzeit</div>`:x.src==="pool"?`<div class="mf">Uhrzeit aus allen Plattformen zusammen</div>`:""}${x.past?`<div class="mf">schon vorbei</div>`:""}</div>`).join(""):`<div class="mf" style="margin-top:10px">kein Vorschlag</div>`}</div>`;
- const top=`<section class="cards c3" style="margin:6px 0 14px">${E.map(e=>`<div class="card"><div class="ml">${PL[e.p]}</div>${e.sl&&e.sl.length||e.bestDay?`<div class="mf" style="margin-top:8px">Bester Tag</div><div class="mv g" style="font-size:26px">${e.bestDay?PL_DOW[e.bestDay.i]:"noch offen"}</div>${e.bestDay?`<div class="mf">${plPct(e.bestDay.st.rate)} viral, ${e.bestDay.st.vir} von ${e.bestDay.st.n} Clips</div>`:""}<div class="mf" style="margin-top:10px">Beste Uhrzeit</div><div class="mv g" style="font-size:26px">${e.best?String(e.best.h).padStart(2,"0")+":00 Uhr":"noch offen"}</div>${e.best?`<div class="mf">${e.best.v} von ${e.best.n} Clips in dem Zeitfenster viral (±1 Std.)</div>`:`<div class="mf">noch zu wenig Clips mit bekannter Uhrzeit</div>`}${e.t2<thr?`<div class="mf">gerechnet ab ${nf(e.t2)} Aufrufen</div>`:""}`:`<div class="mf" style="margin-top:8px">Noch zu wenig Daten.</div>`}</div>`).join("")}</section>`;
+ const top=`<section class="cards c3" style="margin:6px 0 14px">${E.map(e=>`<div class="card"><div class="ml">${PL[e.p]}</div>${e.sl&&e.sl.length||e.bestDay?`<div class="mf" style="margin-top:8px">Bester Tag</div><div class="mv g" style="font-size:26px">${e.bestDay?PL_DOW[e.bestDay.i]:"noch offen"}</div>${e.bestDay?`<div class="mf">${plPct(e.bestDay.st.rate)} viral, ${e.bestDay.st.vir} von ${e.bestDay.st.n} Clips</div>`:""}<div class="mf" style="margin-top:10px">Beste Uhrzeit</div><div class="mv g" style="font-size:26px">${e.best?String(e.best.h).padStart(2,"0")+":00 Uhr":"noch offen"}</div>${e.best?`<div class="mf">${e.best.v} von ${e.best.n} Clips in dem Zeitfenster viral (±1 Std.)</div>`:`<div class="mf">noch zu wenig Clips mit bekannter Uhrzeit</div>`}${e.t2<thr?`<div class="mf">gerechnet ab ${nf(e.t2)} Aufrufen</div>`:""}`:`<div class="mf" style="margin-top:8px">Noch zu wenig Daten.</div>`}${(()=>{const r=ntfRun(e.p,(new Date().getDay()+6)%7);return r?`<div class="mf" style="margin-top:10px">Follower heute am aktivsten</div><div class="mv g" style="font-size:22px">${String(r.a).padStart(2,"0")}:00 Uhr</div>${r.f!=null?`<div class="mf">aktiv etwa ${String(r.f).padStart(2,"0")} bis ${String(r.t).padStart(2,"0")} Uhr</div>`:""}`:""})()}</div>`).join("")}</section>`;
  return `<section class="panel" style="margin:14px 0"><h2>Bester Tag und beste Uhrzeit</h2>${top}<h2>Wochenplan: wann hochladen</h2><div class="chips" style="margin:6px 0 12px"><span class="muted" style="font-size:12px">Clips pro Tag und Plattform</span>${[1,2,3].map(v=>`<span class="chip ${pd===v?"on":""}" onclick="A.plPd(${v})">${v}</span>`).join("")}</div><p class="notice" style="margin:0 0 12px">Wie viele Clips du pro Tag auf jeder Plattform hochladen willst. Bei 2 zeigt der Plan zum Beispiel zwei Uhrzeiten für TikTok, zwei für YouTube und zwei für Instagram, also bis zu 6 Clips am Tag.</p>
   ${days.some(x=>x.slots.length)?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">${days.map(card).join("")}</div>`:""}
   ${E.filter(e=>e.full.length&&e.full.length<pd).length?`<p class="notice" style="margin-top:10px">${E.filter(e=>e.full.length&&e.full.length<pd).map(e=>`${PL[e.p]}: nur ${e.full.length} von ${pd} Uhrzeiten, weil es noch zu wenige Clips mit bekannter Uhrzeit gibt.`).join(" ")}</p>`:""}${low.length?`<p class="notice" style="margin-top:10px">${low.map(m=>`${PL[m.a.p]}: Für den Plan zählen hier schon Clips ab ${nf(m.t)} Aufrufen, weil es sonst noch nicht genug Clips mit bekannter Uhrzeit gibt.`).join(" ")}</p>`:""}${miss.length?`<p class="notice" style="margin-top:10px">${miss.map(m=>`${PL[m.a.p]}: ${m.keineZeit?`Die Uhrzeit ist erst bei ${nf(m.a.hasT)} Clips bekannt, es braucht mindestens 15.`:`Noch kein verlässlicher Vorschlag, weil bei bekannter Uhrzeit erst wenige Clips ab ${nf(m.t)} Aufrufen erreicht haben (es braucht mindestens 5 und eine Uhrzeit mit genug Clips).`}`).join(" ")}</p>`:""}
-  <p class="notice" style="margin-top:10px">So entsteht der Plan: Der Hub schaut pro Plattform, zu welcher Uhrzeit (jeweils eine Stunde davor und danach mitgezählt, deutsche Zeit) bei dir die meisten Clips ab ${nf(thr)} Aufrufen herauskamen. Der „Beste Tag“ ist der Wochentag mit der höchsten Viral-Quote (mindestens 6 Clips, bei wenig Clips zum Durchschnitt hin geglättet) und im Kalender mit ★ markiert. Mit mehreren Clips pro Tag wählt der Plan weitere Uhrzeiten mit mindestens 3 Stunden Abstand. Reichen die Daten nicht für alle gewünschten Uhrzeiten, füllt der Plan mit den nächstbesten Uhrzeiten der Plattform auf (markiert mit „wenig Daten für diese Uhrzeit“). Hat eine Plattform noch gar nicht genug Clips mit bekannter Uhrzeit, nimmt er die Uhrzeiten aller Plattformen zusammen (markiert mit „aus allen Plattformen zusammen“). So hast du bei 3 Clips pro Tag immer 3 Uhrzeiten pro Plattform. „Starker Tag“ heißt: An diesem Wochentag wurden bei dir mehr Clips viral als im Schnitt. Das Thema ist die Kategorie, die an diesem Wochentag bei mindestens 4 Clips schon virale Treffer hatte („bewährt“). Gibt es das nicht, wechselt der Plan zwischen deinen besten Kategorien. Das ist ein Vorschlag aus deinen bisherigen Clips, keine Garantie, und bei kleinen Zahlen spielt der Zufall mit. Der Plan rechnet ausschließlich mit deinen eigenen Clips. Wann deine Follower aktiv sind, findest du unter „Follower & Statistiken“. Das ist nur ein Überblick und fließt hier nicht ein.</p></section>`}
+  <p class="notice" style="margin-top:10px">So entsteht der Plan: Der Hub schaut pro Plattform, zu welcher Uhrzeit (jeweils eine Stunde davor und danach mitgezählt, deutsche Zeit) bei dir die meisten Clips ab ${nf(thr)} Aufrufen herauskamen. Der „Beste Tag“ ist der Wochentag mit der höchsten Viral-Quote (mindestens 6 Clips, bei wenig Clips zum Durchschnitt hin geglättet) und im Kalender mit ★ markiert. Mit mehreren Clips pro Tag wählt der Plan weitere Uhrzeiten mit mindestens 3 Stunden Abstand. Reichen die Daten nicht für alle gewünschten Uhrzeiten, füllt der Plan mit den nächstbesten Uhrzeiten der Plattform auf (markiert mit „wenig Daten für diese Uhrzeit“). Hat eine Plattform noch gar nicht genug Clips mit bekannter Uhrzeit, nimmt er die Uhrzeiten aller Plattformen zusammen (markiert mit „aus allen Plattformen zusammen“). So hast du bei 3 Clips pro Tag immer 3 Uhrzeiten pro Plattform. „Starker Tag“ heißt: An diesem Wochentag wurden bei dir mehr Clips viral als im Schnitt. Das Thema ist die Kategorie, die an diesem Wochentag bei mindestens 4 Clips schon virale Treffer hatte („bewährt“). Gibt es das nicht, wechselt der Plan zwischen deinen besten Kategorien. Das ist ein Vorschlag aus deinen bisherigen Clips, keine Garantie, und bei kleinen Zahlen spielt der Zufall mit. Der Plan rechnet ausschließlich mit deinen eigenen Clips. Wann deine Follower aktiv sind, steht zur Information bei „Follower heute am aktivsten“ und fließt in den Plan nicht ein. Die E-Mail-Erinnerung aufs Handy richtet sich nach diesem Plan (einstellbar unter „Follower & Statistiken“ → „Erinnerung aufs Handy“).</p></section>`}
 
 let FA_SEL={tiktok:{},instagram:{},youtube:{}},FA_DAY=null;
 const faLab=h=>{const a=h%12===0?12:h%12;return String(h).padStart(2,"0")+" Uhr ("+a+(h<12?"a":"p")+")"};
@@ -2041,20 +2077,27 @@ function ntfRun(p,dow){const f=faShare(p,dow);if(!f.n)return null;const mx=Math.
  R.sort((x,y)=>y.v-x.v||x.a-y.a);const t=R[0],wr=faWinRun(f.s,mx);
  return{a:t.a,e:(t.e+1)%24,f:wr?wr.a:null,t:wr?(wr.e+1)%24:null}}
 function ntfPlan(){const d={};let any=false;for(const p of PLS){if(!faList(p).length){d[p]=null;continue}d[p]=Array.from({length:7},(_,i)=>ntfRun(p,i));if(d[p].some(x=>x))any=true}
- if(!any)return null;const on={};for(const p of PLS)on[p]=ntfOn(p);return{lead:30,on,u:FA_UNIT,d}}
+ const up=ntfUp();if(!any&&!up)return null;const on={};for(const p of PLS)on[p]=ntfOn(p);return Object.assign({lead:30,on,u:FA_UNIT,d},up?{up}:{})}
+/* Upload-Zeiten aus dem Upload-Planer (Wochenplan): pro Plattform und Wochentag die Uhrzeiten, dazu Quelle (ok = Quote über dem Schnitt, weak = wenig Daten, pool = aus allen Plattformen), Thema und ob heute der beste Tag ist. */
+function ntfUp(){try{const cf=plCfg(),thr=plThrV(cf),pd=plPdV(cf),D=plData(),up={};let any=false;
+ for(const p of PLS){const e=plEff(plAn(p,D,thr),thr,pd,D);if(!e.full||!e.full.length){up[p]=null;continue}
+  const bd=e.bestDay?e.bestDay.i:null;
+  up[p]=Array.from({length:7},(_,dow)=>e.full.map((x,k)=>{const th=plThema(e.a,dow,k,e.t2);return{h:x.h,s:x.src,t:th&&th.name?String(th.name).slice(0,40):null,b:bd===dow?1:0}}));any=true}
+ return any?up:null}catch(err){return null}}
 function ntfPanel(){const H2=h=>String(h).padStart(2,"0"),tdow=(new Date().getDay()+6)%7;
  const pl=ntfPlan();
- const rows=PLS.map(p=>{const r=pl&&pl.d[p];if(!r)return `<tr><td>${PL[p]}</td><td colspan="2" class="muted">noch keine Eintragung</td></tr>`;
-  const one=i=>{const x=r[i];if(!x)return "—";const m=((x.a*60-30)+1440)%1440;return `${H2(Math.floor(m/60))}:${H2(m%60)} Uhr`};
+ const tm=m=>{m=((m%1440)+1440)%1440;return `${H2(Math.floor(m/60))}:${H2(m%60)}`};
+ const rows=PLS.map(p=>{const r=pl&&pl.d[p],u=pl&&pl.up&&pl.up[p];if(!r&&!u)return `<tr><td>${PL[p]}</td><td colspan="2" class="muted">noch kein Vorschlag und keine Eintragung</td></tr>`;
+  const one=i=>{const us=u&&u[i];if(us&&us.length)return us.map(x=>tm(x.h*60-30)).join(", ")+" Uhr";const x=r&&r[i];if(!x)return "—";return tm(x.a*60-30)+" Uhr <span class=\"muted\">(Follower)</span>"};
   return `<tr><td>${PL[p]}</td><td>${one(tdow)}</td><td>${one((tdow+1)%7)}</td></tr>`}).join("");
  return `<section class="panel" style="margin:14px 0"><h2>Erinnerung aufs Handy</h2>
- <p class="notice" style="margin:0 0 12px"><b>Nur eine Erinnerung.</b> Etwa 30 Minuten bevor deine Follower oder Zuschauer am aktivsten sind, kommt eine Erinnerung aufs Handy, auch wenn der Hub zu ist. Pro Plattform und Tag höchstens eine. Es ist keine Empfehlung zum Posten und sagt nicht, wann Videos viral gehen. Die Zeiten kommen aus „Wann sind deine Follower aktiv?“ weiter oben.</p>
+ <p class="notice" style="margin:0 0 12px"><b>E-Mail zur Upload-Zeit.</b> Etwa 30 Minuten vor einer Uhrzeit aus deinem <a onclick="A.go('planer')">Upload-Planer</a> kommt eine E-Mail aufs Handy, auch wenn der Hub zu ist: Zu der Uhrzeit sind deine Clips bisher überdurchschnittlich oft viral gegangen. In der Mail steht auch, wann deine Follower am aktivsten sind (aus „Wann sind deine Follower aktiv?“ weiter oben). Pro Plattform kommt so viele Mails am Tag, wie du im Planer „Clips pro Tag“ eingestellt hast. Das ist ein Hinweis aus deinen bisherigen Clips, keine Garantie, dass ein Clip viral geht. Gibt es für eine Plattform noch keinen Planer-Vorschlag (zu wenige Clips mit Uhrzeit), kommt dort wie bisher die Erinnerung zur aktivsten Zeit der Follower.</p>
  <div class="chips" style="margin:6px 0 12px"><span class="muted" style="font-size:12px">Benachrichtigen bei</span>${PLS.map(p=>`<span class="chip ${ntfOn(p)?"on":""}" onclick="A.ntfTog('${p}')">${PL[p]}</span>`).join("")}</div>
  <div class="tw"><table><thead><tr><th>Plattform</th><th>Heute (${PL_DK[tdow]})</th><th>Morgen (${PL_DK[(tdow+1)%7]})</th></tr></thead><tbody>${rows}</tbody></table></div>
- <p class="mf" style="margin-top:6px">Uhrzeit = wann die Erinnerung kommt (30 Minuten vor der höchsten Aktivität des Tages). Das Skript prüft alle 5 Minuten, sie kann also bis zu 5 Minuten früher oder später kommen.</p>
+ <p class="mf" style="margin-top:6px">Uhrzeit = wann die Mail kommt (30 Minuten vor der Upload-Zeit aus dem Planer, bei „(Follower)“ 30 Minuten vor der höchsten Aktivität deiner Follower). Das Skript prüft alle 5 Minuten, sie kann also bis zu 5 Minuten früher oder später kommen.</p>
  ${SY&&SY.url?`<div class="mf" style="margin-top:12px"><b>So kommt es aufs Handy</b></div>
  <p class="mf" style="margin:4px 0">Das Skript schickt dir die Erinnerung als <b>E-Mail an dein eigenes Google-Konto</b>. Die <b>Gmail-App</b> auf dem Handy meldet sie sofort, auch wenn die App zu ist. Dafür muss in der Gmail-App der Benachrichtigungston für dein Konto an sein (Gmail, Menü, Einstellungen, dein Konto, Benachrichtigungen: „Alle“ oder „Nur Hauptkategorie“). Am PC meldet Gmail im Browser genauso, wenn du dort Benachrichtigungen erlaubst.</p>
- <p class="mf" style="margin:4px 0">Die Mails kommen vom Absender „Creator Hub“ mit dem Titel „TikTok: gleich viel los“ und so weiter. Pro Plattform und Tag höchstens eine.</p>
+ <p class="mf" style="margin:4px 0">Die Mails kommen vom Absender „Creator Hub“ mit dem Titel „TikTok: gute Zeit zum Hochladen“ (oder „TikTok: gleich viel los“, wenn es noch keinen Planer-Vorschlag gibt).</p>
  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px"><button class="btn sm" onclick="A.ntfTest()">Test-Mail senden</button><span class="mf" id="ntf-msg">${db.ntfTest&&Date.now()-db.ntfTest<600000?"Test angefordert. Die Mail kommt innerhalb von etwa 5 Minuten.":""}</span></div>`
  :`<p class="mf" style="margin-top:12px">Dafür muss der Abgleich zwischen PC und Handy verbunden sein (Daten &amp; Backup).</p>`}
  </section>`}
