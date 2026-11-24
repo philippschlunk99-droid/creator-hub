@@ -2899,7 +2899,7 @@ function pbInit(){const $=id=>document.getElementById(id),cv=$("pb-canvas");
    if(t<1)requestAnimationFrame(f);else{draw(ctx,1,c);setTimeout(()=>{if(rec.state!=="inactive")rec.stop()},250)}};requestAnimationFrame(f)}}
 
 /* ============ Aktionen ============ */
-function go(v){if(v==="geld")v=GLAST;if(GKEYS.includes(v))GLAST=v;if(pbBusy&&v!=="pb"){if(!confirm("Der Export läuft noch. Seite wirklich verlassen?"))return;}V=v;OPEN=null;MSG="";BMSG="";MORE=false;paint()}
+function go(v){if(v==="geld")v=GLAST;if(GKEYS.includes(v))GLAST=v;if(pbBusy&&v!=="pb"){if(!confirm("Der Export läuft noch. Seite wirklich verlassen?"))return;}V=v;OPEN=null;MSG="";BMSG="";MORE=false;paint();window.scrollTo(0,0)}
 const fd=e=>{e.preventDefault();return Object.fromEntries(new FormData(e.target))};
 const A={
  go,more:()=>{MORE=!MORE;side()},preset:p=>{PICK=null;CAL.s=null;setPreset(p);paint()},
@@ -2926,7 +2926,7 @@ const A={
  plReset:()=>{if(confirm("Alle Kategorien und Regeln auf die Standardliste zurücksetzen? Deine Zuordnungen pro Clip bleiben erhalten."))plEdit(c=>{const d=JSON.parse(JSON.stringify(PL_DEF));c.list=d.list;c.rules=d.rules;c.thr=c.thr||50000})},
  plMore:()=>{PLN+=25;paint()},
  custom:(f,t)=>{R={preset:"custom",from:f||R.from,to:t||R.to};if(R.from>R.to)[R.from,R.to]=[R.to,R.from];paint()},
- fplat:p=>{F.plat=p;paint()},fsort:s=>{F.sort=s;paint()},open:id=>{OPEN=id;MSG="";V=id?"clip":"clips";if(id&&V==="clip"){}paint()},
+ fplat:p=>{F.plat=p;paint()},fsort:s=>{F.sort=s;paint()},open:id=>{OPEN=id;MSG="";V=id?"clip":"clips";if(id&&V==="clip"){}paint();window.scrollTo(0,0)},
  month:v=>{if(!/^\d{4}-\d{2}$/.test(v))return;PICK=null;CAL.s=null;const y=Number(v.slice(0,4)),m=Number(v.slice(5,7)),last=iso(new Date(y,m,0)),t=today();R={preset:"m:"+v,from:v+"-01",to:last>t?t:last};paint()},
  qPlat:v=>{QP=PLS.includes(v)?v:"tiktok";paint()},
  copyId:(id,b)=>{const el=document.getElementById(id);if(!el)return;const t=el.value!==undefined?el.value:el.textContent,done=()=>{const o=b.textContent;b.textContent="✓ Kopiert";setTimeout(()=>{if(b.isConnected)b.textContent=o},1600)};
