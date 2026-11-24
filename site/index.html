@@ -958,8 +958,8 @@ function doPost(e) {
 }
 
 // ---------- Erinnerung aufs Handy per E-Mail (optional) ----------
-// Schickt dir ca. 30 Minuten vor einer Upload-Zeit aus dem Upload-Planer eine E-Mail an dein eigenes Google-Konto (mit der aktivsten Zeit deiner Follower als Zusatz).
-// Gibt es fuer eine Plattform noch keinen Planer-Vorschlag, kommt wie bisher die Erinnerung zur aktivsten Zeit der Follower.
+// Schickt dir ca. 30 Minuten vor einer Upload-Zeit aus dem Upload-Planer eine E-Mail an dein eigenes Google-Konto
+// und eine zweite ca. 30 Minuten vor der aktivsten Zeit deiner Follower/Zuschauer (pro Plattform, mit Plattformname im Titel).
 // Die Gmail-App meldet die Mail aufs Handy. Der Plan kommt aus dem Hub. Ein Hinweis aus deinen bisherigen Clips, keine Garantie.
 function mailSenden(titel, text) {
   MailApp.sendEmail({
@@ -1025,17 +1025,22 @@ function erinnerungPruefen() {
           mailSenden(namen[p] + ": gute Zeit zum Hochladen", t1);
           props.setProperty(schlU, zielU);
         }
-      } else if (hatLauf) {
-        // Noch kein Planer-Vorschlag fuer diese Plattform: wie bisher die aktivste Zeit der Follower
+      }
+      // Zweite Mail: Die Follower sind gleich am aktivsten (immer, auch wenn es einen Planer-Vorschlag gibt)
+      if (hatLauf) {
+        var gleich = false;
+        if (upP) { var sx = upP[dow] || []; for (var q = 0; q < sx.length; q++) { if (sx[q] && sx[q].h === lauf.a) gleich = true; } }
         var startF = lauf.a * 60 + off * 1440;
-        if (min >= startF - vorlauf && min < startF) {
+        if (!gleich && min >= startF - vorlauf && min < startF) {
           var zielF = datum + " " + lauf.a;
           var schlF = "erinnerungGesendet_" + p;
           if (props.getProperty(schlF) !== zielF) {
             var t2 = "In ca. " + (startF - min) + " Minuten (ab " + h(lauf.a) + " Uhr) sind deine " + u + " bei " + namen[p] + " am aktivsten";
             if (typeof lauf.f === "number" && typeof lauf.t === "number") t2 += ", insgesamt aktiv etwa " + h(lauf.f) + " bis " + h(lauf.t) + " Uhr";
-            t2 += ". F\u00fcr den Upload-Planer gibt es bei dieser Plattform noch keinen Vorschlag (zu wenige Clips mit bekannter Uhrzeit), deshalb kommt nur diese Info. Keine Empfehlung zum Posten.";
-            mailSenden(namen[p] + ": gleich viel los", t2);
+            t2 += ".";
+            if (!upP) t2 += " F\u00fcr den Upload-Planer gibt es bei dieser Plattform noch keinen Vorschlag (zu wenige Clips mit bekannter Uhrzeit).";
+            t2 += " Nur zur Info, keine Empfehlung zum Posten.";
+            mailSenden(namen[p] + ": " + u + " gleich am aktivsten", t2);
             props.setProperty(schlF, zielF);
           }
         }
@@ -2088,16 +2093,16 @@ function ntfPanel(){const H2=h=>String(h).padStart(2,"0"),tdow=(new Date().getDa
  const pl=ntfPlan();
  const tm=m=>{m=((m%1440)+1440)%1440;return `${H2(Math.floor(m/60))}:${H2(m%60)}`};
  const rows=PLS.map(p=>{const r=pl&&pl.d[p],u=pl&&pl.up&&pl.up[p];if(!r&&!u)return `<tr><td>${PL[p]}</td><td colspan="2" class="muted">noch kein Vorschlag und keine Eintragung</td></tr>`;
-  const one=i=>{const us=u&&u[i];if(us&&us.length)return us.map(x=>tm(x.h*60-30)).join(", ")+" Uhr";const x=r&&r[i];if(!x)return "—";return tm(x.a*60-30)+" Uhr <span class=\"muted\">(Follower)</span>"};
+  const one=i=>{const us=u&&u[i],x=r&&r[i],L=[];if(us&&us.length)L.push("Upload: "+us.map(y=>tm(y.h*60-30)).join(", ")+" Uhr");if(x&&!(us&&us.some(y=>y.h===x.a)))L.push("Follower: "+tm(x.a*60-30)+" Uhr");return L.length?L.join("<br>"):"—"};
   return `<tr><td>${PL[p]}</td><td>${one(tdow)}</td><td>${one((tdow+1)%7)}</td></tr>`}).join("");
  return `<section class="panel" style="margin:14px 0"><h2>Erinnerung aufs Handy</h2>
- <p class="notice" style="margin:0 0 12px"><b>E-Mail zur Upload-Zeit.</b> Etwa 30 Minuten vor einer Uhrzeit aus deinem <a onclick="A.go('planer')">Upload-Planer</a> kommt eine E-Mail aufs Handy, auch wenn der Hub zu ist: Zu der Uhrzeit sind deine Clips bisher überdurchschnittlich oft viral gegangen. In der Mail steht auch, wann deine Follower am aktivsten sind (aus „Wann sind deine Follower aktiv?“ weiter oben). Pro Plattform kommt so viele Mails am Tag, wie du im Planer „Clips pro Tag“ eingestellt hast. Das ist ein Hinweis aus deinen bisherigen Clips, keine Garantie, dass ein Clip viral geht. Gibt es für eine Plattform noch keinen Planer-Vorschlag (zu wenige Clips mit Uhrzeit), kommt dort wie bisher die Erinnerung zur aktivsten Zeit der Follower.</p>
+ <p class="notice" style="margin:0 0 12px"><b>Zwei Arten von E-Mail, jeweils 30 Minuten vorher.</b> Der Plattformname steht immer im Titel (TikTok, Instagram, YouTube). <b>1. Upload-Zeit:</b> eine Uhrzeit aus deinem <a onclick="A.go('planer')">Upload-Planer</a>, zu der deine Clips bisher überdurchschnittlich oft viral gegangen sind. Pro Plattform kommen so viele Mails am Tag, wie du im Planer bei „Clips pro Tag“ eingestellt hast. <b>2. Follower am aktivsten:</b> die aktivste Uhrzeit deiner Follower oder Zuschauer (aus „Wann sind deine Follower aktiv?“ weiter oben), einmal pro Plattform und Tag. Fallen beide Zeiten auf dieselbe Stunde, kommt nur die Upload-Mail, mit der Follower-Zeit darin. Beides ist ein Hinweis aus deinen bisherigen Zahlen, keine Garantie, dass ein Clip viral geht. Gibt es für eine Plattform noch keinen Planer-Vorschlag (zu wenige Clips mit Uhrzeit), kommt dort nur die Follower-Mail.</p>
  <div class="chips" style="margin:6px 0 12px"><span class="muted" style="font-size:12px">Benachrichtigen bei</span>${PLS.map(p=>`<span class="chip ${ntfOn(p)?"on":""}" onclick="A.ntfTog('${p}')">${PL[p]}</span>`).join("")}</div>
  <div class="tw"><table><thead><tr><th>Plattform</th><th>Heute (${PL_DK[tdow]})</th><th>Morgen (${PL_DK[(tdow+1)%7]})</th></tr></thead><tbody>${rows}</tbody></table></div>
- <p class="mf" style="margin-top:6px">Uhrzeit = wann die Mail kommt (30 Minuten vor der Upload-Zeit aus dem Planer, bei „(Follower)“ 30 Minuten vor der höchsten Aktivität deiner Follower). Das Skript prüft alle 5 Minuten, sie kann also bis zu 5 Minuten früher oder später kommen.</p>
+ <p class="mf" style="margin-top:6px">Uhrzeit = wann die Mail kommt: „Upload“ 30 Minuten vor der Upload-Zeit aus dem Planer, „Follower“ 30 Minuten vor der höchsten Aktivität deiner Follower. Das Skript prüft alle 5 Minuten, sie kann also bis zu 5 Minuten früher oder später kommen.</p>
  ${SY&&SY.url?`<div class="mf" style="margin-top:12px"><b>So kommt es aufs Handy</b></div>
  <p class="mf" style="margin:4px 0">Das Skript schickt dir die Erinnerung als <b>E-Mail an dein eigenes Google-Konto</b>. Die <b>Gmail-App</b> auf dem Handy meldet sie sofort, auch wenn die App zu ist. Dafür muss in der Gmail-App der Benachrichtigungston für dein Konto an sein (Gmail, Menü, Einstellungen, dein Konto, Benachrichtigungen: „Alle“ oder „Nur Hauptkategorie“). Am PC meldet Gmail im Browser genauso, wenn du dort Benachrichtigungen erlaubst.</p>
- <p class="mf" style="margin:4px 0">Die Mails kommen vom Absender „Creator Hub“ mit dem Titel „TikTok: gute Zeit zum Hochladen“ (oder „TikTok: gleich viel los“, wenn es noch keinen Planer-Vorschlag gibt).</p>
+ <p class="mf" style="margin:4px 0">Die Mails kommen vom Absender „Creator Hub“, zum Beispiel mit dem Titel „TikTok: gute Zeit zum Hochladen“ (Upload-Zeit) oder „TikTok: Zuschauer gleich am aktivsten“ (Follower).</p>
  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px"><button class="btn sm" onclick="A.ntfTest()">Test-Mail senden</button><span class="mf" id="ntf-msg">${db.ntfTest&&Date.now()-db.ntfTest<600000?"Test angefordert. Die Mail kommt innerhalb von etwa 5 Minuten.":""}</span></div>`
  :`<p class="mf" style="margin-top:12px">Dafür muss der Abgleich zwischen PC und Handy verbunden sein (Daten &amp; Backup).</p>`}
  </section>`}
