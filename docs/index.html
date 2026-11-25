@@ -919,6 +919,63 @@ function secsToPacificMidnight() {
   return 86400 - (Number(p[0]) * 3600 + Number(p[1]) * 60 + Number(p[2]));
 }
 
+// ---------- Zahlen fuer den Hub (privat, nur mit Sync-Code) ----------
+// Gibt die Blaetter dieser Tabelle an den Hub. So muss die Tabelle nicht mehr "Jeder mit dem Link" sein.
+function tabellenLesen(req) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var erlaubt = ["Verlauf", "Kanalverlauf", "Instagram", "Instagram-Verlauf", "Instagram-Follower", "TikTok", "Twitch"];
+  var namen = Array.isArray(req.blaetter) ? erlaubt.filter(function (n) { return req.blaetter.indexOf(n) >= 0; }) : erlaubt.slice(0, 6);
+  var out = {};
+  namen.forEach(function (n) {
+    var sh = ss.getSheetByName(n);
+    if (!sh || sh.getLastRow() < 1) return;
+    out[n] = sh.getDataRange().getValues().map(function (r) {
+      return r.map(function (v) {
+        if (v instanceof Date) return Utilities.formatDate(v, "Europe/Berlin", "yyyy-MM-dd");
+        return v === null || v === undefined ? "" : String(v);
+      });
+    });
+  });
+  return {ok: true, tabellen: out};
+}
+
+// ---------- Automatisches Backup (einmal am Tag, in dein Google Drive) ----------
+// Der Hub schickt einmal am Tag alle Daten. Gespeichert wird im Drive-Ordner "Creator Hub Backups".
+// Behalten werden die letzten 14 Tage und von jedem Monat das erste Backup. Aeltere wandern in den Drive-Papierkorb.
+function backupOrdner() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty("backupOrdner");
+  if (id) { try { var o = DriveApp.getFolderById(id); if (!o.isTrashed()) return o; } catch (e) {} }
+  var neu = DriveApp.createFolder("Creator Hub Backups");
+  props.setProperty("backupOrdner", neu.getId());
+  return neu;
+}
+
+function backupSpeichern(req) {
+  var d = req.daten;
+  if (!d || typeof d !== "object" || !Array.isArray(d.clips)) return {ok: false, error: "Das ist kein gueltiges Hub-Backup."};
+  var text = JSON.stringify(d, null, 1);
+  var tag = Utilities.formatDate(new Date(), "Europe/Berlin", "yyyy-MM-dd");
+  var name = "creator-hub-backup-" + tag + ".json";
+  var ordner = backupOrdner();
+  var alt = ordner.getFilesByName(name);
+  if (alt.hasNext()) alt.next().setContent(text); else ordner.createFile(name, text, "application/json");
+  var grenze = Utilities.formatDate(new Date(Date.now() - 14 * 86400000), "Europe/Berlin", "yyyy-MM-dd");
+  var liste = [], it = ordner.getFiles();
+  while (it.hasNext()) {
+    var f = it.next(), m = f.getName().match(/^creator-hub-backup-(\d{4}-\d{2}-\d{2})\.json$/);
+    if (m) liste.push({d: m[1], f: f});
+  }
+  liste.sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; });
+  var monate = {}, weg = 0;
+  liste.forEach(function (x) {
+    var mo = x.d.slice(0, 7);
+    if (!monate[mo]) { monate[mo] = true; return; }
+    if (x.d < grenze) { x.f.setTrashed(true); weg++; }
+  });
+  return {ok: true, datei: name, anzahl: liste.length - weg, groesse: text.length};
+}
+
 function doPost(e) {
   var lock = LockService.getScriptLock();
   try {
@@ -932,6 +989,8 @@ function doPost(e) {
     if (req.action === "belegBild") return antwort(belegBildSpeichern(req));
     if (req.action === "belegBildWeg") return antwort(belegBildLoeschen(req));
     if (req.action === "beleg") return antwort(belegErstellen(req.monat));
+    if (req.action === "tabellen") return antwort(tabellenLesen(req));
+    if (req.action === "backup") return antwort(backupSpeichern(req));
     lock.waitLock(25000);
     var f = hubDatei();
     var st = {};
@@ -1617,7 +1676,7 @@ function syncBox(){if(!db.yt||!ytUrlOk(db.yt.url))return`<div class="syb"><div c
  const v=ytVals(),fl=YTFLASH;YTFLASH=false;
  return`<div class="syb ${fl?"flash":""}" id="sy-box"><div class="syl"><span>Nächste Aktualisierung</span><span class="dot ${v.bad?"bad":""}" id="sy-dot"></span></div><div class="syc" id="sy-cd">${v.cd}</div><div class="sybar"><i id="sy-bar" style="width:${v.pct}%"></i></div><div class="sym" id="sy-last">${v.bad?"Letzter Versuch fehlgeschlagen, neuer Versuch folgt.":v.last}</div><button class="btn gh sm" onclick="A.ytNow()">Jetzt aktualisieren</button></div>`}
 const cfHeavy=()=>!!(typeof CF!=="undefined"&&(CF.busy||(CF.exp&&CF.exp.busy)));
-function ytTick(){if(SY&&SY.url&&Date.now()>=SYNEXT&&!document.hidden&&!SYBUSY&&!pbBusy&&!cfHeavy())syCycle();if(!db.yt||!ytUrlOk(db.yt.url))return;if(Date.now()>=YTNEXT&&!document.hidden&&!YTBUSY&&!pbBusy&&!cfHeavy())ytSync();
+function ytTick(){if(SY&&SY.url&&Date.now()>=SYNEXT&&!document.hidden&&!SYBUSY&&!pbBusy&&!cfHeavy())syCycle();if(!db.yt||(!ytUrlOk(db.yt.url)&&!(SY&&SY.url)))return;if(Date.now()>=YTNEXT&&!document.hidden&&!YTBUSY&&!pbBusy&&!cfHeavy())ytSync();
  if(Date.now()>=TWNEXT&&!document.hidden&&!TWBUSY&&!pbBusy&&!cfHeavy())twSync();if(Date.now()-TWDRAW>30000)twDraw();
  const cd=document.getElementById("sy-cd");if(!cd)return;const v=ytVals();cd.textContent=v.cd;document.getElementById("sy-bar").style.width=v.pct+"%";document.getElementById("sy-last").textContent=v.bad?"Letzter Versuch fehlgeschlagen, neuer Versuch folgt.":v.last;{const ml=document.getElementById("sy-mlast");if(ml)ml.textContent=v.bad?"Letzter Versuch fehlgeschlagen":YTBUSY?"Lädt …":v.last}document.getElementById("sy-dot").className="dot "+(v.bad?"bad":"")}
 
@@ -2676,8 +2735,9 @@ function twApply(t){const m={};for(const r of t.slice(1))m[String(r[0]||"").trim
  const n=x=>{const v=Number(String(x).replace(",","."));return isFinite(v)?v:0};
  if(!m.login)throw new Error("Im Blatt „Twitch“ fehlt der Kanalname");
  return{login:m.login,name:m.name||m.login,live:m.live==="ja",title:m.titel||"",game:m.spiel||"",viewers:n(m.zuschauer),started:m.gestartet||"",last:m.zuletzt_live||"",next:m.naechster_start||"",nextTitle:m.naechster_titel||"",checked:Date.parse(m.abgefragt)||0}}
-async function twSync(){if(!db.yt||!ytUrlOk(db.yt.url)||TWBUSY)return;const id=ytId(db.yt.url);if(!id)return;TWBUSY=true;
- try{const o=twApply(ytRowsFromGviz(await ytJsonp(id,"Twitch")));db.tw=o;TWERR="";save()}
+async function twSync(){if(!db.yt||TWBUSY)return;const id=ytId(db.yt.url);if(!id&&!(SY&&SY.url))return;TWBUSY=true;
+ try{const tabs=await ytTabs(["Twitch"]);if(!tabs&&!id)throw new Error("Dein Google-Skript ist noch die alte Version.");
+  const t=tabs?tabs.Twitch:ytRowsFromGviz(await ytJsonp(id,"Twitch"));if(!t||!t.length)throw new Error("Blatt „Twitch“ ist noch nicht eingerichtet.");const o=twApply(t);db.tw=o;TWERR="";save()}
  catch(e){TWERR=e.message}
  TWBUSY=false;TWNEXT=Date.now()+120000;twDraw();const dp=document.getElementById("tw-panel");if(dp)dp.innerHTML=twDataLine()}
 const twAgo=ms=>{const m=Math.max(0,Math.round((Date.now()-ms)/60000));return m<2?"gerade eben":m<60?"vor "+m+" Min":m<1440?"vor "+Math.floor(m/60)+" Std":"vor "+Math.floor(m/1440)+(Math.floor(m/1440)===1?" Tag":" Tagen")};
@@ -2749,18 +2809,25 @@ function estBack(plat,rows){const real=db.followers.filter(f=>f.platform===plat)
  const a=real[0],have=new Set(real.map(f=>f.date));let v=a.followers;
  for(const r of rows.filter(x=>x.date<a.date).sort((x,y)=>y.date.localeCompare(x.date))){if(!have.has(r.date))db.followers.push({platform:plat,date:r.date,followers:Math.max(0,Math.round(v)),est:true});v-=r.net}}
 function rebuildEst(){db.followers=db.followers.filter(f=>!f.est);estBack("youtube",db.chan);estBack("instagram",(db.chanIgF||[]).map(x=>({date:x.date,net:x.add-x.lose})))}
-async function ytSync(){if(!db.yt||!ytUrlOk(db.yt.url)||YTBUSY)return;YTBUSY=true;
- try{const url=db.yt.url.trim(),id=ytId(url);let t;
-  if(id){t=ytRowsFromGviz(await ytJsonp(id))}
+/* Ist der Abgleich verbunden und das Skript neu genug, kommen die Zahlen privat über das Skript (mit Sync-Code).
+   Sonst wie früher über den Tabellen-Link (dafür muss die Tabelle „Jeder mit dem Link“ sein). */
+async function ytTabs(bl){if(!SY||!SY.url||(SY.alt&&Date.now()-SY.alt<3600e3))return null;
+ try{const j=await syPost(bl?{action:"tabellen",blaetter:bl}:{action:"tabellen"});if(j.tabellen&&typeof j.tabellen==="object"){delete SY.alt;return j.tabellen}SY.alt=Date.now();sySave();return null}
+ catch(e){if(!ytUrlOk(db.yt&&db.yt.url))throw e;return null}}
+async function ytSync(){if(!db.yt||YTBUSY||(!ytUrlOk(db.yt.url)&&!(SY&&SY.url)))return;YTBUSY=true;
+ try{const tabs=await ytTabs();if(!tabs&&!ytUrlOk(db.yt.url))throw new Error("Dein Google-Skript ist noch die alte Version. Bitte den neuen Code einfügen und eine neue Version bereitstellen (Anleitung bei „Abgleich zwischen PC und Handy“).");
+  const url=String(db.yt.url||"").trim(),id=tabs?"skript":ytId(url);let t;db.yt.via=tabs?"skript":"link";
+  const ld=async s=>{if(tabs){const x=tabs[s];if(!x||!x.length)throw new Error("Blatt „"+s+"“ ist noch nicht eingerichtet.");return x}return ytRowsFromGviz(await ytJsonp(id,s))};
+  if(id){t=await ld("Verlauf")}
   else{let r;try{r=await fetch(url,{cache:"no-store"})}catch(e){throw new Error("Dein Browser blockiert den Abruf dieses „Im Web veröffentlichen“-Links. Nimm stattdessen den normalen Tabellen-Link: In der Tabelle oben rechts auf Teilen → Allgemeiner Zugriff → „Jeder, der den Link hat“ → Betrachter → Link kopieren, und füge diesen Link hier ein.")}
    if(!r.ok)throw new Error("Google antwortet mit Fehler "+r.status+". Ist das Blatt im Web veröffentlicht?");t=csvParse(await r.text())}
   const res=ytApply(t);db.yt.last=Date.now();db.yt.err="";db.yt.info=res;
-  if(id){try{db.yt.chanDays=ytChanApply(ytRowsFromGviz(await ytJsonp(id,"Kanalverlauf")));db.yt.chanErr=""}catch(e){db.yt.chanErr=e.message;rebuildEst()}
-   try{db.yt.igInfo=ytApply(ytRowsFromGviz(await ytJsonp(id,"Instagram")),"instagram");db.yt.igErr=""}catch(e){db.yt.igInfo=null;db.yt.igErr=e.message}
-   try{db.yt.igDays=igChanApply(ytRowsFromGviz(await ytJsonp(id,"Instagram-Verlauf")));db.yt.igChanErr=""}catch(e){db.yt.igChanErr=e.message}
-   try{db.yt.igFolDays=igFolApply(ytRowsFromGviz(await ytJsonp(id,"Instagram-Follower")));db.yt.igFolErr=""}catch(e){db.yt.igFolErr=e.message}
+  if(id){try{db.yt.chanDays=ytChanApply(await ld("Kanalverlauf"));db.yt.chanErr=""}catch(e){db.yt.chanErr=e.message;rebuildEst()}
+   try{db.yt.igInfo=ytApply(await ld("Instagram"),"instagram");db.yt.igErr=""}catch(e){db.yt.igInfo=null;db.yt.igErr=e.message}
+   try{db.yt.igDays=igChanApply(await ld("Instagram-Verlauf"));db.yt.igChanErr=""}catch(e){db.yt.igChanErr=e.message}
+   try{db.yt.igFolDays=igFolApply(await ld("Instagram-Follower"));db.yt.igFolErr=""}catch(e){db.yt.igFolErr=e.message}
    rebuildEst();
-   try{db.yt.ttInfo=ytApply(ytRowsFromGviz(await ytJsonp(id,"TikTok")),"tiktok");db.yt.ttErr=""}catch(e){db.yt.ttInfo=null;db.yt.ttErr=e.message}}}
+   try{db.yt.ttInfo=ytApply(await ld("TikTok"),"tiktok");db.yt.ttErr=""}catch(e){db.yt.ttInfo=null;db.yt.ttErr=e.message}}}
  catch(e){db.yt.err=e.message}
  YTBUSY=false;YTNEXT=Date.now()+(db.yt&&db.yt.err?60000:YTEVERY);YTFLASH=!!(db.yt&&!db.yt.err);save();
  const typing=[...document.querySelectorAll("#main input:not([type=checkbox]):not([type=file]):not([type=date]):not([readonly]),#main textarea:not([readonly])")].some(x=>x.value&&x.id!=="yt-url");
@@ -2782,7 +2849,7 @@ function ytPanel(){const y=db.yt,code=document.getElementById("gs-code").textCon
   <p><button class="btn gh sm" onclick="A.ytCopy(this)">Code kopieren</button></p>
   <label class="f" style="margin-top:12px">Link deiner Google-Tabelle (aus „Teilen“)</label>
   <div class="qr"><input class="in" id="yt-url" placeholder="https://docs.google.com/spreadsheets/d/…/edit?usp=sharing" value="${esc(y?y.url:"")}"><button class="btn" onclick="A.ytConnect()">${y?"Neu laden":"Verbinden"}</button>${y?`<button class="btn gh" onclick="A.ytOff()">Trennen</button>`:""}</div>
-  ${st}<p class="notice">Jeder mit diesem Link kann die Tabelle lesen (nicht ändern). Er ist nicht erratbar und enthält nur deine ohnehin öffentlichen Video-Zahlen. Gib ihn nicht weiter. Er ist auch in deinem Backup enthalten.</p>
+  ${st}${y&&y.via==="skript"?`<p class="ok">✓ Die Zahlen kommen privat über dein Google-Skript (mit Sync-Code). Die Tabelle muss nicht mehr geteilt sein: In der Tabelle auf <b>Teilen</b> → Allgemeiner Zugriff → <b>„Eingeschränkt“</b> stellen.</p>`:`<p class="notice">Jeder mit diesem Link kann die Tabelle lesen (nicht ändern). Gib ihn nicht weiter. <b>Privater geht es so:</b> Abgleich zwischen PC und Handy verbinden und das Skript auf die neue Version bringen. Dann holt der Hub die Zahlen über dein geschütztes Skript, und du kannst das Teilen der Tabelle ausschalten.</p>`}
   <h3 style="margin-top:22px">Instagram automatisch (optional)</h3>
   ${y&&y.igInfo?`<p class="ok">✓ Instagram wird geladen: ${y.igInfo.videos} Beiträge, letzter Datenstand ${dde(y.igInfo.last)}.</p>${y.igDays?`<p class="ok">✓ Konto-Verlauf seit Kontostart geladen (${nf(y.igDays)} Tage).</p>`:`<p class="notice">Konto-Verlauf seit Kontostart: noch nicht vorhanden (Blatt „Instagram-Verlauf“ fehlt oder ist leer). Der Abholer legt es einmal am Tag an.</p>`}${y.igFolDays?`<p class="ok">✓ Follower-Verlauf seit Kontostart geladen (${nf(y.igFolDays)} Tage, aus täglichen Zu- und Abgängen zurückgerechnet).</p>`:""}`:`<p class="notice">${y&&y.last?"Nicht eingerichtet."+(y.igErr&&!/noch nicht eingerichtet/.test(y.igErr)?" "+esc(y.igErr):""):"Zuerst oben YouTube verbinden, dieselbe Google-Tabelle wird mitbenutzt."}</p>`}
   <p class="notice" style="font-size:13px;line-height:1.7"><b>Eingerichtet.</b> Der Abholer im Code oben läuft für Instagram im selben 15-Minuten-Takt wie YouTube. Er nutzt einen Zugangsschlüssel (Token) und die Konto-Nummer, die nur in den <b>Skripteigenschaften</b> deines Google-Skripts stehen (<b>IG_TOKEN</b> und <b>IG_USER_ID</b>), nie im Code und nie hier im Hub. Er liest nur Aufrufe, Likes, Kommentare, Shares und die Follower-Zahl, und einmal am Tag die Tageswerte deines ganzen Instagram-Kontos seit Kontostart (Blatt „Instagram-Verlauf“, Instagram liefert bis zu 2 Jahre rückwirkend) und die täglichen Follower-Zu- und Abgänge (Blatt „Instagram-Follower“; daraus rechnet der Hub die Follower früherer Tage aus der heutigen Zahl zurück, als Schätzung markiert). Zugangs-Weg: Meta-App → Systemnutzer „Hub Leser“ mit den Rechten instagram_basic und instagram_manage_insights, Token ohne Ablaufdatum. Wenn Instagram einmal keine Zahlen mehr liefert, steht der Grund oben im Status. Dann hilft ein neues Token (Meta Business Settings → Systemnutzer → Token generieren) in der Skripteigenschaft <b>IG_TOKEN</b>. Der <b>CSV-Import</b> unten bleibt als Ersatz.</p>
@@ -2857,11 +2924,30 @@ async function syCycle(){if(!SY||!SY.url||SYBUSY)return;SYBUSY=true;SYMSG="";let
   SY.since=res.max||SY.since||0;SY.init=true;SY.last=Date.now();SY.err="";SY.stat={applied,pushed};
   if(applied){SYAPPLY=true;try{save()}finally{SYAPPLY=false}}
   if(!(SY.pend&&SY.pend["s:fa"]))faSeed();
+  setTimeout(()=>abRun(),5000);
  }catch(e){SY.err=e.message}
  SYBUSY=false;SYNEXT=Date.now()+(SY.err?60000:120000);sySave();
  const d=document.getElementById("sy-status");if(d)d.innerHTML=syStatus();
  if(applied&&!pbBusy){const typing=[...document.querySelectorAll("#main input:not([type=checkbox]):not([type=file]):not([type=date]):not([readonly]),#main textarea:not([readonly])")].some(x=>x.value&&x.id!=="sy-url"&&x.id!=="sy-code"&&x.id!=="yt-url");if(V!=="pb"&&V!=="cover"&&!typing)paint()}
  if(SYDIRTY){SYDIRTY=false;syKick()}}
+/* ============ Automatisches Backup in Google Drive (einmal am Tag, über dein Skript) ============ */
+const ABK="creator-hub-autobackup.v1";let ABBUSY=false;
+function abGet(){try{return JSON.parse(localStorage.getItem(ABK)||"{}")||{}}catch(e){return{}}}
+async function abRun(force){if(!SY||!SY.url||!READY||ABBUSY)return;const s=abGet();
+ if(!force&&((s.at&&Date.now()-s.at<20*3600e3)||(s.try&&Date.now()-s.try<3600e3)))return;
+ ABBUSY=true;s.try=Date.now();const d0=document.getElementById("ab-status");if(d0&&force)d0.innerHTML=`<p class="notice">Sichere …</p>`;
+ try{const j=await syPost({action:"backup",daten:db});if(!j.datei)throw new Error("Dein Google-Skript ist noch die alte Version. Bitte den neuen Code einfügen und eine neue Version bereitstellen.");
+  Object.assign(s,{at:Date.now(),err:"",datei:j.datei,anzahl:j.anzahl,mb:j.groesse});if(SY.alt){delete SY.alt;sySave()}}
+ catch(e){s.err=e.message}
+ ABBUSY=false;try{localStorage.setItem(ABK,JSON.stringify(s))}catch(e){}const d=document.getElementById("ab-status");if(d)d.innerHTML=abStatus()}
+function abStatus(){if(!SY)return`<p class="notice">Zuerst unten den Abgleich zwischen PC und Handy verbinden. Das Backup läuft über dasselbe Google-Skript.</p>`;const s=abGet();
+ const ok=s.at?`Letztes Backup: ${new Date(s.at).toLocaleString("de-DE")} (${esc(s.datei||"")}, ${((s.mb||0)/1048576).toFixed(1).replace(".",",")} MB). Im Ordner liegen ${nf(s.anzahl)} Backups.`:"";
+ if(s.err)return`<p class="err">${esc(s.err)}</p>${ok?`<p class="notice">${ok}</p>`:""}`;
+ if(!s.at)return`<p class="notice">Noch kein automatisches Backup. Das erste startet kurz nach dem nächsten Abgleich.</p>`;
+ return`<p class="ok">✓ ${ok}</p>`}
+function abPanel(){return`<section class="panel" style="margin:16px 0"><h2>Automatisches Backup in Google Drive</h2>
+ <p class="notice" style="font-size:13px;line-height:1.7">Einmal am Tag, wenn der Hub offen ist, legt dein eigenes Google-Skript ein Backup in deinem Google Drive ab (Ordner <b>„Creator Hub Backups“</b>). Behalten werden die <b>letzten 14 Tage</b> und von <b>jedem Monat das erste Backup</b>. Ältere löscht das Skript selbst (sie landen zuerst im Drive-Papierkorb). Das sind nur wenige MB im Jahr. Zurückholen: Datei aus dem Drive-Ordner herunterladen und oben bei „Backup importieren“ auswählen. Die Backups sind privat, nur du kommst daran.</p>
+ <div id="ab-status">${abStatus()}</div>${SY?`<p><button class="btn gh sm" onclick="A.abNow()">Jetzt sichern</button></p>`:""}</section>`}
 function syStatus(){if(!SY)return`<p class="notice">Noch nicht verbunden.</p>`;
  if(SY.err)return`<p class="err">${esc(SY.err)}</p>`;
  if(!SY.last)return`<p class="notice">Verbinde …</p>`;
@@ -2921,6 +3007,7 @@ function impPanel(){
 function pDaten(){return head("Daten & Backup","Deine Daten","Alles wird nur in diesem Browser auf diesem Gerät gespeichert. Es gibt keinen Server und keine Anmeldung.")+
  `<section class="panel" style="margin:16px 0"><h2>Backup</h2><p class="notice" style="font-size:13px">Lade regelmäßig ein Backup herunter, vor allem bevor du Browserdaten löschst. Wenn du die Datei hier wieder importierst, ist alles zurück. So kannst du die Daten auch auf ein anderes Gerät mitnehmen.</p>
  <p style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="A.export()">Backup herunterladen</button><label class="btn gh" style="cursor:pointer">Backup importieren<input type="file" accept=".json,application/json" hidden onchange="A.import(this)"></label><button class="btn gh" onclick="A.wipe()">Alles löschen</button></p><p class="${MSG.startsWith("✓")?"ok":"err"}">${MSG}</p></section>
+ ${abPanel()}
  ${syPanel()}
  ${ytPanel()}
  ${impPanel()}
@@ -3128,7 +3215,8 @@ const A={
   if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u)){alert("Das ist keine Web-App-URL. Sie beginnt mit https://script.google.com/macros/s/ und endet auf /exec.");return}
   if(c.length<12){alert("Der Sync-Code ist zu kurz. Nimm mindestens 12, besser 16 oder mehr Zeichen.");return}
   const same=SY&&SY.url===u&&SY.code===c;SY=same?SY:{url:u,code:c,base:{},pend:{},since:0,init:false,last:0,err:"",stat:null};sySave();SYNEXT=0;paint();syCycle()},
- syNow:()=>{SYNEXT=0;syCycle()},
+ syNow:()=>{SYNEXT=0;if(SY)delete SY.alt;syCycle()},
+ abNow:()=>{abRun(true)},
  syOff:()=>{if(confirm("Abgleich auf diesem Gerät trennen? Deine Daten hier bleiben erhalten.")){SY=null;try{localStorage.removeItem(SYK)}catch(e){}paint()}},
  ytCopy:b=>{const t=document.getElementById("gs-code").textContent.trim();const ok=()=>{b.textContent="✓ Kopiert"};try{navigator.clipboard.writeText(t).then(ok,()=>{b.textContent="Kasten anklicken, Strg+A, Strg+C"})}catch(e){b.textContent="Kasten anklicken, Strg+A, Strg+C"}},
  ytConnect:()=>{const u=(document.getElementById("yt-url").value||"").trim();if(!ytUrlOk(u)){db.yt=null;MSG="";alert("Das ist kein Google-Tabellen-Link (er muss mit https://docs.google.com/spreadsheets/ beginnen).");return}db.yt={url:u,last:0,err:"",info:null};save();paint();ytSync()},
