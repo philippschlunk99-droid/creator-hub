@@ -1593,7 +1593,7 @@ const stat=(l,v,f,g)=>`<div class="card"><div class="ml">${l}</div><div class="m
 const head=(e,t,i)=>`<div class="hub">PHILIPP'S CREATOR HUB</div><div class="notice eyb" style="margin-top:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc);font-weight:700">${e}</div><h1>${t}</h1>${i?`<p class="intro">${i}</p>`:""}`;
 
 /* ============ Seiten ============ */
-let V="dashboard",F={plat:"",sort:"datum"},OPEN=null,MSG="";
+let V="dashboard",F={plat:"",sort:"datum"},OPEN=null,MSG="",CLN=50;
 const NAV=[["dashboard","◧","Dashboard"],["follower","↗","Follower & Statistiken"],["radar","◎","Radar"],["planer","◔","Upload-Planer"],["geld","€","G-Tasty & Geld"],["clips","▤","Clip-Verwaltung"],["clipfinder","✂","Clip-Finder"],["tools","✦","Creator-Tools"],["daten","⚙","Daten & Backup"]];
 const BOLT='<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M13.5 2 4 13.5h6L8.5 22 20 9.5h-6.2z" fill="currentColor"/></svg>';
 let MORE=false;
@@ -1697,7 +1697,7 @@ function pClips(){
  <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:10px"><input type="checkbox" name="gtasty"> bei G-Tasty eingereicht</label>
  <div><button class="btn">Clip speichern</button></div></div></form></section>
  <div class="chips"><span class="chip ${!F.plat?"on":""}" onclick="A.fplat('')">Alle</span>${PLS.map(p=>`<span class="chip ${F.plat===p?"on":""}" onclick="A.fplat('${p}')">${PL[p]}</span>`).join("")}<span class="muted" style="font-size:12px;margin-left:10px">Sortieren:</span>${["datum","aufrufe","verdienst"].map(s=>`<span class="chip ${F.sort===s?"on":""}" onclick="A.fsort('${s}')">${s[0].toUpperCase()+s.slice(1)}</span>`).join("")}</div>
- <section class="panel tw">${rows.length?`<table><thead><tr><th>Titel</th><th>Plattform</th><th>Veröffentlicht</th><th class="num">Aufrufe</th><th>G-Tasty</th><th class="num">Erwarteter Bonus</th></tr></thead><tbody>${rows.map(({c,v,b})=>`<tr class="cl"><td><a onclick="A.open('${c.id}')"><b>${esc(c.title)}</b></a></td><td>${PL[c.platform]}</td><td>${dde(c.published)}</td><td class="num">${nf(v)}</td><td>${gtReady(c)?`<button class="pill" style="cursor:pointer;background:var(--red);color:#fff" onclick="A.open('${c.id}')">★ bereit zum Einreichen</button> `:""}<button class="pill ${c.gtasty?"":"w"}" style="cursor:pointer" onclick="A.toggle('${c.id}')">${c.gtasty?"eingereicht":"nicht eingereicht"}</button></td><td class="num">${b==null?"—":eur(b)}</td></tr>`).join("")}</tbody></table>`:emptyBox("Noch keine Clips. Füge oben deinen ersten Clip hinzu.")}
+ <section class="panel tw">${rows.length?`<table><thead><tr><th>Titel</th><th>Plattform</th><th>Veröffentlicht</th><th class="num">Aufrufe</th><th>G-Tasty</th><th class="num">Erwarteter Bonus</th></tr></thead><tbody>${rows.slice(0,CLN).map(({c,v,b})=>`<tr class="cl"><td><a onclick="A.open('${c.id}')"><b>${esc(c.title)}</b></a></td><td>${PL[c.platform]}</td><td>${dde(c.published)}</td><td class="num">${nf(v)}</td><td>${gtReady(c)?`<button class="pill" style="cursor:pointer;background:var(--red);color:#fff" onclick="A.open('${c.id}')">★ bereit zum Einreichen</button> `:""}<button class="pill ${c.gtasty?"":"w"}" style="cursor:pointer" onclick="A.toggle('${c.id}')">${c.gtasty?"eingereicht":"nicht eingereicht"}</button></td><td class="num">${b==null?"—":eur(b)}</td></tr>`).join("")}</tbody></table>${rows.length>CLN?`<p style="text-align:center;margin:14px 0 4px"><span class="muted" style="display:block;font-size:12px;margin-bottom:8px">${nf(Math.min(CLN,rows.length))} von ${nf(rows.length)} Clips</span><button class="btn gh" onclick="A.clMore()">Mehr laden (50)</button> <button class="btn gh" onclick="A.clMore(1)">Alle zeigen</button></p>`:""}`:emptyBox("Noch keine Clips. Füge oben deinen ersten Clip hinzu.")}
  <p class="notice">Der erwartete Betrag kommt aus der festen Staffel (oder deinem eingetragenen Betrag beim Clip), keine zugesagte Auszahlung.</p></section>`}
 
 function gtDetail(c){const a=db.gtAuto,l=latest(c,"9999-12-31"),rd=gtReady(c),r0=gtReached(c);
@@ -3018,7 +3018,7 @@ const A={
  plReset:()=>{if(confirm("Alle Kategorien und Regeln auf die Standardliste zurücksetzen? Deine Zuordnungen pro Clip bleiben erhalten."))plEdit(c=>{const d=JSON.parse(JSON.stringify(PL_DEF));c.list=d.list;c.rules=d.rules;c.thr=c.thr||50000})},
  plMore:()=>{PLN+=25;paint()},
  custom:(f,t)=>{R={preset:"custom",from:f||R.from,to:t||R.to};if(R.from>R.to)[R.from,R.to]=[R.to,R.from];paint()},
- fplat:p=>{F.plat=p;paint()},fsort:s=>{F.sort=s;paint()},open:id=>{OPEN=id;MSG="";V=id?"clip":"clips";if(id&&V==="clip"){}paint();window.scrollTo(0,0)},
+ fplat:p=>{F.plat=p;CLN=50;paint()},fsort:s=>{F.sort=s;CLN=50;paint()},clMore:all=>{const y=scrollY;CLN=all?1e9:CLN+50;paint();scrollTo(0,y)},open:id=>{OPEN=id;MSG="";V=id?"clip":"clips";if(id&&V==="clip"){}paint();window.scrollTo(0,0)},
  month:v=>{if(!/^\d{4}-\d{2}$/.test(v))return;PICK=null;CAL.s=null;const y=Number(v.slice(0,4)),m=Number(v.slice(5,7)),last=iso(new Date(y,m,0)),t=today();R={preset:"m:"+v,from:v+"-01",to:last>t?t:last};paint()},
  qPlat:v=>{QP=PLS.includes(v)?v:"tiktok";paint()},
  copyId:(id,b)=>{const el=document.getElementById(id);if(!el)return;const t=el.value!==undefined?el.value:el.textContent,done=()=>{const o=b.textContent;b.textContent="✓ Kopiert";setTimeout(()=>{if(b.isConnected)b.textContent=o},1600)};

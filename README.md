@@ -1,2 +1,2 @@
 # creator-hub
-Privates Creator-Dashboard (statische App). Ordner `site/` wird von Netlify veröffentlicht.
+Privates Creator-Dashboard (statische App). Der Ordner `docs/` wird über GitHub Pages veröffentlicht.
