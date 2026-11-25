@@ -976,6 +976,31 @@ function backupSpeichern(req) {
   return {ok: true, datei: name, anzahl: liste.length - weg, groesse: text.length};
 }
 
+// ---------- Cover aus dem Cover-Generator in Drive speichern ----------
+// Ziel: der Ordner aus der Skripteigenschaft COVER_ORDNER (Ordner-ID, z. B. ein Ordner aus einem anderen Konto,
+// der mit diesem Konto als Bearbeiter geteilt ist). Ohne Eigenschaft: Ordner "Creator Hub Cover" in diesem Drive.
+function coverSpeichern(req) {
+  var b64 = String(req.bild || "");
+  if (b64.length < 100 || b64.length > 20000000) return {ok: false, error: "Das Cover-Bild fehlt oder ist zu gross."};
+  var name = String(req.name || "Cover.png").replace(/[^\wÄÖÜäöüß.-]+/g, "_").slice(0, 80);
+  if (!/\.png$/i.test(name)) name += ".png";
+  var props = PropertiesService.getScriptProperties();
+  var ordner = null, id = props.getProperty("COVER_ORDNER");
+  if (id) {
+    try { ordner = DriveApp.getFolderById(id); } catch (e) {
+      return {ok: false, error: "Der Cover-Ordner (COVER_ORDNER) ist nicht erreichbar. Ist er mit diesem Google-Konto als Bearbeiter geteilt?"};
+    }
+  } else {
+    id = props.getProperty("coverOrdnerAuto");
+    if (id) { try { ordner = DriveApp.getFolderById(id); if (ordner.isTrashed()) ordner = null; } catch (e) { ordner = null; } }
+    if (!ordner) { ordner = DriveApp.createFolder("Creator Hub Cover"); props.setProperty("coverOrdnerAuto", ordner.getId()); }
+  }
+  var stempel = Utilities.formatDate(new Date(), "Europe/Berlin", "yyyy-MM-dd_HH-mm");
+  var blob = Utilities.newBlob(Utilities.base64Decode(b64), "image/png", name.replace(/\.png$/i, "") + "_" + stempel + ".png");
+  var f = ordner.createFile(blob);
+  return {ok: true, datei: f.getName(), ordner: ordner.getName()};
+}
+
 function doPost(e) {
   var lock = LockService.getScriptLock();
   try {
@@ -991,6 +1016,7 @@ function doPost(e) {
     if (req.action === "beleg") return antwort(belegErstellen(req.monat));
     if (req.action === "tabellen") return antwort(tabellenLesen(req));
     if (req.action === "backup") return antwort(backupSpeichern(req));
+    if (req.action === "cover") return antwort(coverSpeichern(req));
     lock.waitLock(25000);
     var f = hubDatei();
     var st = {};
@@ -2293,7 +2319,7 @@ function pCover(){return head("Creator-Tool","Cover-Generator","Screenshot aus d
  <label class="f">Links / Rechts</label><input id="cv-x" type="range" min="-100" max="100" style="width:100%;accent-color:#ffc400">
  <label class="f">Hoch / Runter</label><input id="cv-y" type="range" min="-100" max="100" style="width:100%;accent-color:#ffc400"></section>
  <section class="panel" style="margin-top:14px"><h2>3. Vorschau &amp; Download</h2><div style="display:flex;justify-content:center"><canvas id="cv-canvas" width="1080" height="1920" style="width:100%;max-width:360px;aspect-ratio:9/16;border-radius:14px;border:1px solid var(--line2)"></canvas></div>
- <p style="margin-top:14px"><button class="btn" id="cv-dl">Cover herunterladen</button></p>
+ <p style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="cv-dl">Cover herunterladen</button>${SY&&SY.url?`<button class="btn gh" id="cv-drive">In Drive speichern</button>`:""}</p><p id="cv-dmsg" style="margin:6px 0 0">${SY&&SY.url?"":`<span class="muted" style="font-size:12px">„In Drive speichern“ erscheint, sobald der Abgleich zwischen PC und Handy verbunden ist.</span>`}</p>
  <p class="notice">Danach bei TikTok oder Instagram beim Posten auf „Cover bearbeiten“ tippen und das Bild aus der Galerie wählen. Titel kurz halten (3–4 Wörter), damit man ihn im Profil-Raster noch lesen kann.</p></section>`}
 function coverInit(){const $=id=>document.getElementById(id),cv=$("cv-canvas");if(!cv)return;const ctx=cv.getContext("2d"),W=1080,H=1920;
  if(!document.getElementById("cv-font")){const l=document.createElement("link");l.id="cv-font";l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap";document.head.appendChild(l)}
@@ -2317,6 +2343,13 @@ function coverInit(){const $=id=>document.getElementById(id),cv=$("cv-canvas");i
  $("cv-dl").addEventListener("click",()=>{draw();cv.toBlob(async b=>{const n="Cover_"+((CV.t1.trim()||"Gtastyclips").replace(/[^\wÄÖÜäöüß-]+/g,"_"))+".png",file=new File([b],n,{type:"image/png"});
   if(navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){try{await navigator.share({files:[file],title:"Cover"});return}catch(e){if(e.name==="AbortError")return}}
   const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=n;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)},"image/png")});
+ const dbtn=$("cv-drive");if(dbtn)dbtn.addEventListener("click",async()=>{draw();const m=$("cv-dmsg");dbtn.disabled=true;m.innerHTML=`<span class="notice">Wird in Drive gespeichert …</span>`;
+  try{const n="Cover_"+((CV.t1.trim()||"Gtastyclips").replace(/[^\wÄÖÜäöüß-]+/g,"_"))+".png";
+   const j=await syPost({action:"cover",name:n,bild:cv.toDataURL("image/png").split(",")[1]});
+   if(!j.datei)throw new Error("Dein Google-Skript ist noch die alte Version. Bitte den neuen Code einfügen und eine neue Version bereitstellen.");
+   m.innerHTML=`<span class="ok">✓ Gespeichert in Drive: ${esc(j.ordner||"")} / ${esc(j.datei)}</span>`}
+  catch(e){m.innerHTML=`<span class="err">${esc(e.message)}</span>`}
+  dbtn.disabled=false});
  CV.tpl.onload=draw;(document.fonts?document.fonts.load(FONT(118)):Promise.resolve()).finally(draw);draw()}
 /* ============ Clip-Finder: findet in einem langen Video die besten Stellen für Shorts ============ */
 const CF={file:null,vel:null,url:"",key:"",dur:0,busy:false,step:"",pct:0,msg:"",err:"",model:"onnx-community/whisper-small",segs:[],clips:[],sel:{},mode:"blur",cx:50,prev:-1,exp:null,paste:"",pasteOpen:false,gpu:null,worker:null,wid:0,waits:{}};
