@@ -2830,7 +2830,7 @@ async function ytSync(){if(!db.yt||YTBUSY||(!ytUrlOk(db.yt.url)&&!(SY&&SY.url)))
    try{db.yt.ttInfo=ytApply(await ld("TikTok"),"tiktok");db.yt.ttErr=""}catch(e){db.yt.ttInfo=null;db.yt.ttErr=e.message}}}
  catch(e){db.yt.err=e.message}
  YTBUSY=false;YTNEXT=Date.now()+(db.yt&&db.yt.err?60000:YTEVERY);YTFLASH=!!(db.yt&&!db.yt.err);save();
- const typing=[...document.querySelectorAll("#main input:not([type=checkbox]):not([type=file]):not([type=date]):not([readonly]),#main textarea:not([readonly])")].some(x=>x.value&&x.id!=="yt-url");
+ const typing=[...document.querySelectorAll("#main input:not([type=checkbox]):not([type=file]):not([type=date]):not([readonly]),#main textarea:not([readonly])")].some(x=>x.value&&x.id!=="yt-url"&&x.id!=="sy-url"&&x.id!=="sy-code");
  if(!pbBusy&&V!=="pb"&&V!=="cover"&&!typing)paint()}
 function ytPanel(){const y=db.yt,code=document.getElementById("gs-code").textContent.trim();
  const st=!y?"":y.err?`<p class="err">${esc(y.err)}</p>`:y.last?`<p class="ok">✓ Verbunden. Zuletzt geladen: ${new Date(y.last).toLocaleString("de-DE")} (${y.info?y.info.videos+" Videos, "+y.info.days+(y.info.days===1?" Tag":" Tage"):""}).</p>${y.chanDays?`<p class="ok">✓ Kanalverlauf seit Kanalstart geladen (${nf(y.chanDays)} Tage).</p>`:`<p class="notice">Kanalverlauf seit Kanalstart: noch nicht vorhanden (das Blatt „Kanalverlauf“ fehlt oder ist leer). Siehe „Verlauf nachladen“ unten.</p>`}`:`<p class="notice">Wird geladen …</p>`;
