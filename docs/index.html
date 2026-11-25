@@ -2941,7 +2941,7 @@ async function abRun(force){if(!SY||!SY.url||!READY||ABBUSY)return;const s=abGet
  catch(e){s.err=e.message}
  ABBUSY=false;try{localStorage.setItem(ABK,JSON.stringify(s))}catch(e){}const d=document.getElementById("ab-status");if(d)d.innerHTML=abStatus()}
 function abStatus(){if(!SY)return`<p class="notice">Zuerst unten den Abgleich zwischen PC und Handy verbinden. Das Backup läuft über dasselbe Google-Skript.</p>`;const s=abGet();
- const ok=s.at?`Letztes Backup: ${new Date(s.at).toLocaleString("de-DE")} (${esc(s.datei||"")}, ${((s.mb||0)/1048576).toFixed(1).replace(".",",")} MB). Im Ordner liegen ${nf(s.anzahl)} Backups.`:"";
+ const ok=s.at?`Letztes Backup: ${new Date(s.at).toLocaleString("de-DE")} (${esc(s.datei||"")}, ${((s.mb||0)/1048576).toFixed(1).replace(".",",")} MB). Backups im Ordner: ${nf(s.anzahl)}.`:"";
  if(s.err)return`<p class="err">${esc(s.err)}</p>${ok?`<p class="notice">${ok}</p>`:""}`;
  if(!s.at)return`<p class="notice">Noch kein automatisches Backup. Das erste startet kurz nach dem nächsten Abgleich.</p>`;
  return`<p class="ok">✓ ${ok}</p>`}
