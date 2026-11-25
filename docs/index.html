@@ -1762,9 +1762,11 @@ function pG(){
  <section class="panel"><h2>So kommt das Geld an</h2><p class="notice">Auszahlung als USDC (Solana) an deine hinterlegte Wallet bei Kraken, dort in Euro tauschen und per SEPA aufs Bankkonto überweisen. Erste Auszahlung laut G-Tasty: 1. Dezember 2026, die nächste nach deiner Angabe am 1. Januar 2027.</p></section>`}
 
 /* ============ Einnahmen & Ausgaben ============ */
+/* Vorlagen aus Belegen, die der Nutzer geschickt hat: ein Klick trägt die Ausgabe ein */
+const FIN_TPL=[{name:"CapCut Pro",amt:2.39,kind:"monat",from:"2026-11-10",note:"Schnittprogramm, Tarif Pro monthly, bezahlt mit Mastercard (Abrechnungsverlauf der App)"}];
 const FIN_KIND={monat:"monatlich",jahr:"jährlich",einmal:"einmalig"},FIN_SRC=["TikTok","YouTube","Instagram","Twitch","Sonstiges"];
 function finClean(r){const ok=x=>typeof x==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(x);
- return{exp:(Array.isArray(r.exp)?r.exp:[]).filter(e=>e&&typeof e.id==="string"&&typeof e.name==="string"&&isFinite(e.amt)&&ok(e.from)&&FIN_KIND[e.kind]).map(e=>({id:e.id,name:e.name.slice(0,80),amt:Number(e.amt),kind:e.kind,from:e.from,to:ok(e.to)?e.to:""})),
+ return{exp:(Array.isArray(r.exp)?r.exp:[]).filter(e=>e&&typeof e.id==="string"&&typeof e.name==="string"&&isFinite(e.amt)&&ok(e.from)&&FIN_KIND[e.kind]).map(e=>({id:e.id,name:e.name.slice(0,80),amt:Number(e.amt),kind:e.kind,from:e.from,to:ok(e.to)?e.to:"",note:typeof e.note==="string"?e.note.slice(0,120):""})),
   inc:(Array.isArray(r.inc)?r.inc:[]).filter(e=>e&&typeof e.id==="string"&&typeof e.name==="string"&&isFinite(e.amt)&&ok(e.date)).map(e=>({id:e.id,name:e.name.slice(0,80),amt:Number(e.amt),date:e.date,src:typeof e.src==="string"?e.src.slice(0,30):"Sonstiges"}))}}
 const finGet=()=>db.fin&&Array.isArray(db.fin.exp)&&Array.isArray(db.fin.inc)?db.fin:{exp:[],inc:[]};
 function finEdit(fn){if(!db.fin||!Array.isArray(db.fin.exp)||!Array.isArray(db.fin.inc))db.fin={exp:[],inc:[]};fn(db.fin);save();paint()}
@@ -1848,15 +1850,17 @@ function pFin(){
  ${ks.length||undated?`<div class="tw"><table><thead><tr><th>Monat</th><th class="num">Einnahmen</th><th class="num">Ausgaben</th><th class="num">Gewinn</th></tr></thead><tbody>${ks.map(k=>`<tr><td>${monDe(k)}</td><td class="num">${eur(M[k].i)}</td><td class="num">${eur(M[k].e)}</td><td class="num"><b style="${col(M[k].i-M[k].e)}">${sg(M[k].i-M[k].e)}</b></td></tr>`).join("")}${undated?`<tr><td>Ohne Datum (G-Tasty ausgezahlt)</td><td class="num">${eur(undated)}</td><td class="num">—</td><td class="num"><b>${sg(undated)}</b></td></tr>`:""}<tr><td><b>Zusammen</b></td><td class="num"><b>${eur(inc)}</b></td><td class="num"><b>${eur(exp)}</b></td><td class="num"><b style="${col(gain)}">${sg(gain)}</b></td></tr></tbody></table></div>`:emptyBox("Noch nichts eingetragen. Trage unten deine Ausgaben ein, zum Beispiel Claude Pro. G-Tasty-Auszahlungen erscheinen hier von selbst, sobald du sie auf der Auszahlungen-Seite als „Ausgezahlt“ einträgst.")}
  <p class="notice">Steuern sind hier nicht eingerechnet, das ist nur dein Überblick vor Steuern. Eine Ausgabe zählt ab dem Monat, in dem sie beginnt.</p></section>
  <section class="panel" style="margin-bottom:14px"><h2>Ausgabe eintragen</h2>
+ ${FIN_TPL.map((t,i)=>finGet().exp.some(e=>e.name===t.name&&e.from===t.from)?"":`<div class="notice" style="margin:0 0 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span><b>Aus deinem Beleg:</b> ${esc(t.name)}, ${eur(t.amt)} ${FIN_KIND[t.kind]}, Kauf am ${dde(t.from)}.</span><button class="btn sm" onclick="A.finTpl(${i})">Mit einem Klick eintragen</button></div>`).join("")}
  <form onsubmit="return A.finAddExp(event)"><div class="fg">
  <div class="span2"><label class="f">Wofür?</label><input class="in" name="name" list="fin-names" placeholder="z. B. Claude Pro" required><datalist id="fin-names">${nm.map(n=>`<option value="${esc(n)}">`).join("")}</datalist></div>
  <div><label class="f">Betrag in € (pro Zahlung)</label><input class="in" name="amt" inputmode="decimal" placeholder="0,00" required></div>
  <div><label class="f">Wie oft?</label><select class="in" name="kind"><option value="monat">monatlich</option><option value="jahr">jährlich</option><option value="einmal">einmalig (Kauf)</option></select></div>
  <div><label class="f">Ab (Datum der ersten Zahlung)</label><input class="in" type="date" name="from" value="${T}" required></div>
  <div><label class="f">Läuft bis (leer = läuft weiter)</label><input class="in" type="date" name="to"></div>
+ <div class="span2"><label class="f">Notiz (optional)</label><input class="in" name="note" maxlength="120" placeholder="z. B. Tarif, Zahlungsart"></div>
  <div><button class="btn">Ausgabe speichern</button></div></div></form>
  <p class="notice">Kosten für den Umtausch von USDC in Euro bei Kraken oder Gebühren für Gemini trägst du am besten als „einmalig“ ein, mit dem Betrag in Euro.</p>
- ${fin.exp.length?`<div class="tw"><table><thead><tr><th>Wofür</th><th>Wie oft</th><th class="num">Betrag</th><th>Ab</th><th>Bis</th><th class="num">Bisher bezahlt</th><th></th></tr></thead><tbody>${[...fin.exp].sort((a,b)=>b.from.localeCompare(a.from)).map(e=>`<tr><td><b>${esc(e.name)}</b></td><td>${FIN_KIND[e.kind]}</td><td class="num">${eur(e.amt)}</td><td>${dde(e.from)}</td><td>${e.to?dde(e.to):e.kind==="einmal"?"—":"läuft"}</td><td class="num">${eur(finCharges(e,T).reduce((a,x)=>a+x.amt,0))}</td><td><a onclick="A.finDel('exp','${e.id}')">löschen</a></td></tr>`).join("")}</tbody></table></div>`:""}</section>
+ ${fin.exp.length?`<div class="tw"><table><thead><tr><th>Wofür</th><th>Wie oft</th><th class="num">Betrag</th><th>Ab</th><th>Bis</th><th class="num">Bisher bezahlt</th><th></th></tr></thead><tbody>${[...fin.exp].sort((a,b)=>b.from.localeCompare(a.from)).map(e=>`<tr><td><b>${esc(e.name)}</b>${e.note?`<div class="mf">${esc(e.note)}</div>`:""}</td><td>${FIN_KIND[e.kind]}</td><td class="num">${eur(e.amt)}</td><td>${dde(e.from)}</td><td>${e.to?dde(e.to):e.kind==="einmal"?"—":"läuft"}</td><td class="num">${eur(finCharges(e,T).reduce((a,x)=>a+x.amt,0))}</td><td><a onclick="A.finDel('exp','${e.id}')">löschen</a></td></tr>`).join("")}</tbody></table></div>`:""}</section>
  <section class="panel" style="margin-bottom:14px"><h2>Eigene Einnahmen eintragen</h2>
  <p class="notice">Hier kommt alles hinein, was nicht von G-Tasty kommt (zum Beispiel Geld von TikTok oder YouTube). <b>G-Tasty trägst du hier nicht ein</b>, das holt sich der Hub von der Auszahlungen-Seite.</p>
  <form onsubmit="return A.finAddInc(event)"><div class="fg">
@@ -3061,7 +3065,9 @@ const A={
  belegCopy:b=>{const bl=(db.beleg||{})[BM];if(!bl)return;const t=bl.url,ok=()=>{b.textContent="✓ Kopiert"},fb=()=>{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}ta.remove();ok()};try{navigator.clipboard.writeText(t).then(ok,fb)}catch(e){fb()}},
  finAddExp:e=>{const f=fd(e),n=num(f.amt);if(!f.name.trim()||!(n>0)||!f.from||!FIN_KIND[f.kind]){MSG="Bitte Name, Betrag (größer als 0) und Datum eintragen.";paint();return false}
   if(f.to&&f.to<f.from){MSG="„Läuft bis“ darf nicht vor dem Startdatum liegen.";paint();return false}
-  finEdit(d=>d.exp.push({id:uid(),name:f.name.trim().slice(0,80),amt:n,kind:f.kind,from:f.from,to:f.kind==="einmal"?"":(f.to||"")}));MSG="✓ Ausgabe gespeichert.";paint();return false},
+  finEdit(d=>d.exp.push({id:uid(),name:f.name.trim().slice(0,80),amt:n,kind:f.kind,from:f.from,to:f.kind==="einmal"?"":(f.to||""),note:String(f.note||"").trim().slice(0,120)}));MSG="✓ Ausgabe gespeichert.";paint();return false},
+ finTpl:i=>{const t=FIN_TPL[i];if(!t)return;if(finGet().exp.some(e=>e.name===t.name&&e.from===t.from)){MSG="Die Ausgabe „"+t.name+"“ ist schon eingetragen.";paint();return}
+  finEdit(d=>d.exp.push({id:uid(),name:t.name,amt:t.amt,kind:t.kind,from:t.from,to:"",note:t.note}));MSG="✓ "+t.name+" eingetragen: "+eur(t.amt)+" "+FIN_KIND[t.kind]+" ab "+dde(t.from)+".";paint()},
  finAddInc:e=>{const f=fd(e),n=num(f.amt);if(!f.name.trim()||!(n>0)||!f.date){MSG="Bitte Name, Betrag (größer als 0) und Datum eintragen.";paint();return false}
   finEdit(d=>d.inc.push({id:uid(),name:f.name.trim().slice(0,80),amt:n,date:f.date,src:FIN_SRC.includes(f.src)?f.src:"Sonstiges"}));MSG="✓ Einnahme gespeichert.";paint();return false},
  finDel:(k,id)=>{if(k!=="exp"&&k!=="inc")return;finEdit(d=>{d[k]=d[k].filter(x=>x.id!==id)});MSG="✓ Gelöscht.";paint()},
